@@ -58,6 +58,7 @@ export default function UniTab() {
     grade: "",
     status: "pending",
     weightPercent: "",
+    followupPeople: [] as string[], // or whatever type you use
   });
   const [newNote, setNewNote] = useState({ title: "", content: "", courseId: "" });
   const [hiddenCourses, setHiddenCourses] = useState<number[]>([]);
