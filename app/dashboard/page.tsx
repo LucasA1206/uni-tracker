@@ -14,6 +14,7 @@ interface AccountInfo {
   name: string;
   username: string;
   universityEmail: string;
+  canvasApiToken?: string | null;
 }
 
 export default function DashboardPage() {
@@ -44,6 +45,7 @@ export default function DashboardPage() {
         name: data.user.name,
         username: data.user.username,
         universityEmail: data.user.universityEmail,
+        canvasApiToken: data.user.canvasApiToken ?? "",
       });
     } catch (err) {
       console.error(err);
@@ -72,6 +74,7 @@ export default function DashboardPage() {
           name: account.name,
           username: account.username,
           universityEmail: account.universityEmail,
+          canvasApiToken: account.canvasApiToken ?? "",
           currentPassword: currentPassword || undefined,
           newPassword: newPassword || undefined,
           confirmNewPassword: confirmNewPassword || undefined,
@@ -86,6 +89,7 @@ export default function DashboardPage() {
         name: data.user.name,
         username: data.user.username,
         universityEmail: data.user.universityEmail,
+        canvasApiToken: data.user.canvasApiToken ?? "",
       });
       setCurrentPassword("");
       setNewPassword("");
@@ -221,6 +225,21 @@ export default function DashboardPage() {
                       setAccount((prev) => (prev ? { ...prev, universityEmail: e.target.value } : prev))
                     }
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium mb-1">Canvas API Key</label>
+                  <input
+                    type="password"
+                    className="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={account.canvasApiToken ?? ""}
+                    onChange={(e) =>
+                      setAccount((prev) => (prev ? { ...prev, canvasApiToken: e.target.value } : prev))
+                    }
+                  />
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    This key is stored per-account and used to sync your courses and assignments from Canvas.
+                  </p>
                 </div>
 
                 <div className="rounded-md bg-slate-900/80 border border-slate-700 p-3 space-y-2">

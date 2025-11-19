@@ -22,6 +22,7 @@ export async function GET() {
       name: true,
       username: true,
       universityEmail: true,
+      canvasApiToken: true,
     },
   });
 
@@ -44,6 +45,7 @@ export async function PATCH(req: NextRequest) {
     currentPassword,
     newPassword,
     confirmNewPassword,
+    canvasApiToken,
   } = body as {
     name?: string;
     username?: string;
@@ -51,6 +53,7 @@ export async function PATCH(req: NextRequest) {
     currentPassword?: string;
     newPassword?: string;
     confirmNewPassword?: string;
+    canvasApiToken?: string;
   };
 
   const user = await prisma.user.findUnique({ where: { id: auth.userId } });
@@ -87,6 +90,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Email is already in use" }, { status: 400 });
     }
     data.universityEmail = universityEmail.trim();
+  }
+
+  if (typeof canvasApiToken === "string") {
+    const trimmed = canvasApiToken.trim();
+    data.canvasApiToken = trimmed.length > 0 ? trimmed : null;
   }
 
   if (newPassword || confirmNewPassword) {
@@ -129,6 +137,7 @@ export async function PATCH(req: NextRequest) {
       name: true,
       username: true,
       universityEmail: true,
+      canvasApiToken: true,
     },
   });
 

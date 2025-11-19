@@ -18,6 +18,8 @@ model User {
   passwordHash    String
   role            String           @default("user") // "user" | "admin"
 
+  canvasApiToken  String?
+
   uniCourses      UniCourse[]
   workTasks       WorkTask[]
   notes           Note[]

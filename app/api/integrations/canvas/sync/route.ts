@@ -5,14 +5,6 @@ import { getAuthUser } from "@/lib/auth";
 const CANVAS_BASE_URL = process.env.CANVAS_BASE_URL;
 const CANVAS_API_TOKEN = process.env.CANVAS_API_TOKEN; // optional default / fallback
 
-// Map specific usernames to their own Canvas API tokens from env
-const USER_CANVAS_TOKENS: Record<string, string | undefined> = {
-  LucasA001: process.env.CANVAS_API_TOKEN1,
-  RileyS001: process.env.CANVAS_API_TOKEN2,
-  LucasA06: process.env.CANVAS_API_TOKEN1,
-  Riley001: process.env.CANVAS_API_TOKEN2,
-};
-
 export async function POST(_req: NextRequest) {
   if (!CANVAS_BASE_URL) {
     return NextResponse.json(
@@ -21,16 +13,23 @@ export async function POST(_req: NextRequest) {
     );
   }
 
-  const user = await getAuthUser();
-  if (!user) {
+  const auth = await getAuthUser();
+  if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const perUserToken = USER_CANVAS_TOKENS[user.username];
-  const apiToken = perUserToken || CANVAS_API_TOKEN;
+  const dbUser = await prisma.user.findUnique({
+    where: { id: auth.userId },
+    select: { canvasApiToken: true },
+  });
+
+  const apiToken = dbUser?.canvasApiToken || CANVAS_API_TOKEN;
   if (!apiToken) {
     return NextResponse.json(
-      { error: "No Canvas API token configured for this user. Set a per-user token or CANVAS_API_TOKEN." },
+      {
+        error:
+          "No Canvas API token configured. Add your Canvas API Key in the Account panel or set CANVAS_API_TOKEN.",
+      },
       { status: 400 },
     );
   }
@@ -66,12 +65,12 @@ export async function POST(_req: NextRequest) {
     const course = await prisma.uniCourse.upsert({
       where: {
         userId_canvasId: {
-          userId: user.userId,
+          userId: auth.userId,
           canvasId,
         },
       },
       create: {
-        userId: user.userId,
+        userId: auth.userId,
         name: c.name,
         code,
         canvasId,
