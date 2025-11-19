@@ -107,8 +107,10 @@ export async function getOutlookEventsForUser(userId: number): Promise<OutlookEv
   return events
     .filter((e) => e && (e.start?.dateTime || e.start?.date))
     .map((e) => {
-      const start = e.start?.dateTime ?? e.start?.date;
-      const end = e.end?.dateTime ?? e.end?.date ?? start;
+      // Ensure start/end are always strings to satisfy the OutlookEvent type
+      const start = (e.start?.dateTime ?? e.start?.date) ?? "";
+      const end = (e.end?.dateTime ?? e.end?.date) ?? start;
+
       return {
         id: `outlook-${e.id}`,
         title: e.subject || "(no subject)",
@@ -117,7 +119,6 @@ export async function getOutlookEventsForUser(userId: number): Promise<OutlookEv
         type: "outlook" as const,
       };
     });
-}
 
 export async function getOutlookEmailsForUser(userId: number): Promise<OutlookEmail[]> {
   const record = await ensureMicrosoftAccessToken(userId);
