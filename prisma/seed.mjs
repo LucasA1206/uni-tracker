@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash("SuperD00per", 10);
+  const passwordHash = await bcrypt.hash("LiverpoolSucks123", 10);
 
   await prisma.user.upsert({
     where: { username: "LucasA06" },
@@ -13,15 +13,17 @@ async function main() {
       username: "LucasA06",
       passwordHash,
       role: "admin",
+      name: "LucasA06",
     },
-  },
+  }),
     await prisma.user.upsert({
         where: { username: "Riley001" },
         update: {},
         create: {
         username: "Riley001",
-        password: "LiverpoolSucks123",
+        passwordHash,
         role: "admin",
+        name: "Riley001",
         },
   });
 
