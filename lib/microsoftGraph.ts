@@ -119,6 +119,7 @@ export async function getOutlookEventsForUser(userId: number): Promise<OutlookEv
         type: "outlook" as const,
       };
     });
+}
 
 export async function getOutlookEmailsForUser(userId: number): Promise<OutlookEmail[]> {
   const record = await ensureMicrosoftAccessToken(userId);
