@@ -12,7 +12,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "";
 export async function getAuthUser(): Promise<AuthUser | null> {
   try {
     const store = await cookies();
-    // @ts-expect-error: cookies() in Next 16 returns a promise resolving to a store with get()
     const token = store.get("auth-token")?.value as string | undefined;
     if (!token || !JWT_SECRET) return null;
 
