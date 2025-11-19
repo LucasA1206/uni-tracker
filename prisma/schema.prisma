@@ -1,0 +1,126 @@
+// Prisma schema for Uni & Work tracker
+// SQLite is used for simplicity (works locally and on Vercel with file-based DB).
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  universityEmail String? @unique
+  id              Int              @id @default(autoincrement())
+  name            String
+  username        String           @unique
+  passwordHash    String
+  role            String           @default("user") // "user" | "admin"
+
+  uniCourses      UniCourse[]
+  workTasks       WorkTask[]
+  notes           Note[]
+  events          CalendarEvent[]
+  microsoftTokens MicrosoftToken[]
+  emailMessages   EmailMessage[]
+}
+
+model PendingUser {
+  id               Int      @id @default(autoincrement())
+  name             String
+  username         String   @unique
+  universityEmail  String
+  passwordHash     String
+  verificationCode String
+  expiresAt        DateTime
+}
+
+model UniCourse {
+  id          Int           @id @default(autoincrement())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      Int
+  name        String
+  code        String
+  canvasId    String?
+  assignments Assignment[]
+  notes       Note[]
+
+  @@unique([userId, canvasId])
+}
+
+model Assignment {
+  id             Int        @id @default(autoincrement())
+  course         UniCourse  @relation(fields: [courseId], references: [id])
+  courseId       Int
+  title          String
+  description    String?
+  dueDate        DateTime
+  weight         Float
+  maxGrade       Float
+  grade          Float?
+  status         String     @default("pending")
+  followupPeople String?    // JSON-encoded array of people names
+  canvasId       String?
+
+  @@unique([courseId, canvasId])
+}
+
+model Note {
+  id          Int        @id @default(autoincrement())
+  user        User       @relation(fields: [userId], references: [id])
+  userId      Int
+  course      UniCourse? @relation(fields: [courseId], references: [id])
+  courseId    Int?
+  title       String
+  content     String
+  createdAt   DateTime   @default(now())
+}
+
+model WorkTask {
+  id             Int      @id @default(autoincrement())
+  user           User     @relation(fields: [userId], references: [id])
+  userId         Int
+  title          String
+  context        String?
+  status         String   @default("todo")
+  dueDate        DateTime?
+  source         String?
+  externalId     String?
+  followupPeople String?  // JSON-encoded array of people names
+}
+
+model CalendarEvent {
+  id              Int       @id @default(autoincrement())
+  user            User      @relation(fields: [userId], references: [id])
+  userId          Int
+  title           String
+  description     String?
+  start           DateTime
+  end             DateTime
+  type            String
+  sourceId        String?
+  sourceExtraJson String?
+}
+
+model MicrosoftToken {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+}
+
+model EmailMessage {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  messageId   String   @unique
+  subject     String
+  from        String
+  receivedAt  DateTime
+  preview     String?
+  isTask      Boolean  @default(false)
+  rawJson     String?
+}
