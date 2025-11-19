@@ -9,7 +9,7 @@ const CANVAS_API_TOKEN = process.env.CANVAS_API_TOKEN; // optional default / fal
 const USER_CANVAS_TOKENS: Record<string, string | undefined> = {
   LucasA001: process.env.CANVAS_API_TOKEN1,
   RileyS001: process.env.CANVAS_API_TOKEN2,
-  LucasA06L process.env.CANVAS_API_TOKEN1,
+  LucasA06: process.env.CANVAS_API_TOKEN1,
   Riley001: process.env.CANVAS_API_TOKEN2,
 };
 
