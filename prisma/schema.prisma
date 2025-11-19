@@ -2,7 +2,7 @@
 // SQLite is used for simplicity (works locally and on Vercel with file-based DB).
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
