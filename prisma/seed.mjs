@@ -14,6 +14,15 @@ async function main() {
       passwordHash,
       role: "admin",
     },
+  },
+    await prisma.user.upsert({
+        where: { username: "Riley001" },
+        update: {},
+        create: {
+        username: "Riley001",
+        password: "LiverpoolSucks123",
+        role: "admin",
+        },
   });
 
   console.log("Seeded default admin user: LucasA06 / SuperD00per");
