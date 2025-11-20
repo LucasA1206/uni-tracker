@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
-import { sendVerificationEmail } from "@/lib/email";
 
-const CODE_TTL_MINUTES = 15;
-
-function generateCode() {
-  // 6-digit numeric code using crypto for better randomness
-  const n = crypto.randomInt(0, 1_000_000);
-  return n.toString().padStart(6, "0");
-}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function isValidEmail(email: string) {
   return /.+@.+\..+/.test(email);
@@ -22,6 +15,13 @@ function isStrongPassword(pw: string) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!JWT_SECRET) {
+    return NextResponse.json(
+      { error: "Server misconfigured: JWT_SECRET is not set" },
+      { status: 500 },
+    );
+  }
+
   const body = await req.json().catch(() => null);
   if (!body) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
@@ -64,29 +64,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Username or university email is already in use" }, { status: 400 });
   }
 
-  // Clean up any old pending for this username/email to avoid conflicts
-  await prisma.pendingUser.deleteMany({
-    where: {
-      OR: [{ username }, { universityEmail }],
-    },
-  });
-
   const passwordHash = await bcrypt.hash(password, 12);
-  const code = generateCode();
-  const expiresAt = new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000);
 
-  await prisma.pendingUser.create({
+  const user = await prisma.user.create({
     data: {
       name,
       username,
       universityEmail,
       passwordHash,
-      verificationCode: code,
-      expiresAt,
     },
   });
 
-  await sendVerificationEmail(universityEmail, code);
+  const token = jwt.sign(
+    { userId: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: "7d" },
+  );
 
-  return NextResponse.json({ success: true });
+  const res = NextResponse.json({ success: true });
+  res.cookies.set("auth-token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 7 * 24 * 60 * 60,
+    path: "/",
+  });
+
+  return res;
 }

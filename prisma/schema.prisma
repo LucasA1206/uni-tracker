@@ -11,7 +11,7 @@ generator client {
 }
 
 model User {
-  universityEmail String? @unique
+  universityEmail String @unique
   id              Int              @id @default(autoincrement())
   name            String
   username        String           @unique
@@ -28,15 +28,6 @@ model User {
   emailMessages   EmailMessage[]
 }
 
-model PendingUser {
-  id               Int      @id @default(autoincrement())
-  name             String
-  username         String   @unique
-  universityEmail  String
-  passwordHash     String
-  verificationCode String
-  expiresAt        DateTime
-}
 
 model UniCourse {
   id          Int           @id @default(autoincrement())
