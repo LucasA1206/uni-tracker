@@ -27,7 +27,8 @@ async function main() {
         },
   });
 
-  console.log("Seeded default admin user: LucasA06 / SuperD00per");
+  console.log({ passwordHash });
+  console.log("Seeded default admin user: LucasA06 / LiverpoolSucks123");
 }
 
 main()

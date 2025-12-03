@@ -1,22 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, dateFnsLocalizer } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
-import { enAU } from "date-fns/locale/en-AU";
-import "react-big-calendar/lib/css/react-big-calendar.css";
+import { FullScreenCalendar } from "@/components/ui/fullscreen-calendar";
+import { format } from "date-fns";
 
-const locales = {
-  "en-AU": enAU,
-};
-
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek: () => startOfWeek(new Date()),
-  getDay,
-  locales,
-});
+// removed react-big-calendar in favor of FullScreenCalendar
 
 interface CalendarEvent {
   id: string;
@@ -24,6 +12,7 @@ interface CalendarEvent {
   start: string;
   end: string;
   type: string;
+  meta?: Record<string, unknown>;
 }
 
 export default function CalendarTab() {
@@ -65,21 +54,21 @@ export default function CalendarTab() {
           Connect Outlook
         </a>
       </div>
-      <p className="text-xs text-slate-400">
-        Shows uni assignment due dates, note creation dates, work task deadlines, and (later) Outlook/Canvas
-        events.
-      </p>
-      <div className="h-[550px] rounded-lg bg-slate-900/60 p-2 text-xs">
-        <Calendar
-          localizer={localizer}
-          events={events.map((e) => ({
-            ...e,
-            start: new Date(e.start),
-            end: new Date(e.end),
-          }))}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: "100%" }}
+      <div className="rounded-lg bg-slate-900/60 p-3">
+        <h3 className="mb-2 text-sm font-semibold text-slate-100">Calendar</h3>
+        <FullScreenCalendar
+          data={(() => {
+            const byDay: Record<string, { day: Date; events: { id: number; name: string; time: string; datetime: string; type?: string; meta?: Record<string, unknown> }[] }> = {};
+            for (let i = 0; i < events.length; i++) {
+              const e = events[i];
+              const d = new Date(e.start);
+              const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
+              if (!byDay[key]) byDay[key] = { day: new Date(d.getFullYear(), d.getMonth(), d.getDate()), events: [] };
+              const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+              byDay[key].events.push({ id: i + 1, name: e.title, time: timeStr, datetime: e.start, type: e.type, meta: e.meta });
+            }
+            return Object.values(byDay);
+          })()}
         />
       </div>
     </div>

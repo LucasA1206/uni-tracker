@@ -96,7 +96,13 @@ function computeCourseWeightedGrades(assignments: AssignmentForCharts[]) {
 
 function computeTimeline(assignments: AssignmentForCharts[]) {
   const points = assignments
-    .filter((a) => a.grade != null)
+    .filter((a) => {
+      if (a.grade == null) return false;
+      const d = new Date(a.dueDate);
+      if (!isFinite(d.getTime())) return false;
+      if (d.getFullYear() === 1970) return false; // exclude items with no due date
+      return true;
+    })
     .map((a) => ({ x: a.dueDate, y: (a.grade! / a.maxGrade) * 100 }));
 
   points.sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
