@@ -122,30 +122,30 @@ export default function WorkTab() {
   return (
     <div className="space-y-4">
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Work tasks</h2>
-        <form onSubmit={addTask} className="grid gap-2 rounded-lg bg-slate-900/60 p-3 md:grid-cols-4">
+        <h2 className="text-lg font-semibold text-foreground">Work tasks</h2>
+        <form onSubmit={addTask} className="grid gap-2 rounded-lg border bg-card p-3 md:grid-cols-4">
           <input
-            className="rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-sm md:col-span-1"
+            className="rounded-md bg-background border border-border px-2 py-1 text-sm md:col-span-1"
             placeholder="Task title"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           />
           <input
-            className="rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-sm md:col-span-2"
+            className="rounded-md bg-background border border-border px-2 py-1 text-sm md:col-span-2"
             placeholder="Context (what are you doing?)"
             value={form.context}
             onChange={(e) => setForm((f) => ({ ...f, context: e.target.value }))}
           />
           <div className="md:col-span-4 space-y-1">
-            <div className="text-[11px] font-medium text-slate-300">People to follow up</div>
+            <div className="text-[11px] font-medium text-muted-foreground">People to follow up</div>
             <div className="flex flex-wrap gap-2">
               {FOLLOWUP_PEOPLE.map((p) => {
                 const checked = form.followupPeople.includes(p);
                 return (
-                  <label key={p} className="flex items-center gap-1 text-[11px] text-slate-200">
+                  <label key={p} className="flex items-center gap-1 text-[11px] text-foreground">
                     <input
                       type="checkbox"
-                      className="h-3 w-3 rounded border-slate-600 bg-slate-900"
+                      className="h-3 w-3 rounded border-border bg-background"
                       checked={checked}
                       onChange={() =>
                         setForm((f) => {
@@ -171,7 +171,7 @@ export default function WorkTab() {
           </div>
           <input
             type="date"
-            className="rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-sm md:col-span-1"
+            className="rounded-md bg-background border border-border px-2 py-1 text-sm md:col-span-1"
             value={form.dueDate}
             onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
           />
@@ -186,21 +186,21 @@ export default function WorkTab() {
 
       <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">Your tasks</h3>
+          <h3 className="text-sm font-semibold text-foreground">Your tasks</h3>
           <button
             type="button"
-            className="rounded-full border border-slate-600 px-3 py-1 text-[11px] text-slate-100 hover:bg-slate-800"
+            className="rounded-full border px-3 py-1 text-[11px] hover:bg-muted"
             onClick={() => void syncEmails()}
           >
             Sync Outlook emails
           </button>
         </div>
-        <div className="space-y-2 rounded-lg bg-slate-900/60 p-3 max-h-80 overflow-auto text-xs">
-          {tasks.length === 0 && <p className="text-slate-500">No tasks yet.</p>}
+        <div className="space-y-2 rounded-lg border bg-card p-3 max-h-80 overflow-auto text-xs">
+          {tasks.length === 0 && <p className="text-muted-foreground">No tasks yet.</p>}
           <div className="grid gap-3 md:grid-cols-3">
             {(["todo", "in_progress", "done"] as const).map((statusKey) => (
               <div key={statusKey} className="space-y-2">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {statusKey === "todo"
                     ? "To-Do"
                     : statusKey === "in_progress"
@@ -208,21 +208,21 @@ export default function WorkTab() {
                     : "Done"}
                 </div>
                 {tasksByStatus[statusKey].length === 0 && (
-                  <p className="text-[11px] text-slate-600">No items.</p>
+                  <p className="text-[11px] text-muted-foreground">No items.</p>
                 )}
                 {tasksByStatus[statusKey].map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-start justify-between gap-3 border-b border-slate-800/80 pb-2 last:border-0 last:pb-0"
+                    className="flex items-start justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0"
                   >
                     <div>
                       <div className="font-medium">{t.title}</div>
-                      {t.context && <div className="text-slate-400 whitespace-pre-line">{t.context}</div>}
+                      {t.context && <div className="text-muted-foreground whitespace-pre-line">{t.context}</div>}
                       {t.dueDate && (
-                        <div className="text-slate-500">Due {new Date(t.dueDate).toLocaleDateString()}</div>
+                        <div className="text-muted-foreground">Due {new Date(t.dueDate).toLocaleDateString()}</div>
                       )}
                       {t.followupPeople && t.followupPeople.length > 0 && (
-                        <div className="mt-1 text-[11px] text-slate-400">
+                        <div className="mt-1 text-[11px] text-muted-foreground">
                           People: {t.followupPeople.join(", ")}
                         </div>
                       )}

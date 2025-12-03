@@ -52,6 +52,7 @@ interface CalendarData {
 
 interface FullScreenCalendarProps {
   data: CalendarData[]
+  onRefresh?: () => void
 }
 
 const colStartClasses = [
@@ -72,6 +73,14 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)")
   const [openEvent, setOpenEvent] = React.useState<{ event: Event; day: Date } | null>(null)
   const [openDay, setOpenDay] = React.useState<{ day: Date; events: Event[] } | null>(null)
+  const [openCreate, setOpenCreate] = React.useState(false)
+  const [createForm, setCreateForm] = React.useState<{ title: string; description: string; date: string; startTime: string; endTime: string }>({
+    title: "",
+    description: "",
+    date: format(today, "yyyy-MM-dd"),
+    startTime: "09:00",
+    endTime: "10:00",
+  })
 
   const days = eachDayOfInterval({
     start: startOfWeek(firstDayCurrentMonth),
@@ -129,7 +138,7 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
           <Separator orientation="vertical" className="hidden h-6 md:block" />
           <Separator orientation="horizontal" className="block w-full md:hidden" />
 
-          <Button className="w全文 md:w-auto gap-2">
+          <Button className="w全文 md:w-auto gap-2" onClick={() => setOpenCreate(true)}>
             <PlusCircleIcon size={16} strokeWidth={2} aria-hidden="true" />
             <span>New Event</span>
           </Button>
@@ -295,7 +304,6 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">{openEvent.event.name}</h3>
-              <Button variant="ghost" size="sm" onClick={() => setOpenEvent(null)}>Close</Button>
             </div>
             <Separator className="my-3" />
             <div className="space-y-2 text-xs">
@@ -339,8 +347,9 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
                   dangerouslySetInnerHTML={{ __html: openEvent.event.meta.description }}
                 />
               )}
-              {openEvent.event.meta?.canvasUrl && (
-                <div className="pt-2">
+              <div className="pt-2 flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setOpenEvent(null)}>Close</Button>
+                {openEvent.event.meta?.canvasUrl && (
                   <a
                     href={openEvent.event.meta.canvasUrl}
                     target="_blank"
@@ -349,8 +358,8 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
                   >
                     Open in Canvas
                   </a>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -383,6 +392,96 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+      {openCreate && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setOpenCreate(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border bg-background p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Add Event</h3>
+            </div>
+            <Separator className="my-3" />
+            <form
+              className="space-y-2 text-xs"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                const startIso = new Date(`${createForm.date}T${createForm.startTime}`).toISOString()
+                const endIso = new Date(`${createForm.date}T${createForm.endTime}`).toISOString()
+                await fetch("/api/calendar/events", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    title: createForm.title,
+                    description: createForm.description || undefined,
+                    start: startIso,
+                    end: endIso,
+                    type: "manual",
+                  }),
+                })
+                setOpenCreate(false)
+                setCreateForm({ title: "", description: "", date: format(today, "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00" })
+                ;(typeof window !== "undefined") && window.dispatchEvent(new CustomEvent("calendar-refresh"))
+              }}
+            >
+              <div className="grid gap-2">
+                <label className="text-[11px]">Title</label>
+                <input
+                  className="rounded-md border px-2 py-1"
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="Event title"
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-[11px]">Description</label>
+                <textarea
+                  className="min-h-[80px] rounded-md border px-2 py-1"
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Optional description"
+                />
+              </div>
+              <div className="grid gap-2 md:grid-cols-3">
+                <div className="grid gap-1">
+                  <label className="text-[11px]">Date</label>
+                  <input
+                    type="date"
+                    className="rounded-md border px-2 py-1"
+                    value={createForm.date}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, date: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-[11px]">Start</label>
+                  <input
+                    type="time"
+                    className="rounded-md border px-2 py-1"
+                    value={createForm.startTime}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, startTime: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-[11px]">End</label>
+                  <input
+                    type="time"
+                    className="rounded-md border px-2 py-1"
+                    value={createForm.endTime}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, endTime: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="pt-2 flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setOpenCreate(false)}>Cancel</Button>
+                <Button type="submit" size="sm">Add</Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

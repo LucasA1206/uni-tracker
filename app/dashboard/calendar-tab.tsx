@@ -42,20 +42,20 @@ export default function CalendarTab() {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Calendar</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-lg font-semibold text-foreground">Calendar</h2>
+          <p className="text-xs text-muted-foreground">
             Shows uni assignment due dates, note creation dates, work task deadlines, and Outlook/Canvas events.
           </p>
         </div>
         <a
           href="/api/integrations/microsoft/login"
-          className="rounded-full border border-slate-600 px-3 py-1 text-[11px] text-slate-100 hover:bg-slate-800"
+          className="rounded-full border px-3 py-1 text-[11px] hover:bg-muted"
         >
           Connect Outlook
         </a>
       </div>
-      <div className="rounded-lg bg-slate-900/60 p-3">
-        <h3 className="mb-2 text-sm font-semibold text-slate-100">Calendar</h3>
+      <div className="rounded-lg border p-3 bg-card">
+        <h3 className="mb-2 text-sm font-semibold text-foreground">Calendar</h3>
         <FullScreenCalendar
           data={(() => {
             const byDay: Record<string, { day: Date; events: { id: number; name: string; time: string; datetime: string; type?: string; meta?: Record<string, unknown> }[] }> = {};
@@ -69,6 +69,7 @@ export default function CalendarTab() {
             }
             return Object.values(byDay);
           })()}
+          onRefresh={refresh}
         />
       </div>
     </div>
