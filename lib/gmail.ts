@@ -94,7 +94,7 @@ export async function getGmailEmailsForUser(userId: number): Promise<GmailEmail[
   if (messageIds.length === 0) return [];
 
   // Fetch details for each message
-  const emailPromises = messageIds.slice(0, 50).map(async (messageId) => {
+  const emailPromises = messageIds.slice(0, 50).map(async (messageId): Promise<GmailEmail | null> => {
     try {
       const messageRes = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
