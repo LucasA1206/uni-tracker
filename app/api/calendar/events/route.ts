@@ -12,16 +12,50 @@ export async function GET() {
   const [assignments, notes, tasks, outlookEvents, manualEvents] = await Promise.all([
     prisma.assignment.findMany({
       where: { course: { userId: user.userId } },
-      include: { course: { select: { code: true, canvasId: true } } },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        dueDate: true,
+        weight: true,
+        maxGrade: true,
+        grade: true,
+        status: true,
+        canvasId: true,
+        course: { select: { code: true, canvasId: true } },
+      },
       orderBy: { dueDate: "asc" },
     }),
     prisma.note.findMany({
       where: { userId: user.userId },
-      include: { course: { select: { code: true } } },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        course: { select: { code: true } },
+      },
     }),
-    prisma.workTask.findMany({ where: { userId: user.userId } }),
+    prisma.workTask.findMany({
+      where: { userId: user.userId },
+      select: {
+        id: true,
+        title: true,
+        dueDate: true,
+      },
+    }),
     getOutlookEventsForUser(user.userId),
-    prisma.calendarEvent.findMany({ where: { userId: user.userId }, orderBy: { start: "asc" } }),
+    prisma.calendarEvent.findMany({
+      where: { userId: user.userId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        start: true,
+        end: true,
+        type: true,
+      },
+      orderBy: { start: "asc" },
+    }),
   ]);
 
   const events = [

@@ -25,7 +25,9 @@ model User {
   notes           Note[]
   events          CalendarEvent[]
   microsoftTokens MicrosoftToken[]
+  gmailTokens     GmailToken[]
   emailMessages   EmailMessage[]
+  people          Person[]
 }
 
 
@@ -40,6 +42,7 @@ model UniCourse {
   notes       Note[]
 
   @@unique([userId, canvasId])
+  @@index([userId])
 }
 
 model Assignment {
@@ -57,6 +60,9 @@ model Assignment {
   canvasId       String?
 
   @@unique([courseId, canvasId])
+  @@index([courseId])
+  @@index([dueDate])
+  @@index([status])
 }
 
 model Note {
@@ -68,6 +74,10 @@ model Note {
   title       String
   content     String
   createdAt   DateTime   @default(now())
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([createdAt])
 }
 
 model WorkTask {
@@ -81,6 +91,10 @@ model WorkTask {
   source         String?
   externalId     String?
   followupPeople String?  // JSON-encoded array of people names
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([dueDate])
 }
 
 model CalendarEvent {
@@ -94,6 +108,9 @@ model CalendarEvent {
   type            String
   sourceId        String?
   sourceExtraJson String?
+
+  @@index([userId])
+  @@index([userId, start])
 }
 
 model MicrosoftToken {
@@ -103,6 +120,16 @@ model MicrosoftToken {
   accessToken  String
   refreshToken String
   expiresAt    DateTime
+}
+
+model GmailToken {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  email        String?  // Store the connected email address
 }
 
 model EmailMessage {
@@ -116,4 +143,14 @@ model EmailMessage {
   preview     String?
   isTask      Boolean  @default(false)
   rawJson     String?
+  hidden      Boolean  @default(false)
+}
+
+model Person {
+  id     Int    @id @default(autoincrement())
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int
+  name   String
+
+  @@unique([userId, name])
 }

@@ -40,6 +40,11 @@ export default function DashboardPage() {
       const res = await fetch("/api/account/me");
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 401) {
+          // Unauthorized - redirect to login
+          router.replace("/login");
+          return;
+        }
         setAccountError(data.error ?? "Failed to load account");
         return;
       }
@@ -51,7 +56,8 @@ export default function DashboardPage() {
       });
     } catch (err) {
       console.error(err);
-      setAccountError("Failed to load account");
+      // On error, try to redirect to login if it's an auth issue
+      router.replace("/login");
     } finally {
       setAccountLoading(false);
     }

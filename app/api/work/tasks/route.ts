@@ -8,6 +8,14 @@ export async function GET() {
 
   const tasks = await prisma.workTask.findMany({
     where: { userId: user.userId },
+    select: {
+      id: true,
+      title: true,
+      context: true,
+      status: true,
+      dueDate: true,
+      followupPeople: true,
+    },
     orderBy: { id: "desc" },
   });
 
@@ -49,6 +57,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
+  // Verify ownership first
+  const existingTask = await prisma.workTask.findFirst({
+    where: { id: body.id, userId: user.userId },
+  });
+  if (!existingTask) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
   const task = await prisma.workTask.update({
     where: { id: body.id },
     data: {
@@ -59,6 +75,14 @@ export async function PATCH(req: NextRequest) {
       followupPeople: Array.isArray(body.followupPeople)
         ? JSON.stringify(body.followupPeople)
         : undefined,
+    },
+    select: {
+      id: true,
+      title: true,
+      context: true,
+      status: true,
+      dueDate: true,
+      followupPeople: true,
     },
   });
 

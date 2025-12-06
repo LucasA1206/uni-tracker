@@ -7,9 +7,9 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const emails = await prisma.emailMessage.findMany({
-    where: { userId: user.userId },
+    where: { userId: user.userId, hidden: false },
     orderBy: { receivedAt: "desc" },
-    take: 50,
+    take: 100,
   });
 
   return NextResponse.json({ emails });

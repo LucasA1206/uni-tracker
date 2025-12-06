@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import GradeCharts, { AssignmentForCharts } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
 
@@ -66,7 +66,7 @@ export default function UniTab() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [sessionFilter, setSessionFilter] = useState<string>("all");
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       const [coursesRes, assignmentsRes, notesRes] = await Promise.all([
         fetch("/api/uni/courses"),
@@ -90,17 +90,11 @@ export default function UniTab() {
     } catch (err) {
       console.error("Failed to refresh Uni data", err);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        await refresh();
-      } catch {
-        // ignore initial load errors
-      }
-    })();
-  }, []);
+    void refresh();
+  }, [refresh]);
 
   async function addCourse(e: React.FormEvent) {
     e.preventDefault();
@@ -198,32 +192,39 @@ export default function UniTab() {
     );
   }
 
-  const assignmentsByCourse = courses.map((course) => {
-    const courseAssignments = assignments.filter((a) => a.course.id === course.id);
-    return {
-      course,
-      byStatus: {
-        pending: courseAssignments.filter((a) => a.status === "pending"),
-        in_progress: courseAssignments.filter((a) => a.status === "in_progress"),
-        completed: courseAssignments.filter((a) => a.status === "completed"),
-      },
-    };
-  });
+  const assignmentsByCourse = useMemo(() => {
+    return courses.map((course) => {
+      const courseAssignments = assignments.filter((a) => a.course.id === course.id);
+      return {
+        course,
+        byStatus: {
+          pending: courseAssignments.filter((a) => a.status === "pending"),
+          in_progress: courseAssignments.filter((a) => a.status === "in_progress"),
+          completed: courseAssignments.filter((a) => a.status === "completed"),
+        },
+      };
+    });
+  }, [courses, assignments]);
 
-  const notesByCourse: Record<string, Note[]> = {};
-  for (const note of notes as any[]) {
-    const key = note.course?.code ?? "Unassigned";
-    if (!notesByCourse[key]) notesByCourse[key] = [];
-    notesByCourse[key].push(note);
-  }
+  const notesByCourse = useMemo<Record<string, Note[]>>(() => {
+    const result: Record<string, Note[]> = {};
+    for (const note of notes as any[]) {
+      const key = note.course?.code ?? "Unassigned";
+      if (!result[key]) result[key] = [];
+      result[key].push(note);
+    }
+    return result;
+  }, [notes]);
 
-  const sessionOptions = Array.from(
-    new Set(
-      courses
-        .map((c) => getSessionFromCourse(c))
-        .filter((s) => s !== "Unknown"),
-    ),
-  ).sort();
+  const sessionOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        courses
+          .map((c) => getSessionFromCourse(c))
+          .filter((s) => s !== "Unknown"),
+      ),
+    ).sort();
+  }, [courses]);
 
   return (
     <div className="grid gap-6 md:grid-cols-3">
@@ -619,21 +620,24 @@ export default function UniTab() {
             )}
           </div>
           <GradeCharts
-            assignments={assignments
-              .filter((a) => !hiddenForCharts.includes(a.course.id))
-              .filter((a) => {
-                if (sessionFilter === "all") return true;
-                const course = courses.find((c) => c.id === a.course.id);
-                const session = course ? getSessionFromCourse(course) : "Unknown";
-                return session === sessionFilter;
-              })
-              .map<AssignmentForCharts>((a) => ({
-                courseCode: a.course.code,
-                weight: a.weight,
-                maxGrade: a.maxGrade,
-                grade: a.grade,
-                dueDate: a.dueDate,
-              }))}
+            assignments={useMemo(() => 
+              assignments
+                .filter((a) => !hiddenForCharts.includes(a.course.id))
+                .filter((a) => {
+                  if (sessionFilter === "all") return true;
+                  const course = courses.find((c) => c.id === a.course.id);
+                  const session = course ? getSessionFromCourse(course) : "Unknown";
+                  return session === sessionFilter;
+                })
+                .map<AssignmentForCharts>((a) => ({
+                  courseCode: a.course.code,
+                  weight: a.weight,
+                  maxGrade: a.maxGrade,
+                  grade: a.grade,
+                  dueDate: a.dueDate,
+                })),
+              [assignments, hiddenForCharts, sessionFilter, courses]
+            )}
           />
         </div>
       </section>
