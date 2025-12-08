@@ -1,4 +1,4 @@
-# Uni & Work Tracker
+# Uni & Work Tracker 1
 
 A web-based dashboard to track:
 
