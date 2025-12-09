@@ -11,6 +11,15 @@ export type GmailEmail = {
   preview?: string;
 };
 
+export type GoogleCalendarEvent = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  type: "google";
+  description?: string;
+};
+
 async function refreshGmailAccessToken(userId: number) {
   const record = await prisma.gmailToken.findUnique({ where: { userId } });
   if (!record) return null;
@@ -152,5 +161,61 @@ export async function getGmailEmailsForUser(userId: number): Promise<GmailEmail[
 
   const emails = await Promise.all(emailPromises);
   return emails.filter((e): e is GmailEmail => e !== null);
+}
+
+export async function getGoogleCalendarEventsForUser(userId: number): Promise<GoogleCalendarEvent[]> {
+  const record = await ensureGmailAccessToken(userId);
+  if (!record) return [];
+
+  try {
+    // Get calendar events from Google Calendar API
+    const now = new Date();
+    const timeMin = now.toISOString();
+    const timeMax = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days ahead
+
+    const res = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&maxResults=250&singleEvents=true&orderBy=startTime`,
+      {
+        headers: {
+          Authorization: `Bearer ${record.accessToken}`,
+          Accept: "application/json",
+        },
+      },
+    );
+
+    if (!res.ok) {
+      return [];
+    }
+
+    const data = (await res.json()) as {
+      items?: Array<{
+        id: string;
+        summary?: string;
+        start?: { dateTime?: string; date?: string };
+        end?: { dateTime?: string; date?: string };
+        description?: string;
+      }>;
+    };
+
+    const events = data.items ?? [];
+
+    return events
+      .filter((e) => e.start && (e.start.dateTime || e.start.date))
+      .map((e) => {
+        const start = e.start?.dateTime || e.start?.date || "";
+        const end = e.end?.dateTime || e.end?.date || start;
+
+        return {
+          id: `google-${e.id}`,
+          title: e.summary || "(no title)",
+          start,
+          end,
+          type: "google" as const,
+          description: e.description,
+        };
+      });
+  } catch {
+    return [];
+  }
 }
 

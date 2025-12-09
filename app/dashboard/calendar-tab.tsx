@@ -70,13 +70,13 @@ export default function CalendarTab() {
         </div>
         <div className="flex gap-2">
           <a
-            href="/api/integrations/gmail/login"
+            href="/oauth-consent?provider=gmail"
             className="rounded-full border px-3 py-1 text-[11px] hover:bg-muted"
           >
             Connect Gmail
           </a>
           <a
-            href="/api/integrations/microsoft/login"
+            href="/oauth-consent?provider=outlook"
             className="rounded-full border px-3 py-1 text-[11px] hover:bg-muted"
           >
             Connect Outlook

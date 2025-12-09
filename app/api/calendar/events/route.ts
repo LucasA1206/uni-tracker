@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { getOutlookEventsForUser } from "@/lib/microsoftGraph";
+import { getGoogleCalendarEventsForUser } from "@/lib/gmail";
 
 const CANVAS_BASE_URL = process.env.CANVAS_BASE_URL;
 
@@ -9,7 +10,7 @@ export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [assignments, notes, tasks, outlookEvents, manualEvents] = await Promise.all([
+  const [assignments, notes, tasks, outlookEvents, googleEvents, manualEvents] = await Promise.all([
     prisma.assignment.findMany({
       where: { course: { userId: user.userId } },
       select: {
@@ -44,6 +45,7 @@ export async function GET() {
       },
     }),
     getOutlookEventsForUser(user.userId),
+    getGoogleCalendarEventsForUser(user.userId),
     prisma.calendarEvent.findMany({
       where: { userId: user.userId },
       select: {
@@ -110,6 +112,14 @@ export async function GET() {
         type: "work",
       })),
     ...outlookEvents,
+    ...googleEvents.map((e) => ({
+      id: e.id,
+      title: e.title,
+      start: e.start,
+      end: e.end,
+      type: e.type,
+      meta: e.description ? { description: e.description } : undefined,
+    })),
   ];
 
   return NextResponse.json({ events });

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     client_id: clientId,
     redirect_uri: finalRedirectUri,
     response_type: "code",
-    scope: "https://www.googleapis.com/auth/gmail.readonly",
+    scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly",
     access_type: "offline",
     prompt: "consent", // Force consent to get refresh token
   });

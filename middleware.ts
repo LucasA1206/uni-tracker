@@ -4,6 +4,9 @@ import type { NextRequest } from "next/server";
 const PUBLIC_PATHS = [
   "/login",
   "/signup",
+  "/privacy-policy",
+  "/oauth-consent",
+  "/google-verification",
   "/api/auth/login",
   "/api/auth/signup",
   "/api/auth/signup/start",

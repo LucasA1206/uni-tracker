@@ -6,11 +6,26 @@ export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const emails = await prisma.emailMessage.findMany({
-    where: { userId: user.userId, hidden: false },
-    orderBy: { receivedAt: "desc" },
-    take: 100,
-  });
+  // Check if hidden field exists by trying to query it, fallback if it doesn't
+  let emails;
+  try {
+    emails = await prisma.emailMessage.findMany({
+      where: { userId: user.userId, hidden: false },
+      orderBy: { receivedAt: "desc" },
+      take: 100,
+    });
+  } catch (error: any) {
+    // If hidden field doesn't exist yet, query without it
+    if (error?.code === "P2022" || error?.message?.includes("hidden")) {
+      emails = await prisma.emailMessage.findMany({
+        where: { userId: user.userId },
+        orderBy: { receivedAt: "desc" },
+        take: 100,
+      });
+    } else {
+      throw error;
+    }
+  }
 
   return NextResponse.json({ emails });
 }

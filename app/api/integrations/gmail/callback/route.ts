@@ -107,6 +107,38 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // Sync Google Calendar events after connecting
+  try {
+    const { getGoogleCalendarEventsForUser } = await import("@/lib/gmail");
+    const calendarEvents = await getGoogleCalendarEventsForUser(user.userId);
+    
+    // Store events in database
+    for (const event of calendarEvents) {
+      const eventId = event.id.replace("google-", "");
+      const existing = await prisma.calendarEvent.findFirst({
+        where: { userId: user.userId, sourceId: eventId, type: "google" },
+      });
+
+      if (!existing) {
+        await prisma.calendarEvent.create({
+          data: {
+            userId: user.userId,
+            title: event.title,
+            description: event.description || null,
+            start: new Date(event.start),
+            end: new Date(event.end),
+            type: "google",
+            sourceId: eventId,
+            sourceExtraJson: null,
+          },
+        });
+      }
+    }
+  } catch (err) {
+    // Continue even if calendar sync fails
+    console.error("Failed to sync Google Calendar events", err);
+  }
+
   return NextResponse.redirect(new URL("/dashboard?connected=gmail", req.url));
 }
 
