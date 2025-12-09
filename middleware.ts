@@ -22,6 +22,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow Google verification files (files in public folder are served before middleware, but this ensures they're not blocked)
+  if (pathname.startsWith("/google") && pathname.endsWith(".html")) {
+    return NextResponse.next();
+  }
+
   // Allow API routes that handle their own authentication
   if (pathname.startsWith("/api/")) {
     return NextResponse.next();
