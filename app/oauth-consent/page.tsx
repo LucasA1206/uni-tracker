@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function OAuthConsentPage() {
+function OAuthConsentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [provider, setProvider] = useState<string | null>(null);
@@ -132,6 +132,20 @@ export default function OAuthConsentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OAuthConsentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="mx-auto max-w-2xl rounded-lg border bg-card p-6 md:p-8">
+          <p className="text-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <OAuthConsentContent />
+    </Suspense>
   );
 }
 
