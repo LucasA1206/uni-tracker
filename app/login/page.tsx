@@ -89,6 +89,14 @@ export default function LoginPage() {
           Sign up here
         </button>
       </p>
+      <div className="absolute bottom-4 left-4 z-10">
+        <a
+          href="/privacy-policy"
+          className="text-xs text-white/60 hover:text-white/80 underline-offset-2 hover:underline"
+        >
+          Privacy Policy
+        </a>
+      </div>
     </MinimalAuthPage>
   );
 }

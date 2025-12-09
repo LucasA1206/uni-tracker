@@ -359,6 +359,12 @@ export default function DashboardPage() {
                         >
                           Delete account
                         </button>
+                        <a
+                          href="/privacy-policy"
+                          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline-offset-2 hover:underline mt-1"
+                        >
+                          Privacy Policy
+                        </a>
                       </div>
                     </div>
                   </form>
