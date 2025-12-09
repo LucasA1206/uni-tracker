@@ -18,11 +18,11 @@ const items: { key: Tab; label: string; icon: React.ComponentType<{ className?: 
 
 export default function Sidebar({ active, onChange }: SidebarProps) {
   return (
-    <aside className="w-60 shrink-0 bg-white/80 dark:bg-[#0D0F1A]/80 backdrop-blur border-r border-gray-200 dark:border-[#1F1F23]">
+    <aside className="w-60 shrink-0 bg-white/80 dark:bg-[#0D0F1A]/80 backdrop-blur border-r border-gray-200 dark:border-[#1F1F23] flex flex-col">
       <div className="h-24 bg-gradient-to-r from-indigo-600 via-sky-500 to-cyan-400 flex items-center justify-center">
         <div className="text-white font-bold tracking-wide">UNI TRACKER</div>
       </div>
-      <nav className="p-3 space-y-1">
+      <nav className="p-3 space-y-1 flex-1">
         {items.map(({ key, label, icon: Icon }) => {
           const selected = key === active;
           return (
@@ -42,6 +42,14 @@ export default function Sidebar({ active, onChange }: SidebarProps) {
           );
         })}
       </nav>
+      <div className="p-3 border-t border-gray-200 dark:border-[#1F1F23]">
+        <a
+          href="/privacy-policy"
+          className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline-offset-2 hover:underline transition"
+        >
+          Privacy Policy
+        </a>
+      </div>
     </aside>
   );
 }
