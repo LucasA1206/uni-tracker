@@ -12,6 +12,7 @@ interface FinanceProfile {
   spendingPercent: number;
   investingPercent: number;
   savingsInterestRatePA: number;
+  usdToAudRate?: number;
 }
 
 interface FortnightData {
