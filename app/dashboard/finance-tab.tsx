@@ -249,7 +249,9 @@ export default function FinanceTab() {
 
   const totalAtTop = useMemo(() => {
     if (!profile) return 0;
-    return profile.savingsBalance + profile.spendingBalance + profile.investingCashBalance + stocksValueAud;
+    const rate = profile.usdToAudRate ?? 1.5;
+    const usdCashAud = profile.investingCashBalanceUsd * rate;
+    return profile.savingsBalance + profile.spendingBalance + profile.investingCashBalance + stocksValueAud + usdCashAud;
   }, [profile, stocksValueAud]);
 
   const monthlyInterest = useMemo(() => {
@@ -688,7 +690,7 @@ export default function FinanceTab() {
       <section>
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Investing (stocks)</h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-          Total in stocks (AUD): {formatMoney(stocksValueAud)}. Total investing (cash + stocks): {formatMoney((profile?.investingCashBalance ?? 0) + stocksValueAud)}.
+          Total in stocks (AUD): {formatMoney(stocksValueAud)}. Total investing (cash + stocks): {formatMoney((profile?.investingCashBalance ?? 0) + stocksValueAud + (profile?.investingCashBalanceUsd ?? 0) * (profile?.usdToAudRate ?? 1.5))}.
         </p>
 
         <form onSubmit={addHolding} className="mb-4 space-y-3 rounded-lg border border-gray-200 dark:border-[#2A2A2E] p-4">
