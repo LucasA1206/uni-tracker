@@ -37,6 +37,7 @@ export async function PATCH(req: NextRequest) {
     spendingPercent,
     investingPercent,
     savingsInterestRatePA,
+    investingCashBalanceUsd,
   } = body as {
     savingsBalance?: number;
     spendingBalance?: number;
@@ -45,6 +46,7 @@ export async function PATCH(req: NextRequest) {
     spendingPercent?: number;
     investingPercent?: number;
     savingsInterestRatePA?: number;
+    investingCashBalanceUsd?: number;
   };
 
   const data: Record<string, number> = {};
@@ -60,6 +62,8 @@ export async function PATCH(req: NextRequest) {
     data.investingPercent = investingPercent;
   if (typeof savingsInterestRatePA === "number" && savingsInterestRatePA >= 0)
     data.savingsInterestRatePA = savingsInterestRatePA;
+  if (typeof investingCashBalanceUsd === "number" && investingCashBalanceUsd >= 0)
+    data.investingCashBalanceUsd = investingCashBalanceUsd;
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });

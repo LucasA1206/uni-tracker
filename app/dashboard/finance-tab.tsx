@@ -7,6 +7,7 @@ interface FinanceProfile {
   savingsBalance: number;
   spendingBalance: number;
   investingCashBalance: number;
+  investingCashBalanceUsd: number;
   savingPercent: number;
   spendingPercent: number;
   investingPercent: number;
@@ -85,6 +86,73 @@ function calcMedicareLevyAnnual(
   // Reduction range: levy is 10% of income over lower threshold, capped at 2%.
   const reduced = 0.10 * (x - lower);
   return Math.min(base, reduced);
+}
+
+interface AccountBalanceInputProps {
+  label: string;
+  balance: number;
+  onChange: (newBalance: number) => void;
+  onSave: (newBalance: number) => void;
+}
+
+function AccountBalanceInput({ label, balance, onChange, onSave }: AccountBalanceInputProps) {
+  const [modAmount, setModAmount] = useState("");
+
+  const handleUpdate = (factor: number) => {
+    const amount = parseFloat(modAmount);
+    if (!amount || amount <= 0) return;
+    const newBal = balance + amount * factor;
+    onChange(newBal);
+    onSave(newBal);
+    setModAmount("");
+  };
+
+  return (
+    <div>
+      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          className="w-full rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
+          value={balance === 0 ? "" : balance}
+          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          onBlur={(e) => onSave(parseFloat(e.target.value) || 0)}
+        />
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => handleUpdate(1)}
+          className="flex h-8 w-8 items-center justify-center rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+          title="Add"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => handleUpdate(-1)}
+          className="flex h-8 w-8 items-center justify-center rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+          title="Subtract"
+        >
+          -
+        </button>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="Amount"
+          className="w-24 rounded border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-2 py-1 text-sm"
+          value={modAmount}
+          onChange={(e) => setModAmount(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleUpdate(1);
+          }}
+        />
+      </div>
+    </div>
+  );
 }
 
 export default function FinanceTab() {
@@ -337,6 +405,7 @@ export default function FinanceTab() {
     savingsBalance: 0,
     spendingBalance: 0,
     investingCashBalance: 0,
+    investingCashBalanceUsd: 0,
     savingPercent: 70,
     spendingPercent: 10,
     investingPercent: 20,
@@ -358,41 +427,33 @@ export default function FinanceTab() {
 
       <section>
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Account balances</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
+          {/* Savings */}
+          <AccountBalanceInput
+            label="Savings account"
+            balance={p.savingsBalance}
+            onChange={(newBal) => {
+              setProfile((prev) => (prev ? { ...prev, savingsBalance: newBal } : null));
+              // We'll trigger save on blur of the main input in the component, or we can debounce save here.
+              // For simplicity, the component will handle the "commit" via specific callback or we just rely on effect?
+              // Let's stick to the pattern: update local state, save on blur/action.
+            }}
+            onSave={(newBal) => saveProfile({ savingsBalance: newBal })}
+          />
+
+          {/* Spending */}
+          <AccountBalanceInput
+            label="Spending account"
+            balance={p.spendingBalance}
+            onChange={(newBal) => {
+              setProfile((prev) => (prev ? { ...prev, spendingBalance: newBal } : null));
+            }}
+            onSave={(newBal) => saveProfile({ spendingBalance: newBal })}
+          />
+
+          {/* Investing AUD */}
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Savings account</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              className="w-full rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
-              value={p.savingsBalance === 0 ? "" : p.savingsBalance}
-              onChange={(e) =>
-                setProfile((prev) =>
-                  prev ? { ...prev, savingsBalance: parseFloat(e.target.value) || 0 } : null
-                )
-              }
-              onBlur={saveBalances}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Spending account</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              className="w-full rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
-              value={p.spendingBalance === 0 ? "" : p.spendingBalance}
-              onChange={(e) =>
-                setProfile((prev) =>
-                  prev ? { ...prev, spendingBalance: parseFloat(e.target.value) || 0 } : null
-                )
-              }
-              onBlur={saveBalances}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Investing (cash)</label>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Investing Cash (AUD)</label>
             <input
               type="number"
               step="0.01"
@@ -404,7 +465,25 @@ export default function FinanceTab() {
                   prev ? { ...prev, investingCashBalance: parseFloat(e.target.value) || 0 } : null
                 )
               }
-              onBlur={saveBalances}
+              onBlur={() => saveProfile({ investingCashBalance: p.investingCashBalance })}
+            />
+          </div>
+
+          {/* Investing USD */}
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Investing Cash (USD)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="w-full rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
+              value={p.investingCashBalanceUsd === 0 ? "" : p.investingCashBalanceUsd}
+              onChange={(e) =>
+                setProfile((prev) =>
+                  prev ? { ...prev, investingCashBalanceUsd: parseFloat(e.target.value) || 0 } : null
+                )
+              }
+              onBlur={() => saveProfile({ investingCashBalanceUsd: p.investingCashBalanceUsd })}
             />
           </div>
         </div>
@@ -720,14 +799,14 @@ export default function FinanceTab() {
             // If no quote yet, fallback to 0 or avg price? 0 is safer to avoid misleading P&L.
             const currentPrice = q?.price ?? 0;
             const currency = h.currency;
-            
+
             const mktValue = h.shares * currentPrice;
             const costBasis = h.shares * h.averagePrice;
             const pnl = currentPrice > 0 ? mktValue - costBasis : 0;
             const pnlPercent = costBasis > 0 && currentPrice > 0 ? (pnl / costBasis) * 100 : 0;
-            
+
             const isUp = pnl >= 0;
-            const pnlColor = currentPrice > 0 
+            const pnlColor = currentPrice > 0
               ? (isUp ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
               : "text-gray-400";
 
