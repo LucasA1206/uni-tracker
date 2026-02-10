@@ -8,7 +8,7 @@ export interface QuoteResult {
   name?: string;
 }
 
-async function getUsdToAud(): Promise<number> {
+export async function getUsdToAud(): Promise<number> {
   try {
     const res = await fetch(
       "https://api.exchangerate-api.com/v4/latest/USD",
