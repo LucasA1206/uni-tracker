@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 
+import { getUsdToAud } from "./quote/route";
+
 export async function GET() {
   const auth = await getAuthUser();
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const profile = await prisma.financeProfile.findUnique({
-    where: { userId: auth.userId },
-  });
+  const [profile, rate] = await Promise.all([
+    prisma.financeProfile.findUnique({
+      where: { userId: auth.userId },
+    }),
+    getUsdToAud(),
+  ]);
 
   if (!profile) {
     const created = await prisma.financeProfile.create({
@@ -16,10 +21,10 @@ export async function GET() {
         userId: auth.userId,
       },
     });
-    return NextResponse.json(created);
+    return NextResponse.json({ ...created, usdToAudRate: rate });
   }
 
-  return NextResponse.json(profile);
+  return NextResponse.json({ ...profile, usdToAudRate: rate });
 }
 
 export async function PATCH(req: NextRequest) {
