@@ -7,8 +7,9 @@ import Card from "@/components/ui/vision/Card";
 import UniTab from "./uni-tab";
 import WorkTab from "./work-tab";
 import CalendarTab from "./calendar-tab";
+import FinanceTab from "./finance-tab";
 
-const TABS = ["Uni", "Work", "Calendar"] as const;
+const TABS = ["Uni", "Work", "Calendar", "Finance"] as const;
 type Tab = (typeof TABS)[number];
 
 interface AccountInfo {
@@ -166,6 +167,11 @@ export default function DashboardPage() {
       {tab === "Calendar" && (
         <Card className="p-4">
           <CalendarTab />
+        </Card>
+      )}
+      {tab === "Finance" && (
+        <Card className="p-4">
+          <FinanceTab />
         </Card>
       )}
 

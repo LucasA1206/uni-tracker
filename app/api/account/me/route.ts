@@ -156,6 +156,10 @@ export async function DELETE() {
     await tx.microsoftToken.deleteMany({ where: { userId: auth.userId } });
     await tx.emailMessage.deleteMany({ where: { userId: auth.userId } });
     await tx.uniCourse.deleteMany({ where: { userId: auth.userId } });
+    await tx.fortnightSpending.deleteMany({ where: { userId: auth.userId } });
+    await tx.stockHolding.deleteMany({ where: { userId: auth.userId } });
+    await tx.financeProfile.deleteMany({ where: { userId: auth.userId } });
+    await tx.person.deleteMany({ where: { userId: auth.userId } });
     await tx.user.delete({ where: { id: auth.userId } });
   });
 
