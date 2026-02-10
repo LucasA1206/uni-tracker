@@ -52,6 +52,41 @@ function formatMoney(amount: number, currency: string = "AUD"): string {
   }).format(amount);
 }
 
+/**
+ * Australian resident income tax rates (ATO) for 2025–26.
+ * Assumes: resident for tax purposes, claims tax-free threshold.
+ * Excludes: offsets, HELP/HECS, Medicare levy surcharge, private health, etc.
+ */
+function calcAusResidentIncomeTaxAnnual(taxableIncome: number): number {
+  const x = Math.max(0, taxableIncome);
+  if (x <= 18_200) return 0;
+  if (x <= 45_000) return (x - 18_200) * 0.16;
+  if (x <= 135_000) return 4_288 + (x - 45_000) * 0.30;
+  if (x <= 190_000) return 31_288 + (x - 135_000) * 0.37;
+  return 51_638 + (x - 190_000) * 0.45;
+}
+
+/**
+ * Medicare levy (base) is 2% of taxable income, with a low-income reduction.
+ * Low-income thresholds are indexed annually; these values are from ATO guidance
+ * for 2024–25 (often very close year-to-year).
+ */
+function calcMedicareLevyAnnual(
+  taxableIncome: number,
+  applyLowIncomeReduction: boolean,
+): number {
+  const x = Math.max(0, taxableIncome);
+  const base = 0.02 * x;
+  if (!applyLowIncomeReduction) return base;
+
+  const lower = 27_222; // single, not SAPTO
+  if (x <= lower) return 0;
+
+  // Reduction range: levy is 10% of income over lower threshold, capped at 2%.
+  const reduced = 0.10 * (x - lower);
+  return Math.min(base, reduced);
+}
+
 export default function FinanceTab() {
   const [profile, setProfile] = useState<FinanceProfile | null>(null);
   const [fortnight, setFortnight] = useState<FortnightData | null>(null);
@@ -62,6 +97,9 @@ export default function FinanceTab() {
 
   const [paycheckAmount, setPaycheckAmount] = useState("");
   const [prevFortnightSpend, setPrevFortnightSpend] = useState("");
+  const [hoursWorked, setHoursWorked] = useState("");
+  const [hourlyWage, setHourlyWage] = useState("");
+  const [applyMedicareLowIncomeReduction, setApplyMedicareLowIncomeReduction] = useState(true);
   const [addHoldingTicker, setAddHoldingTicker] = useState("");
   const [addHoldingShares, setAddHoldingShares] = useState("");
   const [addHoldingAvgPrice, setAddHoldingAvgPrice] = useState("");
@@ -149,6 +187,15 @@ export default function FinanceTab() {
     if (!profile) return 0;
     return (profile.savingsBalance * (profile.savingsInterestRatePA / 100)) / 12;
   }, [profile]);
+
+  const hoursNum = parseFloat(hoursWorked) || 0;
+  const wageNum = parseFloat(hourlyWage) || 0;
+  const grossFortnight = Math.max(0, hoursNum * wageNum);
+  const annualisedGross = grossFortnight * 26;
+  const annualIncomeTax = calcAusResidentIncomeTaxAnnual(annualisedGross);
+  const annualMedicare = calcMedicareLevyAnnual(annualisedGross, applyMedicareLowIncomeReduction);
+  const estimatedTaxFortnight = (annualIncomeTax + annualMedicare) / 26;
+  const estimatedNetFortnight = Math.max(0, grossFortnight - estimatedTaxFortnight);
 
   const paycheckNum = parseFloat(paycheckAmount) || 0;
   const prevFortnightNum = parseFloat(prevFortnightSpend) || 0;
@@ -380,6 +427,72 @@ export default function FinanceTab() {
             }
             onBlur={() => saveProfile({ savingsInterestRatePA: p.savingsInterestRatePA })}
           />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          Fortnight pay (AU tax estimate)
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+          Estimate only. Assumes Australian resident tax rates (2025–26) and includes Medicare levy (with optional
+          low-income reduction). It does not include offsets, HELP/HECS, Medicare levy surcharge, or other factors.
+        </p>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Hours worked (this fortnight)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="w-44 rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
+              value={hoursWorked}
+              onChange={(e) => setHoursWorked(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Hourly wage</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              className="w-44 rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
+              value={hourlyWage}
+              onChange={(e) => setHourlyWage(e.target.value)}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={applyMedicareLowIncomeReduction}
+              onChange={(e) => setApplyMedicareLowIncomeReduction(e.target.checked)}
+            />
+            Apply Medicare low-income reduction
+          </label>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-gray-200 dark:border-[#2A2A2E] p-3 text-sm">
+          <p>Gross (fortnight): {formatMoney(grossFortnight)}</p>
+          <p>Estimated tax (fortnight): {formatMoney(estimatedTaxFortnight)}</p>
+          <p className="font-medium">Estimated net (fortnight): {formatMoney(estimatedNetFortnight)}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
+              disabled={estimatedNetFortnight <= 0}
+              onClick={() => setPaycheckAmount(estimatedNetFortnight.toFixed(2))}
+            >
+              Use net as paycheck amount
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-gray-200 dark:bg-gray-700 px-3 py-2 text-sm disabled:opacity-50"
+              disabled={grossFortnight <= 0}
+              onClick={() => setPaycheckAmount(grossFortnight.toFixed(2))}
+            >
+              Use gross as paycheck amount
+            </button>
+          </div>
         </div>
       </section>
 
