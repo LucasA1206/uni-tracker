@@ -706,41 +706,92 @@ export default function FinanceTab() {
           </div>
         </form>
 
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 px-3">
+          <div>Symbol</div>
+          <div className="text-right">Value / Qty</div>
+          <div className="text-right">Open P&L</div>
+          <div className="text-right">Last / Avg</div>
+          <div className="w-6"></div>
+        </div>
+
         <div className="space-y-2">
           {holdings.map((h) => {
             const q = quotes[h.id];
-            const valueAud = q ? h.shares * q.priceAud : null;
+            // If no quote yet, fallback to 0 or avg price? 0 is safer to avoid misleading P&L.
+            const currentPrice = q?.price ?? 0;
+            const currency = h.currency;
+            
+            const mktValue = h.shares * currentPrice;
+            const costBasis = h.shares * h.averagePrice;
+            const pnl = currentPrice > 0 ? mktValue - costBasis : 0;
+            const pnlPercent = costBasis > 0 && currentPrice > 0 ? (pnl / costBasis) * 100 : 0;
+            
+            const isUp = pnl >= 0;
+            const pnlColor = currentPrice > 0 
+              ? (isUp ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")
+              : "text-gray-400";
+
             return (
               <div
                 key={h.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-[#2A2A2E] p-3 text-sm"
+                className="grid grid-cols-[1.5fr_1fr_1fr_1fr_auto] gap-2 items-center rounded-lg border border-gray-200 dark:border-[#2A2A2E] p-3 text-sm"
               >
-                <div>
-                  <span className="font-medium">{h.ticker}</span>
-                  {q?.name && <span className="text-gray-500 dark:text-gray-400 ml-2">({q.name})</span>}
-                  <span className="text-gray-500 dark:text-gray-400 ml-2">
-                    {h.shares} @ avg {formatMoney(h.averagePrice, h.currency)}
-                  </span>
+                {/* Symbol */}
+                <div className="overflow-hidden">
+                  <div className="font-bold truncate">{h.ticker}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={q?.name}>
+                    {q?.name || "—"}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {valueAud != null ? (
-                    <span>{formatMoney(valueAud)}</span>
-                  ) : (
-                    <span className="text-gray-400">Loading…</span>
-                  )}
+
+                {/* Mkt Value / Qty */}
+                <div className="text-right overflow-hidden">
+                  <div className="font-medium truncate">
+                    {currentPrice > 0 ? formatMoney(mktValue, currency) : "—"}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {h.shares} units
+                  </div>
+                </div>
+
+                {/* Open P&L */}
+                <div className={`text-right overflow-hidden ${pnlColor}`}>
+                  <div className="font-medium truncate">
+                    {currentPrice > 0 ? (pnl > 0 ? "+" : "") + formatMoney(pnl, currency) : "—"}
+                  </div>
+                  <div className="text-xs truncate">
+                    {currentPrice > 0 ? `${pnlPercent.toFixed(2)}%` : "—"}
+                  </div>
+                </div>
+
+                {/* Last / Avg Price */}
+                <div className="text-right overflow-hidden">
+                  <div className="font-medium truncate">
+                    {currentPrice > 0 ? formatMoney(currentPrice, currency) : "Loading…"}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    Avg {formatMoney(h.averagePrice, currency)}
+                  </div>
+                </div>
+
+                {/* Remove */}
+                <div className="flex justify-end">
                   <button
                     type="button"
-                    className="text-red-600 dark:text-red-400 text-xs"
+                    className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1"
                     onClick={() => deleteHolding(h.id)}
+                    title="Remove holding"
                   >
-                    Remove
+                    ×
                   </button>
                 </div>
               </div>
             );
           })}
           {holdings.length === 0 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No holdings yet. Add a stock above.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+              No holdings yet. Add a stock above to see performance.
+            </p>
           )}
         </div>
       </section>
