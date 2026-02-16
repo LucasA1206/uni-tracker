@@ -192,8 +192,27 @@ export default function UniTab() {
     );
   }
 
+  function getSessionValue(course: Course): number {
+    const text = `${course.name} ${course.code}`;
+    const match = text.match(/(Autumn|Spring)\s+(\d{4})/i);
+    if (!match) return -1; // Unknown sessions at the bottom
+
+    const term = match[1].toLowerCase();
+    const year = parseInt(match[2], 10);
+
+    // Spring = 2, Autumn = 1
+    const termVal = term === "spring" ? 2 : 1;
+    return year * 10 + termVal;
+  }
+
   const assignmentsByCourse = useMemo(() => {
-    return courses.map((course) => {
+    const sortedCourses = [...courses].sort((a, b) => {
+      const valA = getSessionValue(a);
+      const valB = getSessionValue(b);
+      return valB - valA; // Descending
+    });
+
+    return sortedCourses.map((course) => {
       const courseAssignments = assignments.filter((a) => a.course.id === course.id);
       return {
         course,
@@ -281,11 +300,10 @@ export default function UniTab() {
                   <button
                     key={c.id}
                     type="button"
-                    className={`rounded-full border px-2 py-0.5 ${
-                      hidden
+                    className={`rounded-full border px-2 py-0.5 ${hidden
                         ? "border-gray-200 dark:border-[#1F1F23] text-gray-500 dark:text-gray-400 bg-white dark:bg-[#0F0F12]"
                         : "border-indigo-400 text-indigo-100 bg-indigo-500/20"
-                    }`}
+                      }`}
                     onClick={() =>
                       setHiddenForCharts((prev) =>
                         prev.includes(c.id)
@@ -431,8 +449,8 @@ export default function UniTab() {
                             statusKey === "pending"
                               ? "bg-yellow-500/10"
                               : statusKey === "in_progress"
-                              ? "bg-blue-500/10"
-                              : "bg-green-500/10";
+                                ? "bg-blue-500/10"
+                                : "bg-green-500/10";
                           return (
                             <div
                               key={statusKey}
@@ -442,8 +460,8 @@ export default function UniTab() {
                                 {statusKey === "pending"
                                   ? "To-Do"
                                   : statusKey === "in_progress"
-                                  ? "In Progress"
-                                  : "Done"}
+                                    ? "In Progress"
+                                    : "Done"}
                               </div>
                               {list.length === 0 && (
                                 <p className="text-[11px] text-gray-500 dark:text-gray-400">No items.</p>
@@ -620,7 +638,7 @@ export default function UniTab() {
             )}
           </div>
           <GradeCharts
-            assignments={useMemo(() => 
+            assignments={useMemo(() =>
               assignments
                 .filter((a) => !hiddenForCharts.includes(a.course.id))
                 .filter((a) => {
