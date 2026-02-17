@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
                     items: {
                         type: SchemaType.OBJECT,
                         properties: {
-                            type: { type: SchemaType.STRING, enum: ["MCQ", "SA"] },
+                            type: { type: SchemaType.STRING, format: "enum", enum: ["MCQ", "SA"] },
                             question: { type: SchemaType.STRING },
                             options: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
                             correctAnswer: { type: SchemaType.STRING },
