@@ -603,143 +603,144 @@ export default function UniTab() {
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Notes</h2>
-            <form onSubmit={addNote} className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 text-xs">
-              <div className="grid gap-2 md:grid-cols-3">
-                <input
-                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-2"
-                  placeholder="Note title"
-                  value={newNote.title}
-                  onChange={(e) => setNewNote((n) => ({ ...n, title: e.target.value }))}
-                />
+        <div className="space-y-2">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Notes</h2>
+          <form onSubmit={addNote} className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 text-xs">
+            <div className="grid gap-2 md:grid-cols-3">
+              <input
+                className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-2"
+                placeholder="Note title"
+                value={newNote.title}
+                onChange={(e) => setNewNote((n) => ({ ...n, title: e.target.value }))}
+              />
+              <select
+                className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1"
+                value={newNote.courseId}
+                onChange={(e) => setNewNote((n) => ({ ...n, courseId: e.target.value }))}
+              >
+                <option value="">No course</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code} – {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <MarkdownEditor
+              value={newNote.content}
+              onChange={(value) => setNewNote((n) => ({ ...n, content: value }))}
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-indigo-500 px-3 py-1.5 text-[11px] font-semibold hover:bg-indigo-400 text-white"
+            >
+              Add note
+            </button>
+          </form>
+          <div className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 max-h-64 overflow-auto text-xs">
+            {notes.length === 0 && <p className="text-gray-500 dark:text-gray-400">No notes yet.</p>}
+            {Object.entries(notesByCourse).map(([code, courseNotes]) => (
+              <div key={code} className="space-y-1 border-b border-gray-200 dark:border-[#1F1F23] pb-2 last:border-0 last:pb-0">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
+                  {code === "Unassigned" ? "No course" : code}
+                </div>
+                {courseNotes.map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-md px-1 py-0.5 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    onClick={() => setSelectedNote(n)}
+                  >
+                    <span className="font-medium text-left truncate pr-2">{n.title}</span>
+                    <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                      <span>{new Date(n.createdAt).toLocaleDateString()}</span>
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void deleteNote(n.id);
+                        }}
+                        className="cursor-pointer rounded-full border border-red-700 px-2 py-0.5 text-[10px] text-red-200 hover:bg-red-900/60"
+                      >
+                        Delete
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {selectedNote && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <div className="w-full max-w-xl rounded-xl bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] p-4 text-xs shadow-xl">
+                <div className="mb-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-gray-900 dark:text-white">{selectedNote.title}</div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {selectedNote.course?.code && <span className="mr-2">{selectedNote.course.code}</span>}
+                      {new Date(selectedNote.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-2 py-0.5 text-[10px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                    onClick={() => setSelectedNote(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="max-h-80 overflow-auto whitespace-pre-wrap text-gray-900 dark:text-white">
+                  {selectedNote.content}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Grade visualisations</h2>
+            {sessionOptions.length > 0 && (
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="text-gray-500 dark:text-gray-400">Session:</span>
                 <select
-                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1"
-                  value={newNote.courseId}
-                  onChange={(e) => setNewNote((n) => ({ ...n, courseId: e.target.value }))}
+                  className="rounded-md border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-2 py-1"
+                  value={sessionFilter}
+                  onChange={(e) => setSessionFilter(e.target.value)}
                 >
-                  <option value="">No course</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code} – {c.name}
+                  <option value="all">All</option>
+                  {sessionOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
                     </option>
                   ))}
                 </select>
               </div>
-              <MarkdownEditor
-                value={newNote.content}
-                onChange={(value) => setNewNote((n) => ({ ...n, content: value }))}
-              />
-              <button
-                type="submit"
-                className="rounded-md bg-indigo-500 px-3 py-1.5 text-[11px] font-semibold hover:bg-indigo-400 text-white"
-              >
-                Add note
-              </button>
-            </form>
-            <div className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 max-h-64 overflow-auto text-xs">
-              {notes.length === 0 && <p className="text-gray-500 dark:text-gray-400">No notes yet.</p>}
-              {Object.entries(notesByCourse).map(([code, courseNotes]) => (
-                <div key={code} className="space-y-1 border-b border-gray-200 dark:border-[#1F1F23] pb-2 last:border-0 last:pb-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                    {code === "Unassigned" ? "No course" : code}
-                  </div>
-                  {courseNotes.map((n) => (
-                    <button
-                      key={n.id}
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-md px-1 py-0.5 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      onClick={() => setSelectedNote(n)}
-                    >
-                      <span className="font-medium text-left truncate pr-2">{n.title}</span>
-                      <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                        <span>{new Date(n.createdAt).toLocaleDateString()}</span>
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void deleteNote(n.id);
-                          }}
-                          className="cursor-pointer rounded-full border border-red-700 px-2 py-0.5 text-[10px] text-red-200 hover:bg-red-900/60"
-                        >
-                          Delete
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-
-            {selectedNote && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                <div className="w-full max-w-xl rounded-xl bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] p-4 text-xs shadow-xl">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-bold text-gray-900 dark:text-white">{selectedNote.title}</div>
-                      <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                        {selectedNote.course?.code && <span className="mr-2">{selectedNote.course.code}</span>}
-                        {new Date(selectedNote.createdAt).toLocaleString()}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-2 py-0.5 text-[10px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                      onClick={() => setSelectedNote(null)}
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="max-h-80 overflow-auto whitespace-pre-wrap text-gray-900 dark:text-white">
-                    {selectedNote.content}
-                  </div>
-                </div>
-              </div>
             )}
           </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Grade visualisations</h2>
-              {sessionOptions.length > 0 && (
-                <div className="flex items-center gap-2 text-[11px]">
-                  <span className="text-gray-500 dark:text-gray-400">Session:</span>
-                  <select
-                    className="rounded-md border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-2 py-1"
-                    value={sessionFilter}
-                    onChange={(e) => setSessionFilter(e.target.value)}
-                  >
-                    <option value="all">All</option>
-                    {sessionOptions.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-            <GradeCharts
-              assignments={useMemo(() =>
-                assignments
-                  .filter((a) => !hiddenForCharts.includes(a.course.id))
-                  .filter((a) => {
-                    if (sessionFilter === "all") return true;
-                    const course = courses.find((c) => c.id === a.course.id);
-                    const session = course ? getSessionFromCourse(course) : "Unknown";
-                    return session === sessionFilter;
-                  })
-                  .map<AssignmentForCharts>((a) => ({
-                    courseCode: a.course.code,
-                    weight: a.weight,
-                    maxGrade: a.maxGrade,
-                    grade: a.grade,
-                    dueDate: a.dueDate,
-                  })),
-                [assignments, hiddenForCharts, sessionFilter, courses]
-              )}
-            />
-          </div>
+          <GradeCharts
+            assignments={useMemo(() =>
+              assignments
+                .filter((a) => !hiddenForCharts.includes(a.course.id))
+                .filter((a) => {
+                  if (sessionFilter === "all") return true;
+                  const course = courses.find((c) => c.id === a.course.id);
+                  const session = course ? getSessionFromCourse(course) : "Unknown";
+                  return session === sessionFilter;
+                })
+                .map<AssignmentForCharts>((a) => ({
+                  courseCode: a.course.code,
+                  weight: a.weight,
+                  maxGrade: a.maxGrade,
+                  grade: a.grade,
+                  dueDate: a.dueDate,
+                })),
+              [assignments, hiddenForCharts, sessionFilter, courses]
+            )}
+          />
+        </div>
       </section>
     </div>
   );
