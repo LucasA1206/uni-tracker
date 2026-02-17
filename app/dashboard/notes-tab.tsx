@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic } from "lucide-react";
@@ -123,7 +124,8 @@ export default function NotesTab() {
     const [dragActive, setDragActive] = useState(false);
 
 
-    const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+    const router = useRouter();
+    // const [selectedNote, setSelectedNote] = useState<Note | null>(null); // Removed modal state
 
     const refresh = useCallback(async () => {
         try {
@@ -200,16 +202,29 @@ export default function NotesTab() {
 
         // "Save" the note
         try {
-            await fetch("/api/uni/notes", {
+            const formData = new FormData();
+            formData.append("file", uploadFile);
+            if (selectedCourseId) {
+                formData.append("courseId", selectedCourseId);
+            }
+
+            const res = await fetch("/api/ai/generate-notes", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    title: `Lecture Notes: ${uploadFile.name}`,
-                    content: MOCK_GENERATED_CONTENT,
-                    courseId: selectedCourseId ? Number(selectedCourseId) : undefined,
-                }),
+                body: formData,
             });
-            await refresh();
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to generate notes");
+            }
+
+            if (data.note?.id) {
+                router.push(`/dashboard/notes/${data.note.id}`);
+            } else {
+                await refresh();
+            }
+
             setUploadFile(null);
             setSelectedCourseId("");
         } catch (err) {
@@ -384,7 +399,7 @@ export default function NotesTab() {
                                         key={note.id}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        onClick={() => setSelectedNote(note)}
+                                        onClick={() => router.push(`/dashboard/notes/${note.id}`)}
                                         className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow h-64 overflow-hidden cursor-pointer"
                                     >
                                         <div className="space-y-2 pointer-events-none">
@@ -402,7 +417,7 @@ export default function NotesTab() {
                                         </div>
 
                                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between pointer-events-none">
-                                            <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 pointer-events-auto" onClick={() => setSelectedNote(note)}>
+                                            <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 pointer-events-auto" onClick={() => router.push(`/dashboard/notes/${note.id}`)}>
                                                 View Full Note
                                             </button>
                                             <button
@@ -420,53 +435,7 @@ export default function NotesTab() {
                 )}
             </div>
 
-            {/* Full Note Modal */}
-            <AnimatePresence>
-                {selectedNote && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] shadow-2xl flex flex-col"
-                        >
-                            <div className="flex items-center justify-between border-b border-gray-200 dark:border-[#1F1F23] p-4 bg-white dark:bg-[#0F0F12]">
-                                <div>
-                                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">{selectedNote.title}</h2>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                        <span className="font-medium bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{selectedNote.course?.code || "Uncategorized"}</span>
-                                        <span>•</span>
-                                        <span>{new Date(selectedNote.createdAt).toLocaleString()}</span>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                    onClick={() => setSelectedNote(null)}
-                                >
-                                    <span className="sr-only">Close</span>
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div className="flex-1 overflow-auto p-6">
-                                <div className="prose prose-sm dark:prose-invert max-w-none">
-                                    <ReactMarkdown>{selectedNote.content}</ReactMarkdown>
-                                </div>
-                            </div>
-                            <div className="p-4 border-t border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#151518] flex justify-end gap-2">
-                                <button
-                                    onClick={() => setSelectedNote(null)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+
         </div>
     );
 }
