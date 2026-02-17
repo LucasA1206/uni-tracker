@@ -46,9 +46,12 @@ export async function POST(req: NextRequest) {
         const fileId = formData.get("fileId") as string || `upload-${Date.now()}`;
         const originalName = formData.get("originalName") as string || "file";
 
+
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
+
+        const mimeType = formData.get("mimeType") as string || file.type || "video/mp4";
 
         if (!process.env.GOOGLE_API_KEY) {
             return NextResponse.json({ error: "GOOGLE_API_KEY is not set" }, { status: 500 });
@@ -84,7 +87,7 @@ export async function POST(req: NextRequest) {
         // 2. Upload to Gemini File API
         console.log("Uploading to Gemini:", tempFilePath);
         const uploadResult = await fileManager.uploadFile(tempFilePath, {
-            mimeType: file.type || "video/mp4", // Warning: chunk might miss type, prefer passed originalType
+            mimeType: mimeType,
             displayName: originalName,
         });
 
@@ -104,7 +107,8 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Generate Content
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Using gemini-1.5-flash-latest to ensure we hit a valid endpoint
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
         console.log("Generating notes...");
         const result = await model.generateContent([
