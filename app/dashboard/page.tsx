@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Shell from "@/components/ui/vision/Shell";
 import Card from "@/components/ui/vision/Card";
@@ -20,7 +20,7 @@ interface AccountInfo {
   canvasApiToken?: string | null;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -404,5 +404,13 @@ export default function DashboardPage() {
         )}
       </Shell>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
