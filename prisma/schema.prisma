@@ -40,6 +40,8 @@ model UniCourse {
   userId      Int
   name        String
   code        String
+  term        String   @default("Autumn")
+  year        Int      @default(2026)
   canvasId    String?
   assignments Assignment[]
   notes       Note[]
@@ -170,6 +172,8 @@ model FinanceProfile {
   investingPercent     Float    @default(20)
   savingsInterestRatePA Float  @default(4)
   investingCashBalanceUsd Float @default(0)
+  hourlyWage           Float    @default(0)
+  hoursWorked          Float    @default(0)
   updatedAt            DateTime @updatedAt
 }
 

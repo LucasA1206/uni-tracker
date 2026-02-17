@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
       userId: user.userId,
       name: body.name,
       code: body.code,
+      term: body.term || "Autumn",
+      year: body.year ? Number(body.year) : 2026,
     },
   });
 

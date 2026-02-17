@@ -13,6 +13,8 @@ interface FinanceProfile {
   investingPercent: number;
   savingsInterestRatePA: number;
   usdToAudRate?: number;
+  hourlyWage: number;
+  hoursWorked: number;
 }
 
 interface FortnightData {
@@ -189,6 +191,8 @@ export default function FinanceTab() {
       if (profileRes.ok) {
         const p = await profileRes.json();
         setProfile(p);
+        setHourlyWage(p.hourlyWage?.toString() ?? "");
+        setHoursWorked(p.hoursWorked?.toString() ?? "");
       }
       if (fortnightRes.ok) {
         const f = await fortnightRes.json();
@@ -530,6 +534,7 @@ export default function FinanceTab() {
               className="w-44 rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
               value={hoursWorked}
               onChange={(e) => setHoursWorked(e.target.value)}
+              onBlur={() => saveProfile({ hoursWorked: parseFloat(hoursWorked) || 0 })}
             />
           </div>
           <div>
@@ -541,6 +546,7 @@ export default function FinanceTab() {
               className="w-44 rounded-lg border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-2 text-sm"
               value={hourlyWage}
               onChange={(e) => setHourlyWage(e.target.value)}
+              onBlur={() => saveProfile({ hourlyWage: parseFloat(hourlyWage) || 0 })}
             />
           </div>
           <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">

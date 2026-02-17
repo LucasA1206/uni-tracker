@@ -69,6 +69,10 @@ export async function PATCH(req: NextRequest) {
     data.savingsInterestRatePA = savingsInterestRatePA;
   if (typeof investingCashBalanceUsd === "number" && investingCashBalanceUsd >= 0)
     data.investingCashBalanceUsd = investingCashBalanceUsd;
+  if (typeof body.hourlyWage === "number" && body.hourlyWage >= 0)
+    data.hourlyWage = body.hourlyWage;
+  if (typeof body.hoursWorked === "number" && body.hoursWorked >= 0)
+    data.hoursWorked = body.hoursWorked;
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });

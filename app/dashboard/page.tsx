@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Shell from "@/components/ui/vision/Shell";
 import Card from "@/components/ui/vision/Card";
 import UniTab from "./uni-tab";
@@ -22,7 +22,17 @@ interface AccountInfo {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("Uni");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const tab = (TABS.includes(tabParam as any) ? tabParam : "Uni") as Tab;
+
+  const setTab = (t: Tab) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", t);
+    router.push(`${pathname}?${params.toString()}`);
+  };
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   const [accountOpen, setAccountOpen] = useState(false);
