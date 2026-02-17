@@ -13,6 +13,8 @@ export function useWhisper() {
     const audioContext = useRef<AudioContext | null>(null);
     const audioChunks = useRef<Blob[]>([]);
 
+    const transcriptionResolve = useRef<((text: string) => void) | null>(null);
+
     useEffect(() => {
         if (!worker.current) {
             worker.current = new Worker(new URL('../lib/workers/whisper.worker.ts', import.meta.url), {
@@ -28,13 +30,23 @@ export function useWhisper() {
                     }
                 } else if (status === 'complete') {
                     // output is usually { text: "..." }
+                    let finalHeader = "";
                     if (output && output.text) {
+                        finalHeader = output.text;
                         setTranscription(prev => prev + (prev ? " " : "") + output.text);
                     }
                     setIsTranscribing(false);
+                    if (transcriptionResolve.current) {
+                        transcriptionResolve.current(output?.text || "");
+                        transcriptionResolve.current = null;
+                    }
                 } else if (status === 'error') {
                     console.error(error);
                     setIsTranscribing(false);
+                    if (transcriptionResolve.current) {
+                        transcriptionResolve.current(""); // Resolve with empty string on error
+                        transcriptionResolve.current = null;
+                    }
                 }
             };
         }
@@ -63,6 +75,31 @@ export function useWhisper() {
         }
     }, []);
 
+    const processAudio = async (audioBlob: Blob) => {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        let audioData = audioBuffer.getChannelData(0);
+        return audioData;
+    };
+
+    const transcribeFile = useCallback(async (file: File): Promise<string> => {
+        if (!worker.current) return "";
+        setIsTranscribing(true);
+        setTranscription('');
+
+        return new Promise<string>((resolve) => {
+            transcriptionResolve.current = resolve;
+            processAudio(file).then(audioData => {
+                worker.current?.postMessage({ audio: audioData });
+            }).catch(err => {
+                console.error("Error processing file:", err);
+                setIsTranscribing(false);
+                resolve("");
+            });
+        });
+    }, []);
+
     const stopRecording = useCallback(async () => {
         if (!mediaRecorder.current) return;
 
@@ -70,19 +107,15 @@ export function useWhisper() {
             mediaRecorder.current!.onstop = async () => {
                 const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
 
-                // Process audio for worker (convert to Float32Array and downsample to 16kHz)
-                const arrayBuffer = await audioBlob.arrayBuffer();
-                const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                try {
+                    const audioData = await processAudio(audioBlob);
+                    worker.current?.postMessage({ audio: audioData });
 
-                // Get channel data (mono)
-                let audioData = audioBuffer.getChannelData(0);
-
-                // Send to worker
-                worker.current?.postMessage({ audio: audioData });
-
-                // Stop tracks
-                mediaRecorder.current?.stream.getTracks().forEach(track => track.stop());
+                    // Stop tracks
+                    mediaRecorder.current?.stream.getTracks().forEach(track => track.stop());
+                } catch (err) {
+                    console.error("Error processing recording:", err);
+                }
                 resolve();
             };
 
@@ -95,6 +128,7 @@ export function useWhisper() {
         transcription,
         startRecording,
         stopRecording,
+        transcribeFile,
         progress
     };
 }

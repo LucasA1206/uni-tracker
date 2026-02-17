@@ -4,7 +4,9 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, StopCircle } from "lucide-react";
+import { useWhisper } from "@/hooks/useWhisper";
+import { useGemma } from "@/hooks/useGemma";
 
 interface Course {
     id: number;
@@ -125,7 +127,10 @@ export default function NotesTab() {
 
 
     const router = useRouter();
-    // const [selectedNote, setSelectedNote] = useState<Note | null>(null); // Removed modal state
+
+    const { transcribeFile, progress: whisperProgress, isTranscribing } = useWhisper();
+    const { initGemma, generateNotes, isLoading: isGemmaLoading, progress: gemmaProgress, isReady: isGemmaReady } = useGemma();
+
 
     const refresh = useCallback(async () => {
         try {
@@ -186,71 +191,58 @@ export default function NotesTab() {
 
         setIsProcessing(true);
 
-        // Simulate AI processing stages
-        const stages = [
-            "Uploading file...",
-            "Transcribing audio...",
-            "Analyzing content structure...",
-            "Generating summary...",
-            "Formatting notes...",
-        ];
-
-        for (const stage of stages) {
-            setProcessingStage(stage);
-            await new Promise(r => setTimeout(r, 800 + Math.random() * 500));
-        }
-
-        // "Save" the note
-        // Generate the note using AI with chunked upload
         try {
-            const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks to be safe
-            const totalChunks = Math.ceil(uploadFile.size / CHUNK_SIZE);
-            const fileId = `upload-${Date.now()}`;
-
-            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                setProcessingStage(`Uploading chunk ${chunkIndex + 1}/${totalChunks}...`);
-
-                const start = chunkIndex * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, uploadFile.size);
-                const chunk = uploadFile.slice(start, end);
-
-                const formData = new FormData();
-                formData.append("file", chunk);
-                formData.append("chunkIndex", chunkIndex.toString());
-                formData.append("totalChunks", totalChunks.toString());
-                formData.append("fileId", fileId);
-                formData.append("originalName", uploadFile.name);
-                if (selectedCourseId) {
-                    formData.append("courseId", selectedCourseId);
-                }
-
-                // If it's the last chunk, we expect the final response
-                // If not, we just expect a specific status
-                const res = await fetch("/api/ai/generate-notes", {
-                    method: "POST",
-                    body: formData,
-                });
-
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
-                    throw new Error(errorData.error || `Upload failed at chunk ${chunkIndex + 1}`);
-                }
-
-                const data = await res.json();
-
-                // If this was the last chunk, we are done
-                if (chunkIndex === totalChunks - 1) {
-                    setProcessingStage("Processing complete!");
-                    if (data.note?.id) {
-                        router.push(`/dashboard/notes/${data.note.id}`);
-                    } else {
-                        await refresh();
-                    }
-                    setUploadFile(null);
-                    setSelectedCourseId("");
-                    return; // Exit function
-                }
+            // 1. Initialize Gemma if needed
+            if (!isGemmaReady) {
+                setProcessingStage("Initializing Gemma AI Model (this may take a while)...");
+                await initGemma();
             }
+
+            // 2. Transcribe Audio
+            setProcessingStage("Transcribing audio with Whisper...");
+            const transcript = await transcribeFile(uploadFile);
+
+            if (!transcript) {
+                throw new Error("Transcription failed or returned empty text.");
+            }
+
+            // 3. Generate Notes
+            setProcessingStage("Generating structured notes with Gemma...");
+            const content = await generateNotes(transcript);
+
+            if (!content) {
+                throw new Error("Failed to generate notes content.");
+            }
+
+            // 4. Save to Database
+            setProcessingStage("Saving note...");
+            const noteTitle = `Lecture Notes: ${uploadFile.name}`;
+
+            const res = await fetch("/api/uni/notes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: noteTitle,
+                    content: content,
+                    courseId: selectedCourseId ? parseInt(selectedCourseId) : undefined,
+                }),
+            });
+
+            if (!res.ok) {
+                throw new Error("Failed to save note to database.");
+            }
+
+            const data = await res.json();
+
+            setProcessingStage("Processing complete!");
+            if (data.note?.id) {
+                router.push(`/dashboard/notes/${data.note.id}`);
+            } else {
+                await refresh();
+            }
+            setUploadFile(null);
+            setSelectedCourseId("");
+
         } catch (err: any) {
             console.error("Failed to generate note", err);
             alert(`Error: ${err.message}`);
@@ -313,6 +305,11 @@ export default function NotesTab() {
                             <div className="space-y-1">
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Processing your lecture</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">{processingStage}</p>
+                                {(whisperProgress > 0 || gemmaProgress) && (
+                                    <p className="text-xs text-gray-400">
+                                        {gemmaProgress ? `Gemma: ${gemmaProgress}` : `Whisper Loading: ${Math.round(whisperProgress)}%`}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     ) : !uploadFile ? (
