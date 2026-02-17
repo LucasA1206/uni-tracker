@@ -52,11 +52,11 @@ export async function POST(req: NextRequest) {
         // Initialize Gemini clients
         const genAI = new GoogleGenerativeAI(apiKey);
         const fileManager = new GoogleAIFileManager(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
         // 1. Save Chunk
         tempFilePath = join(tmpdir(), `${fileId}-${originalName}`);
-        
+
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
             mimeType: "audio/mp3", // Defaulting to mp3, but Gemini is flexible. Could infer from extension.
             displayName: originalName,
         });
-        
+
         uploadedFileUri = uploadResponse.file.uri;
         console.log(`Uploaded file: ${uploadResponse.file.displayName} as ${uploadedFileUri}`);
 
@@ -133,23 +133,23 @@ export async function POST(req: NextRequest) {
 
         // Cleanup local file
         await unlink(tempFilePath).catch(() => { });
-        
+
         // Cleanup Gemini file (best practice to not clutter storage)
         // We can do this in the background or await it
         await fileManager.deleteFile(uploadResponse.file.name).catch((err) => {
-             console.warn("Failed to delete file from Gemini:", err);
+            console.warn("Failed to delete file from Gemini:", err);
         });
 
         return NextResponse.json({ note: newNote }, { status: 201 });
 
     } catch (error: any) {
         console.error("AI Generation Error:", error);
-        
+
         // Cleanup on error
         if (tempFilePath && tempFilePath.includes("upload-")) {
-             await unlink(tempFilePath).catch(() => {});
+            await unlink(tempFilePath).catch(() => { });
         }
-        
+
         return NextResponse.json(
             { error: error.message || "Failed to generate notes" },
             { status: 500 }
