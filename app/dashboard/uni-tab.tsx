@@ -479,10 +479,19 @@ export default function UniTab() {
                   }, {} as Record<string, typeof assignmentsByCourse>)
                 )
                   .sort(([sessionA], [sessionB]) => {
-                    // Parse session string "Term Year" to sort desc
                     const [termA, yearA] = sessionA.split(' ');
                     const [termB, yearB] = sessionB.split(' ');
-                    if (yearA !== yearB) return parseInt(yearB) - parseInt(yearA);
+
+                    // Handle cases where year might be missing (e.g. "Unknown")
+                    const yA = parseInt(yearA);
+                    const yB = parseInt(yearB);
+
+                    if (!isNaN(yA) && !isNaN(yB) && yA !== yB) {
+                      return yB - yA;
+                    }
+                    if (isNaN(yA) && !isNaN(yB)) return 1; // Put Unknown at bottom
+                    if (!isNaN(yA) && isNaN(yB)) return -1;
+
                     const termOrder: Record<string, number> = { Autumn: 1, Spring: 2, Summer: 3, Winter: 0 };
                     return (termOrder[termB] || 0) - (termOrder[termA] || 0);
                   })
