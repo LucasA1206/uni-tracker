@@ -201,34 +201,59 @@ export default function NotesTab() {
         }
 
         // "Save" the note
+        // Generate the note using AI with chunked upload
         try {
-            const formData = new FormData();
-            formData.append("file", uploadFile);
-            if (selectedCourseId) {
-                formData.append("courseId", selectedCourseId);
+            const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks to be safe
+            const totalChunks = Math.ceil(uploadFile.size / CHUNK_SIZE);
+            const fileId = `upload-${Date.now()}`;
+
+            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+                setProcessingStage(`Uploading chunk ${chunkIndex + 1}/${totalChunks}...`);
+
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, uploadFile.size);
+                const chunk = uploadFile.slice(start, end);
+
+                const formData = new FormData();
+                formData.append("file", chunk);
+                formData.append("chunkIndex", chunkIndex.toString());
+                formData.append("totalChunks", totalChunks.toString());
+                formData.append("fileId", fileId);
+                formData.append("originalName", uploadFile.name);
+                if (selectedCourseId) {
+                    formData.append("courseId", selectedCourseId);
+                }
+
+                // If it's the last chunk, we expect the final response
+                // If not, we just expect a specific status
+                const res = await fetch("/api/ai/generate-notes", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Upload failed at chunk ${chunkIndex + 1}`);
+                }
+
+                const data = await res.json();
+
+                // If this was the last chunk, we are done
+                if (chunkIndex === totalChunks - 1) {
+                    setProcessingStage("Processing complete!");
+                    if (data.note?.id) {
+                        router.push(`/dashboard/notes/${data.note.id}`);
+                    } else {
+                        await refresh();
+                    }
+                    setUploadFile(null);
+                    setSelectedCourseId("");
+                    return; // Exit function
+                }
             }
-
-            const res = await fetch("/api/ai/generate-notes", {
-                method: "POST",
-                body: formData,
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to generate notes");
-            }
-
-            if (data.note?.id) {
-                router.push(`/dashboard/notes/${data.note.id}`);
-            } else {
-                await refresh();
-            }
-
-            setUploadFile(null);
-            setSelectedCourseId("");
-        } catch (err) {
-            console.error("Failed to save generated note", err);
+        } catch (err: any) {
+            console.error("Failed to generate note", err);
+            alert(`Error: ${err.message}`);
         } finally {
             setIsProcessing(false);
             setProcessingStage("");

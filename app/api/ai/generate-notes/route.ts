@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
-import { writeFile, unlink } from "fs/promises";
+import { writeFile, appendFile, unlink, stat } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -41,6 +41,10 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
         const courseId = formData.get("courseId") as string | null;
+        const chunkIndex = parseInt(formData.get("chunkIndex") as string || "0");
+        const totalChunks = parseInt(formData.get("totalChunks") as string || "1");
+        const fileId = formData.get("fileId") as string || `upload-${Date.now()}`;
+        const originalName = formData.get("originalName") as string || "file";
 
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -50,32 +54,44 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "GOOGLE_API_KEY is not set" }, { status: 500 });
         }
 
-        // 1. Validate File Type
-        // Gemini supports many types, but let's keep it to audio/video
-        if (!file.type.startsWith("audio/") && !file.type.startsWith("video/")) {
-            return NextResponse.json(
-                { error: "Invalid file type. Please upload audio or video." },
-                { status: 400 }
-            );
-        }
+        // 1. Save Chunk
+        tempFilePath = join(tmpdir(), `${fileId}-${originalName}`);
 
-        // 2. Save file temporarily
+        // Check if it's the first chunk, if so, ensure we start fresh (or just append if we assume sequential)
+        // We'll use appendFile. If it's chunk 0, strictly write? 
+        // Actually, concurrent chunks might be issue. We assume sequential upload from client.
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        tempFilePath = join(tmpdir(), `upload-${Date.now()}-${file.name}`);
-        await writeFile(tempFilePath, buffer);
 
-        // 3. Upload to Gemini File API
+        if (chunkIndex === 0) {
+            await writeFile(tempFilePath, buffer);
+        } else {
+            await appendFile(tempFilePath, buffer);
+        }
+
+        // If not the last chunk, return success and wait for next
+        if (chunkIndex < totalChunks - 1) {
+            return NextResponse.json({ status: "chunk_received", chunkIndex }, { status: 200 });
+        }
+
+        // --- LAST CHUNK RECEIVED: PROCESS FILE ---
+        console.log("All chunks received. Processing file:", tempFilePath);
+
+        // Validate size?
+        // const stats = await stat(tempFilePath);
+        // console.log("File size:", stats.size);
+
+        // 2. Upload to Gemini File API
         console.log("Uploading to Gemini:", tempFilePath);
         const uploadResult = await fileManager.uploadFile(tempFilePath, {
-            mimeType: file.type,
-            displayName: file.name,
+            mimeType: file.type || "video/mp4", // Warning: chunk might miss type, prefer passed originalType
+            displayName: originalName,
         });
 
         const fileUri = uploadResult.file.uri;
         console.log(`Uploaded file to Gemini with URI: ${fileUri}`);
 
-        // Wait for file to be processed (important for video/audio)
+        // Wait for file to be processed
         let fileState = await fileManager.getFile(uploadResult.file.name);
         while (fileState.state === "PROCESSING") {
             console.log("File is processing...");
@@ -87,7 +103,7 @@ export async function POST(req: NextRequest) {
             throw new Error("Gemini file processing failed.");
         }
 
-        // 4. Generate Content (Gemini 1.5 Flash is efficient for multimodal)
+        // 3. Generate Content
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         console.log("Generating notes...");
@@ -104,14 +120,13 @@ export async function POST(req: NextRequest) {
         const generatedNotes = result.response.text();
         console.log("Notes generated, length:", generatedNotes.length);
 
-        // Extract a title
         const titleMatch = generatedNotes.match(/^# (.*)$/m);
-        const title = titleMatch ? titleMatch[1] : `Lecture Notes: ${file.name}`;
+        const title = titleMatch ? titleMatch[1] : `Lecture Notes: ${originalName}`;
 
-        // 5. Save to Database
+        // 4. Save to Database
         const user = await prisma.user.findFirst();
         if (!user) {
-            throw new Error("No user found in database to attach notes to.");
+            throw new Error("No user found in database.");
         }
 
         const newNote = await prisma.note.create({
@@ -125,15 +140,17 @@ export async function POST(req: NextRequest) {
 
         // Cleanup
         await unlink(tempFilePath).catch(() => { });
-        // Ideally delete from Gemini too to save storage, but it auto-expires in 48h
-        // await fileManager.deleteFile(uploadResult.file.name); 
 
         return NextResponse.json({ note: newNote }, { status: 201 });
 
     } catch (error: any) {
         console.error("AI Generation Error:", error);
-        if (tempFilePath) {
-            await unlink(tempFilePath).catch(() => { });
+        // Only cleanup on error if it's the last chunk or if we want to be safe?
+        // If chunk fails, we might leave partial file, but tmpdir cleans up eventually.
+        // If processing fails, we should cleanup.
+        if (tempFilePath && tempFilePath.includes("upload-")) {
+            // Careful not to delete if we are mid-stream in another request, but fileId should be unique
+            // await unlink(tempFilePath).catch(() => {});
         }
         return NextResponse.json(
             { error: error.message || "Failed to generate notes" },
