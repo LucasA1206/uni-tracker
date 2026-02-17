@@ -1,25 +1,22 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleAIFileManager } from "@google/generative-ai/server";
+import { OpenAI } from "openai";
 import { writeFile, appendFile, unlink, stat } from "fs/promises";
+import { createReadStream } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
-// Initialize Gemini clients
-// Note: You need GOOGLE_API_KEY in .env
-// Ensure environment variables are read
-const apiKey = process.env.GOOGLE_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
-const fileManager = new GoogleAIFileManager(apiKey);
+// Initialize OpenAI client
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 
 export const maxDuration = 60;
 
 // System prompt to guide the AI
 const SYSTEM_PROMPT = `
 You are an expert academic note-taker. 
-Your task is to generate detailed, structured, and educational notes from the provided lecture audio/video.
+Your task is to generate detailed, structured, and educational notes from the provided lecture transcript.
 The notes should be formatted in Markdown.
 
 Follow this structure exactly:
@@ -46,23 +43,18 @@ export async function POST(req: NextRequest) {
         const fileId = formData.get("fileId") as string || `upload-${Date.now()}`;
         const originalName = formData.get("originalName") as string || "file";
 
-
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
 
-        const mimeType = formData.get("mimeType") as string || file.type || "video/mp4";
-
-        if (!process.env.GOOGLE_API_KEY) {
-            return NextResponse.json({ error: "GOOGLE_API_KEY is not set" }, { status: 500 });
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json({ error: "OPENAI_API_KEY is not set" }, { status: 500 });
         }
 
         // 1. Save Chunk
         tempFilePath = join(tmpdir(), `${fileId}-${originalName}`);
 
         // Check if it's the first chunk, if so, ensure we start fresh (or just append if we assume sequential)
-        // We'll use appendFile. If it's chunk 0, strictly write? 
-        // Actually, concurrent chunks might be issue. We assume sequential upload from client.
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
@@ -80,50 +72,41 @@ export async function POST(req: NextRequest) {
         // --- LAST CHUNK RECEIVED: PROCESS FILE ---
         console.log("All chunks received. Processing file:", tempFilePath);
 
-        // Validate size?
-        // const stats = await stat(tempFilePath);
-        // console.log("File size:", stats.size);
+        // 2. Transcribe with OpenAI Whisper
+        console.log("Transcribing with Whisper...");
+        // Check file size for Whisper (limit is ~25MB). 
+        // If larger, we ideally need to split, but for now we'll try to send safely.
+        // Note: createReadStream is needed for OpenAI SDK
+        const stats = await stat(tempFilePath);
+        if (stats.size > 25 * 1024 * 1024) {
+            console.warn("File is larger than 25MB. OpenAI Whisper might fail.");
+        }
 
-        // 2. Upload to Gemini File API
-        console.log("Uploading to Gemini:", tempFilePath);
-        const uploadResult = await fileManager.uploadFile(tempFilePath, {
-            mimeType: mimeType,
-            displayName: originalName,
+        const transcription = await openai.audio.transcriptions.create({
+            file: createReadStream(tempFilePath) as any, // Cast to any because createReadStream returns fs.ReadStream, but OpenAI expects File or Blob
+            model: "whisper-1",
         });
 
-        const fileUri = uploadResult.file.uri;
-        console.log(`Uploaded file to Gemini with URI: ${fileUri}`);
+        const transcriptText = transcription.text;
+        console.log("Transcription complete. Length:", transcriptText.length);
 
-        // Wait for file to be processed
-        let fileState = await fileManager.getFile(uploadResult.file.name);
-        while (fileState.state === "PROCESSING") {
-            console.log("File is processing...");
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            fileState = await fileManager.getFile(uploadResult.file.name);
-        }
-
-        if (fileState.state === "FAILED") {
-            throw new Error("Gemini file processing failed.");
-        }
-
-        // 3. Generate Content
-        // Using gemini-1.5-flash-latest to ensure we hit a valid endpoint
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
+        // 3. Generate Content with GPT-4o
         console.log("Generating notes...");
-        const result = await model.generateContent([
-            SYSTEM_PROMPT,
-            {
-                fileData: {
-                    mimeType: uploadResult.file.mimeType,
-                    fileUri: fileUri
-                }
-            }
-        ]);
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                {
+                    role: "user",
+                    content: `Here is the transcript of the lecture. Please generate the notes.\n\nTRANSCRIPT:\n${transcriptText}`
+                },
+            ],
+            temperature: 0.3,
+        });
 
-        const generatedNotes = result.response.text();
-        console.log("Notes generated, length:", generatedNotes.length);
+        const generatedNotes = completion.choices[0].message.content || "No notes generated.";
 
+        // Extract a title
         const titleMatch = generatedNotes.match(/^# (.*)$/m);
         const title = titleMatch ? titleMatch[1] : `Lecture Notes: ${originalName}`;
 
@@ -149,9 +132,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error("AI Generation Error:", error);
-        // Only cleanup on error if it's the last chunk or if we want to be safe?
-        // If chunk fails, we might leave partial file, but tmpdir cleans up eventually.
-        // If processing fails, we should cleanup.
+        // Cleanup on error
         if (tempFilePath && tempFilePath.includes("upload-")) {
             // Careful not to delete if we are mid-stream in another request, but fileId should be unique
             // await unlink(tempFilePath).catch(() => {});
