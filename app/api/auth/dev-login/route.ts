@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
                     passwordHash: "$2a$10$abcdefgThisIsAFakeHashForDevOnly",
                     role: "admin",
                     name: "Dev User",
+                    universityEmail: "dev@university.edu",
                 },
             });
         }
