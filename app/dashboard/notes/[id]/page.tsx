@@ -153,13 +153,10 @@ export default function NoteDetailPage() {
                 </div>
             </header>
 
-        </div>
-            </header >
-
-        {/* Main Content */ }
-        < main className = "mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8" >
-            {/* Note Header */ }
-            < div className = "mb-8 space-y-4" >
+            {/* Main Content */}
+            <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+                {/* Note Header */}
+                <div className="mb-8 space-y-4">
                     <div className="flex items-start justify-between">
                         <div className="space-y-1">
                             {note.course?.code && (
@@ -190,30 +187,60 @@ export default function NoteDetailPage() {
                             <span>Read time: {Math.ceil(note.content.length / 1000)} min</span>
                         </div>
                     </div>
-                </div >
+                </div>
 
-        {/* Note Body (Markdown) */ }
-        < article className = "prose prose-lg dark:prose-invert max-w-none 
-    prose - headings: font - bold prose - headings: tracking - tight
-    prose - h1: text - gray - 900 dark: prose - h1: text - white
-    prose - h2: text - gray - 800 dark: prose - h2: text - gray - 100
-    prose - p: text - gray - 600 dark: prose - p: text - gray - 300
-    prose - a: text - indigo - 600 dark: prose - a: text - indigo - 400
-    prose - blockquote: border - l - indigo - 500 prose - blockquote: bg - gray - 50 dark: prose - blockquote: bg - [#121214] prose - blockquote: py - 1 prose - blockquote: px - 4 prose - blockquote: rounded - r - lg
-    prose - code: text - indigo - 600 dark: prose - code: text - indigo - 400 prose - code: bg - gray - 100 dark: prose - code: bg - [#1F1F23] prose - code: px - 1 prose - code: py - 0.5 prose - code: rounded - md prose - code: before: content - none prose - code: after: content - none
-    prose - pre: bg - gray - 900 dark: prose - pre: bg - [#121214] prose - pre:border prose - pre: border - gray - 800 dark: prose - pre: border - [#1F1F23]
-    prose - img: rounded - xl prose - img: shadow - lg
-    ">
-        < ReactMarkdown > { note.content }</ReactMarkdown >
-                </article >
-            </main >
+                {/* Note Body (Markdown) */}
+                <article className="prose prose-lg dark:prose-invert max-w-none 
+                    prose-headings:font-bold prose-headings:tracking-tight 
+                    prose-h1:text-4xl prose-h1:text-gray-900 dark:prose-h1:text-white prose-h1:mb-8 prose-h1:border-b prose-h1:pb-4 prose-h1:border-gray-200 dark:prose-h1:border-gray-800
+                    prose-h2:text-2xl prose-h2:text-indigo-600 dark:prose-h2:text-indigo-400 prose-h2:mt-12 prose-h2:mb-6
+                    prose-h3:text-xl prose-h3:text-gray-800 dark:prose-h3:text-gray-200 prose-h3:mt-8
+                    prose-p:text-gray-600 dark:prose-p:text-gray-300 prose-p:leading-relaxed
+                    prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline
+                    prose-blockquote:border-l-4 prose-blockquote:border-indigo-500 prose-blockquote:bg-gray-50 dark:prose-blockquote:bg-[#121214] prose-blockquote:py-2 prose-blockquote:px-6 prose-blockquote:rounded-r-lg prose-blockquote:italic
+                    prose-code:text-pink-600 dark:prose-code:text-pink-400 prose-code:bg-gray-100 dark:prose-code:bg-[#1F1F23] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-mono prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+                    prose-pre:bg-[#1E1E1E] dark:prose-pre:bg-[#121214] prose-pre:text-gray-100 prose-pre:rounded-xl prose-pre:shadow-lg prose-pre:border prose-pre:border-gray-800 dark:prose-pre:border-[#1F1F23] prose-pre:p-4
+                    prose-img:rounded-xl prose-img:shadow-lg prose-img:my-8
+                    prose-ul:marker:text-indigo-500
+                    prose-ol:marker:text-indigo-500
+                    prose-th:bg-gray-100 dark:prose-th:bg-[#1F1F23] prose-th:p-4 prose-th:text-left
+                    prose-td:p-4 prose-td:border-b prose-td:border-gray-200 dark:prose-td:border-gray-800
+                ">
+                    <ReactMarkdown
+                        components={{
+                            table: ({ node, ...props }) => (
+                                <div className="overflow-x-auto my-8 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
+                                    <table className="w-full text-sm text-left" {...props} />
+                                </div>
+                            ),
+                            thead: ({ node, ...props }) => (
+                                <thead className="bg-gray-50 dark:bg-[#1F1F23] uppercase text-xs font-semibold text-gray-700 dark:text-gray-300" {...props} />
+                            ),
+                            tbody: ({ node, ...props }) => (
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-800" {...props} />
+                            ),
+                            tr: ({ node, ...props }) => (
+                                <tr className="bg-white dark:bg-[#0E1020] hover:bg-gray-50 dark:hover:bg-[#1F1F23]/50 transition-colors" {...props} />
+                            ),
+                            th: ({ node, ...props }) => (
+                                <th className="px-6 py-3 whitespace-nowrap" {...props} />
+                            ),
+                            td: ({ node, ...props }) => (
+                                <td className="px-6 py-4" {...props} />
+                            ),
+                        }}
+                    >
+                        {note.content}
+                    </ReactMarkdown>
+                </article>
+            </main>
 
-        <QuizModal
-            isOpen={isQuizOpen}
-            onClose={() => setIsQuizOpen(false)}
-            noteId={note.id}
-            title={note.title}
-        />
-        </div >
+            <QuizModal
+                isOpen={isQuizOpen}
+                onClose={() => setIsQuizOpen(false)}
+                noteId={note.id}
+                title={note.title}
+            />
+        </div>
     );
 }
