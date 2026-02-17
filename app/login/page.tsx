@@ -78,6 +78,26 @@ export default function LoginPage() {
         >
           {loading ? "Logging in..." : "Log in"}
         </Button>
+
+        {process.env.NODE_ENV === "development" && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mt-2 text-white border-dashed border-slate-500 hover:bg-slate-800"
+            onClick={async () => {
+              setLoading(true);
+              const res = await fetch("/api/auth/dev-login", { method: "POST" });
+              if (res.ok) {
+                router.replace("/dashboard");
+              } else {
+                setError("Dev login failed");
+                setLoading(false);
+              }
+            }}
+          >
+            Dev Mode: Bypass Login
+          </Button>
+        )}
       </form>
       <p className="mt-4 text-center text-sm text-white">
         Don&apos;t have an account?{" "}
