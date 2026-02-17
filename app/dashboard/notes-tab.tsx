@@ -213,7 +213,7 @@ export default function NotesTab() {
 
                 // If it's the last chunk, we update message before sending because it might take a while
                 if (chunkIndex === totalChunks - 1) {
-                    setProcessingStage("Processing with Gemini 1.5 Flash... (this may take a minute)");
+                    setProcessingStage("Processing with Gemini 2.0 Flash Lite... (this may take a minute)");
                 }
 
                 const res = await fetch("/api/ai/generate-notes", {
