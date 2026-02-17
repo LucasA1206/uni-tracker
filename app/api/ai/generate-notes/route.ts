@@ -1,23 +1,25 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { OpenAI } from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
-import { createReadStream } from "fs";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize Gemini clients
+// Note: You need GOOGLE_API_KEY in .env
+// Ensure environment variables are read
+const apiKey = process.env.GOOGLE_API_KEY || "";
+const genAI = new GoogleGenerativeAI(apiKey);
+const fileManager = new GoogleAIFileManager(apiKey);
 
-export const maxDuration = 60; // Set max duration to 60 seconds (or more if needed) for Vercel/Next.js
+export const maxDuration = 60;
 
-// System prompt to guide the AI on how to format the notes
+// System prompt to guide the AI
 const SYSTEM_PROMPT = `
 You are an expert academic note-taker. 
-Your task is to generate detailed, structured, and educational notes from the provided lecture transcript.
+Your task is to generate detailed, structured, and educational notes from the provided lecture audio/video.
 The notes should be formatted in Markdown.
 
 Follow this structure exactly:
@@ -30,7 +32,6 @@ Follow this structure exactly:
 7.  **## Key Definitions**: A list of defined terms.
 
 Use bold text for emphasis. Ensure the tone is professional, clear, and easy to study from.
-If the transcript is messy, clean it up and capture the *intent* and *information* rather than a verbatim record.
 `;
 
 export async function POST(req: NextRequest) {
@@ -45,7 +46,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
 
+        if (!process.env.GOOGLE_API_KEY) {
+            return NextResponse.json({ error: "GOOGLE_API_KEY is not set" }, { status: 500 });
+        }
+
         // 1. Validate File Type
+        // Gemini supports many types, but let's keep it to audio/video
         if (!file.type.startsWith("audio/") && !file.type.startsWith("video/")) {
             return NextResponse.json(
                 { error: "Invalid file type. Please upload audio or video." },
@@ -53,50 +59,56 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 2. Save file temporarily (OpenAI API needs a file path/stream usually)
+        // 2. Save file temporarily
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         tempFilePath = join(tmpdir(), `upload-${Date.now()}-${file.name}`);
         await writeFile(tempFilePath, buffer);
 
-        // 3. Transcribe Audio (Whisper)
-        console.log("Transcribing file:", tempFilePath);
-        const transcription = await openai.audio.transcriptions.create({
-            file: createReadStream(tempFilePath),
-            model: "whisper-1",
+        // 3. Upload to Gemini File API
+        console.log("Uploading to Gemini:", tempFilePath);
+        const uploadResult = await fileManager.uploadFile(tempFilePath, {
+            mimeType: file.type,
+            displayName: file.name,
         });
 
-        const transcriptText = transcription.text;
-        console.log("Transcription complete. Length:", transcriptText.length);
+        const fileUri = uploadResult.file.uri;
+        console.log(`Uploaded file to Gemini with URI: ${fileUri}`);
 
-        // 4. Generate Notes (GPT-4o)
+        // Wait for file to be processed (important for video/audio)
+        let fileState = await fileManager.getFile(uploadResult.file.name);
+        while (fileState.state === "PROCESSING") {
+            console.log("File is processing...");
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            fileState = await fileManager.getFile(uploadResult.file.name);
+        }
+
+        if (fileState.state === "FAILED") {
+            throw new Error("Gemini file processing failed.");
+        }
+
+        // 4. Generate Content (Gemini 1.5 Flash is efficient for multimodal)
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
         console.log("Generating notes...");
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                {
-                    role: "user",
-                    content: `Here is the transcript of the lecture. Please generate the notes.\n\nTRANSCRIPT:\n${transcriptText}`
-                },
-            ],
-            temperature: 0.3,
-        });
+        const result = await model.generateContent([
+            SYSTEM_PROMPT,
+            {
+                fileData: {
+                    mimeType: uploadResult.file.mimeType,
+                    fileUri: fileUri
+                }
+            }
+        ]);
 
-        const generatedNotes = completion.choices[0].message.content || "No notes generated.";
+        const generatedNotes = result.response.text();
+        console.log("Notes generated, length:", generatedNotes.length);
 
-        // Extract a title (simple heuristic: first line or filename)
+        // Extract a title
         const titleMatch = generatedNotes.match(/^# (.*)$/m);
         const title = titleMatch ? titleMatch[1] : `Lecture Notes: ${file.name}`;
 
         // 5. Save to Database
-        // We need a userId. For now, we'll hardcode or fetch from session if available. 
-        // Since we don't have auth middleware in this snippet, we'll try to find a user or fail.
-        // In a real app, use: const session = await getServerSession(...); const userId = session.user.id;
-        // For this existing codebase, let's peek at how other API routes get the user.
-        // They seem to assume a mocked user or session.
-        // We'll query a default user for now to make it work
-
         const user = await prisma.user.findFirst();
         if (!user) {
             throw new Error("No user found in database to attach notes to.");
@@ -113,12 +125,13 @@ export async function POST(req: NextRequest) {
 
         // Cleanup
         await unlink(tempFilePath).catch(() => { });
+        // Ideally delete from Gemini too to save storage, but it auto-expires in 48h
+        // await fileManager.deleteFile(uploadResult.file.name); 
 
         return NextResponse.json({ note: newNote }, { status: 201 });
 
     } catch (error: any) {
         console.error("AI Generation Error:", error);
-        // Cleanup if error
         if (tempFilePath) {
             await unlink(tempFilePath).catch(() => { });
         }
