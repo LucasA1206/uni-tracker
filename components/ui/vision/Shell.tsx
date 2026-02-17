@@ -4,7 +4,7 @@ import React from "react";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
-type Tab = "Uni" | "Work" | "Calendar" | "Finance";
+type Tab = "Uni" | "Work" | "Calendar" | "Finance" | "Notes";
 
 interface ShellProps {
   tab: Tab;

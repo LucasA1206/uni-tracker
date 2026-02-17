@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { GraduationCap, Briefcase, CalendarDays, Wallet } from "lucide-react";
+import { GraduationCap, Briefcase, CalendarDays, Wallet, Notebook } from "lucide-react";
 
-type Tab = "Uni" | "Work" | "Calendar" | "Finance";
+type Tab = "Uni" | "Work" | "Calendar" | "Finance" | "Notes";
 
 interface SidebarProps {
   active: Tab;
@@ -15,6 +15,7 @@ const items: { key: Tab; label: string; icon: React.ComponentType<{ className?: 
   { key: "Work", label: "Work", icon: Briefcase },
   { key: "Calendar", label: "Calendar", icon: CalendarDays },
   { key: "Finance", label: "Finance", icon: Wallet },
+  { key: "Notes", label: "Notes", icon: Notebook },
 ];
 
 export default function Sidebar({ active, onChange }: SidebarProps) {
@@ -31,11 +32,10 @@ export default function Sidebar({ active, onChange }: SidebarProps) {
               key={key}
               type="button"
               onClick={() => onChange(key)}
-              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                selected
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${selected
                   ? "bg-indigo-600/10 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500/30"
                   : "hover:bg-gray-100 dark:hover:bg-[#141826]"
-              }`}
+                }`}
             >
               <Icon className={`h-5 w-5 ${selected ? "text-indigo-600 dark:text-indigo-300" : "text-gray-500 dark:text-gray-400"}`} />
               <span className="font-medium">{label}</span>
