@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '100mb',
     },
+    serverComponentsExternalPackages: ['sharp', 'onnxruntime-node'],
   },
   async headers() {
     return [
@@ -24,14 +25,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "sharp$": false,
-      "onnxruntime-node$": false,
-    }
-    return config;
   },
 };
 
