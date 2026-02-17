@@ -185,30 +185,17 @@ export default function NotesTab() {
         if (!uploadFile) return;
 
         setIsProcessing(true);
+        setProcessingStage("Starting upload...");
 
-        // Simulate AI processing stages
-        const stages = [
-            "Uploading file...",
-            "Transcribing audio...",
-            "Analyzing content structure...",
-            "Generating summary...",
-            "Formatting notes...",
-        ];
-
-        for (const stage of stages) {
-            setProcessingStage(stage);
-            await new Promise(r => setTimeout(r, 800 + Math.random() * 500));
-        }
-
-        // "Save" the note
-        // Generate the note using AI with chunked upload
         try {
-            const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks to be safe
+            const CHUNK_SIZE = 4 * 1024 * 1024; // Increased chunk size for faster uploads
             const totalChunks = Math.ceil(uploadFile.size / CHUNK_SIZE);
             const fileId = `upload-${Date.now()}`;
 
             for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                setProcessingStage(`Uploading chunk ${chunkIndex + 1}/${totalChunks}...`);
+                // Update UI to show upload progress
+                const percent = Math.round(((chunkIndex) / totalChunks) * 100);
+                setProcessingStage(`Uploading... ${percent}%`);
 
                 const start = chunkIndex * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, uploadFile.size);
@@ -224,8 +211,11 @@ export default function NotesTab() {
                     formData.append("courseId", selectedCourseId);
                 }
 
-                // If it's the last chunk, we expect the final response
-                // If not, we just expect a specific status
+                // If it's the last chunk, we update message before sending because it might take a while
+                if (chunkIndex === totalChunks - 1) {
+                    setProcessingStage("Processing with Gemini 1.5 Flash... (this may take a minute)");
+                }
+
                 const res = await fetch("/api/ai/generate-notes", {
                     method: "POST",
                     body: formData,
@@ -240,7 +230,7 @@ export default function NotesTab() {
 
                 // If this was the last chunk, we are done
                 if (chunkIndex === totalChunks - 1) {
-                    setProcessingStage("Processing complete!");
+                    setProcessingStage("Finalizing notes...");
                     if (data.note?.id) {
                         router.push(`/dashboard/notes/${data.note.id}`);
                     } else {
