@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { Loader2, ArrowLeft, Calendar, BookOpen, Clock, FileText, Share2, Printer, MoreVertical, Edit2, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Calendar, BookOpen, Clock, FileText, Share2, Printer, MoreVertical, Edit2, Trash2, BrainCircuit } from "lucide-react";
 import Link from "next/link";
+import QuizModal from "@/components/quiz/QuizModal";
 
 interface Course {
     id: number;
@@ -27,6 +28,7 @@ export default function NoteDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isQuizOpen, setIsQuizOpen] = useState(false);
 
     // Fetch the note data
     useEffect(() => {
@@ -151,10 +153,13 @@ export default function NoteDetailPage() {
                 </div>
             </header>
 
-            {/* Main Content */}
-            <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-                {/* Note Header */}
-                <div className="mb-8 space-y-4">
+        </div>
+            </header >
+
+        {/* Main Content */ }
+        < main className = "mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8" >
+            {/* Note Header */ }
+            < div className = "mb-8 space-y-4" >
                     <div className="flex items-start justify-between">
                         <div className="space-y-1">
                             {note.course?.code && (
@@ -166,6 +171,13 @@ export default function NoteDetailPage() {
                                 {note.title}
                             </h1>
                         </div>
+                        <button
+                            onClick={() => setIsQuizOpen(true)}
+                            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        >
+                            <BrainCircuit className="h-4 w-4" />
+                            Quiz Me!
+                        </button>
                     </div>
 
                     <div className="flex items-center gap-6 border-b border-gray-100 dark:border-[#1F1F23] pb-6 text-sm text-gray-500 dark:text-gray-400">
@@ -178,23 +190,30 @@ export default function NoteDetailPage() {
                             <span>Read time: {Math.ceil(note.content.length / 1000)} min</span>
                         </div>
                     </div>
-                </div>
+                </div >
 
-                {/* Note Body (Markdown) */}
-                <article className="prose prose-lg dark:prose-invert max-w-none 
-            prose-headings:font-bold prose-headings:tracking-tight 
-            prose-h1:text-gray-900 dark:prose-h1:text-white
-            prose-h2:text-gray-800 dark:prose-h2:text-gray-100
-            prose-p:text-gray-600 dark:prose-p:text-gray-300
-            prose-a:text-indigo-600 dark:prose-a:text-indigo-400
-            prose-blockquote:border-l-indigo-500 prose-blockquote:bg-gray-50 dark:prose-blockquote:bg-[#121214] prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg
-            prose-code:text-indigo-600 dark:prose-code:text-indigo-400 prose-code:bg-gray-100 dark:prose-code:bg-[#1F1F23] prose-code:px-1 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
-            prose-pre:bg-gray-900 dark:prose-pre:bg-[#121214] prose-pre:border prose-pre:border-gray-800 dark:prose-pre:border-[#1F1F23]
-            prose-img:rounded-xl prose-img:shadow-lg
-        ">
-                    <ReactMarkdown>{note.content}</ReactMarkdown>
-                </article>
-            </main>
-        </div>
+        {/* Note Body (Markdown) */ }
+        < article className = "prose prose-lg dark:prose-invert max-w-none 
+    prose - headings: font - bold prose - headings: tracking - tight
+    prose - h1: text - gray - 900 dark: prose - h1: text - white
+    prose - h2: text - gray - 800 dark: prose - h2: text - gray - 100
+    prose - p: text - gray - 600 dark: prose - p: text - gray - 300
+    prose - a: text - indigo - 600 dark: prose - a: text - indigo - 400
+    prose - blockquote: border - l - indigo - 500 prose - blockquote: bg - gray - 50 dark: prose - blockquote: bg - [#121214] prose - blockquote: py - 1 prose - blockquote: px - 4 prose - blockquote: rounded - r - lg
+    prose - code: text - indigo - 600 dark: prose - code: text - indigo - 400 prose - code: bg - gray - 100 dark: prose - code: bg - [#1F1F23] prose - code: px - 1 prose - code: py - 0.5 prose - code: rounded - md prose - code: before: content - none prose - code: after: content - none
+    prose - pre: bg - gray - 900 dark: prose - pre: bg - [#121214] prose - pre:border prose - pre: border - gray - 800 dark: prose - pre: border - [#1F1F23]
+    prose - img: rounded - xl prose - img: shadow - lg
+    ">
+        < ReactMarkdown > { note.content }</ReactMarkdown >
+                </article >
+            </main >
+
+        <QuizModal
+            isOpen={isQuizOpen}
+            onClose={() => setIsQuizOpen(false)}
+            noteId={note.id}
+            title={note.title}
+        />
+        </div >
     );
 }

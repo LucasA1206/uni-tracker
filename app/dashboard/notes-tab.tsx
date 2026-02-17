@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit } from "lucide-react";
+import QuizModal from "@/components/quiz/QuizModal";
 
 interface Course {
     id: number;
@@ -17,6 +18,7 @@ interface Note {
     title: string;
     content: string;
     createdAt: string;
+    courseId?: number; // Ensure this is available
     course?: { code?: string };
 }
 
@@ -125,6 +127,7 @@ export default function NotesTab() {
 
 
     const router = useRouter();
+    const [quizConfig, setQuizConfig] = useState<{ courseId: number, title: string } | null>(null);
     // const [selectedNote, setSelectedNote] = useState<Note | null>(null); // Removed modal state
 
     const refresh = useCallback(async () => {
@@ -401,11 +404,23 @@ export default function NotesTab() {
                 ) : (
                     Object.entries(notesByCourse).map(([courseCode, courseNotes]) => (
                         <div key={courseCode} className="space-y-3">
-                            <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                                    {courseCode}
-                                </span>
-                                <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800"></span>
+                            <div className="flex items-center gap-2 justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                                        {courseCode}
+                                    </span>
+                                    <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800 min-w-[20px]"></span>
+                                </div>
+                                <button
+                                    onClick={() => setQuizConfig({
+                                        courseId: courseNotes[0]?.courseId || 0, // Fallback if needed, though we group by courseCode
+                                        title: courseCode
+                                    })}
+                                    className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                >
+                                    <BrainCircuit className="w-3.5 h-3.5" />
+                                    Quiz Me!
+                                </button>
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -450,7 +465,13 @@ export default function NotesTab() {
                 )}
             </div>
 
-
+            {/* Quiz Modal */}
+            <QuizModal
+                isOpen={!!quizConfig}
+                onClose={() => setQuizConfig(null)}
+                courseId={quizConfig?.courseId}
+                title={quizConfig?.title || ""}
+            />
         </div>
     );
 }
