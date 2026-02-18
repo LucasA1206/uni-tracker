@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play } from "lucide-react";
+import { useWhisper } from "@/hooks/useWhisper";
 import QuizModal from "@/components/quiz/QuizModal";
 
 interface Course {
@@ -128,6 +129,63 @@ export default function NotesTab() {
 
     const router = useRouter();
     const [quizConfig, setQuizConfig] = useState<{ courseId: number, title: string } | null>(null);
+
+    // Recorder State
+    const [recordingSource, setRecordingSource] = useState<'mic' | 'system'>('mic');
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+    const { startRecording, startSystemRecording, stopRecording, audioBlob, transcription, isTranscribing: isWhisperTranscribing } = useWhisper();
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isRecording) {
+            interval = setInterval(() => setRecordingTime(t => t + 1), 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isRecording]);
+
+    useEffect(() => {
+        if (audioBlob) setRecordedBlob(audioBlob);
+    }, [audioBlob]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const handleStartRecording = async () => {
+        setRecordedBlob(null);
+        setRecordingTime(0);
+        if (recordingSource === 'mic') await startRecording();
+        else await startSystemRecording();
+        setIsRecording(true);
+    };
+
+    const handleStopRecording = async () => {
+        setIsRecording(false);
+        const blob = await stopRecording();
+        if (blob) setRecordedBlob(blob);
+    };
+
+    const handleDownloadRecording = () => {
+        if (!recordedBlob) return;
+        const url = URL.createObjectURL(recordedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `recording-${new Date().toISOString().slice(0, 10)}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleGenerateFromRecording = () => {
+        if (!recordedBlob) return;
+        const file = new File([recordedBlob], `recording-${new Date().getTime()}.webm`, { type: recordedBlob.type });
+        setUploadFile(file);
+    };
     // const [selectedNote, setSelectedNote] = useState<Note | null>(null); // Removed modal state
 
     const refresh = useCallback(async () => {
@@ -282,110 +340,216 @@ export default function NotesTab() {
                 </p>
             </div>
 
-            {/* Upload Section */}
-            <motion.div
-                layout
-                className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200 
-          ${dragActive ? "border-indigo-500 bg-indigo-50/10" : "border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12]"}
-          ${isProcessing ? "pointer-events-none opacity-80" : ""}
-        `}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-            >
-                <div className="p-8 flex flex-col items-center justify-center gap-4 text-center min-h-[200px]">
-                    {isProcessing ? (
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="relative">
-                                <div className="absolute inset-0 rounded-full animate-ping bg-indigo-500/20"></div>
-                                <div className="relative bg-white dark:bg-[#1A1A1A] p-4 rounded-full shadow-xl">
-                                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Processing your lecture</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">{processingStage}</p>
-                            </div>
-                        </div>
-                    ) : !uploadFile ? (
-                        <>
-                            <div className="p-4 rounded-full bg-indigo-50 dark:bg-indigo-500/10 mb-2">
-                                <Upload className="w-8 h-8 text-indigo-500" />
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                    Drag & drop your recording here
-                                </h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Supports MP4, MP3 audio files (max 500MB)
-                                </p>
-                            </div>
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t border-gray-200 dark:border-gray-800" />
-                                </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-white dark:bg-[#0F0F12] px-2 text-gray-500">Or</span>
-                                </div>
-                            </div>
-                            <label className="cursor-pointer rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                                Browse Files
-                                <input type="file" className="hidden" accept=".mp3,audio/*,video/mp4" onChange={handleFileChange} />
-                            </label>
-                        </>
-                    ) : (
-                        <div className="w-full max-w-md bg-gray-50 dark:bg-[#1A1A1A] p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in zoom-in-95 duration-200">
-                            <div className="flex items-start justify-between gap-4 mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-500">
-                                        <FileAudio className="w-6 h-6" />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-medium text-gray-900 dark:text-white line-clamp-1">{uploadFile.name}</p>
-                                        <p className="text-xs text-gray-500">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+            {/* Split View: Upload & Recorder */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {/* Left: Upload Section */}
+                <motion.div
+                    layout
+                    className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200 
+            ${dragActive ? "border-indigo-500 bg-indigo-50/10" : "border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12]"}
+            ${isProcessing ? "pointer-events-none opacity-80" : ""}
+            `}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                >
+                    <div className="p-8 flex flex-col items-center justify-center gap-4 text-center min-h-[200px]">
+                        {isProcessing ? (
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="relative">
+                                    <div className="absolute inset-0 rounded-full animate-ping bg-indigo-500/20"></div>
+                                    <div className="relative bg-white dark:bg-[#1A1A1A] p-4 rounded-full shadow-xl">
+                                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setUploadFile(null)}
-                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                >
-                                    <span className="sr-only">Remove</span>
-                                    <Trash2 className="w-4 h-4 text-gray-400" />
-                                </button>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="space-y-2 text-left">
-                                    <label className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Categorize by Course <span className="text-xs normal-case font-normal ml-1">(Optional)</span></label>
-                                    <select
-                                        value={selectedCourseId}
-                                        onChange={(e) => setSelectedCourseId(e.target.value)}
-                                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    >
-                                        <option value="">Select a course...</option>
-                                        {courses.map(course => (
-                                            <option key={course.id} value={course.id}>
-                                                {course.code} - {course.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Processing your lecture</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">{processingStage}</p>
                                 </div>
-
-                                <div className="pt-2">
+                            </div>
+                        ) : !uploadFile ? (
+                            <>
+                                <div className="p-4 rounded-full bg-indigo-50 dark:bg-indigo-500/10 mb-2">
+                                    <Upload className="w-8 h-8 text-indigo-500" />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                        Drag & drop your recording here
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Supports MP4, MP3 audio files (max 500MB)
+                                    </p>
+                                </div>
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <span className="w-full border-t border-gray-200 dark:border-gray-800" />
+                                    </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-white dark:bg-[#0F0F12] px-2 text-gray-500">Or</span>
+                                    </div>
+                                </div>
+                                <label className="cursor-pointer rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                    Browse Files
+                                    <input type="file" className="hidden" accept=".mp3,audio/*,video/mp4" onChange={handleFileChange} />
+                                </label>
+                            </>
+                        ) : (
+                            <div className="w-full max-w-md bg-gray-50 dark:bg-[#1A1A1A] p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                                <div className="flex items-start justify-between gap-4 mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-500">
+                                            <FileAudio className="w-6 h-6" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-medium text-gray-900 dark:text-white line-clamp-1">{uploadFile.name}</p>
+                                            <p className="text-xs text-gray-500">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        </div>
+                                    </div>
                                     <button
-                                        onClick={handleGenerate}
+                                        onClick={() => setUploadFile(null)}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                                    >
+                                        <span className="sr-only">Remove</span>
+                                        <Trash2 className="w-4 h-4 text-gray-400" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="space-y-2 text-left">
+                                        <label className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Categorize by Course <span className="text-xs normal-case font-normal ml-1">(Optional)</span></label>
+                                        <select
+                                            value={selectedCourseId}
+                                            onChange={(e) => setSelectedCourseId(e.target.value)}
+                                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        >
+                                            <option value="">Select a course...</option>
+                                            {courses.map(course => (
+                                                <option key={course.id} value={course.id}>
+                                                    {course.code} - {course.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <button
+                                            onClick={handleGenerate}
+                                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                        >
+                                            <Mic className="w-4 h-4" />
+                                            Generate Detailed Notes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
+
+
+                {/* Right: Audio Recorder */}
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
+                                Audio Recorder
+                            </h3>
+                            {isRecording && <span className="text-sm font-mono text-red-500 font-medium">{formatTime(recordingTime)}</span>}
+                        </div>
+
+                        {/* Source Selection */}
+                        <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-[#1A1A1A] rounded-lg">
+                            <button
+                                onClick={() => setRecordingSource('mic')}
+                                disabled={isRecording}
+                                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${recordingSource === 'mic'
+                                    ? 'bg-white dark:bg-[#2A2A2A] text-indigo-500 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                    } disabled:opacity-50`}
+                            >
+                                <Mic className="w-4 h-4" /> Microphone
+                            </button>
+                            <button
+                                onClick={() => setRecordingSource('system')}
+                                disabled={isRecording}
+                                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${recordingSource === 'system'
+                                    ? 'bg-white dark:bg-[#2A2A2A] text-indigo-500 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                    } disabled:opacity-50`}
+                            >
+                                <Monitor className="w-4 h-4" /> System Audio
+                            </button>
+                        </div>
+
+                        <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#1A1A1A] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                            {recordingSource === 'mic'
+                                ? "Records audio from your default microphone. Good for in-person lectures."
+                                : "Records audio from a specific tab or window. Select 'Share System Audio' in the browser popup."}
+                        </div>
+                    </div>
+
+                    <div className="mt-8 space-y-4">
+                        {/* Recording Controls */}
+                        {!isRecording ? (
+                            !recordedBlob ? (
+                                <button
+                                    onClick={handleStartRecording}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 hover:shadow-indigo-500/40 transition-all"
+                                >
+                                    <div className="w-3 h-3 rounded-full bg-white"></div>
+                                    Start Recording
+                                </button>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="p-4 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl flex items-center gap-3">
+                                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                        <div className="text-sm">
+                                            <p className="font-medium text-green-700 dark:text-green-400">Recording Finished</p>
+                                            <p className="text-green-600 dark:text-green-500/80">{formatTime(recordingTime)} • {(recordedBlob.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={handleDownloadRecording}
+                                            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                        >
+                                            <Download className="w-4 h-4" /> Save MP3
+                                        </button>
+                                        <button
+                                            onClick={handleStartRecording}
+                                            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-red-500 hover:text-red-600 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" /> Discard
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        onClick={handleGenerateFromRecording}
                                         className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
                                     >
                                         <Mic className="w-4 h-4" />
-                                        Generate Detailed Notes
+                                        Use for AI Notes
                                     </button>
                                 </div>
-                            </div>
-                        </div>
-                    )}
+                            )
+                        ) : (
+                            <button
+                                onClick={handleStopRecording}
+                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/20 hover:bg-red-600 hover:shadow-red-500/40 transition-all animate-pulse"
+                            >
+                                <Square className="w-3 h-3 fill-current" />
+                                Stop Recording
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </motion.div>
+
+            </div>
 
             {/* Notes List */}
             <div className="space-y-6">
