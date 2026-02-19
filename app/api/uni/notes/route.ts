@@ -36,6 +36,35 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ note });
 }
 
+export async function PUT(req: NextRequest) {
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  if (!body || !body.id) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  // Verify ownership
+  const existingNote = await prisma.note.findFirst({
+    where: { id: body.id, userId: user.userId },
+  });
+
+  if (!existingNote) {
+    return NextResponse.json({ error: "Note not found" }, { status: 404 });
+  }
+
+  const updatedNote = await prisma.note.update({
+    where: { id: body.id },
+    data: {
+      title: body.title !== undefined ? body.title : undefined,
+      content: body.content !== undefined ? body.content : undefined,
+    },
+  });
+
+  return NextResponse.json({ note: updatedNote });
+}
+
 export async function DELETE(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

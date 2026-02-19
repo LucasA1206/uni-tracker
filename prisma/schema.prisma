@@ -2,8 +2,8 @@
 // SQLite is used for simplicity (works locally and on Vercel with file-based DB).
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 generator client {
@@ -79,10 +79,24 @@ model Note {
   title       String
   content     String
   createdAt   DateTime   @default(now())
+  attachments NoteAttachment[]
 
   @@index([userId])
   @@index([courseId])
   @@index([createdAt])
+}
+
+model NoteAttachment {
+  id        Int      @id @default(autoincrement())
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  noteId    Int
+  name      String
+  url       String
+  type      String   // "pdf", "docx", "pptx", etc.
+  size      Int
+  createdAt DateTime @default(now())
+
+  @@index([noteId])
 }
 
 model WorkTask {
