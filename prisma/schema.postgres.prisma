@@ -1,0 +1,220 @@
+// Prisma schema for Uni & Work tracker
+// This file is used for PROD (Vercel Postgres)
+// Local dev uses schema.prisma (SQLite)
+
+datasource db {
+  provider = "postgresql"
+  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  universityEmail String @unique
+  id              Int              @id @default(autoincrement())
+  name            String
+  username        String           @unique
+  passwordHash    String
+  role            String           @default("user") // "user" | "admin"
+
+  canvasApiToken  String?
+
+  uniCourses      UniCourse[]
+  workTasks       WorkTask[]
+  notes           Note[]
+  events          CalendarEvent[]
+  microsoftTokens MicrosoftToken[]
+  gmailTokens     GmailToken[]
+  emailMessages   EmailMessage[]
+  people          Person[]
+  financeProfile  FinanceProfile?
+  fortnightSpend  FortnightSpending[]
+  stockHoldings   StockHolding[]
+}
+
+
+model UniCourse {
+  id          Int           @id @default(autoincrement())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      Int
+  name        String
+  code        String
+  term        String   @default("Autumn")
+  year        Int      @default(2026)
+  canvasId    String?
+  assignments Assignment[]
+  notes       Note[]
+
+  @@unique([userId, canvasId])
+  @@index([userId])
+}
+
+model Assignment {
+  id             Int        @id @default(autoincrement())
+  course         UniCourse  @relation(fields: [courseId], references: [id])
+  courseId       Int
+  title          String
+  description    String?
+  dueDate        DateTime
+  weight         Float
+  maxGrade       Float
+  grade          Float?
+  status         String     @default("pending")
+  followupPeople String?    // JSON-encoded array of people names
+  canvasId       String?
+
+  @@unique([courseId, canvasId])
+  @@index([courseId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model Note {
+  id          Int        @id @default(autoincrement())
+  user        User       @relation(fields: [userId], references: [id])
+  userId      Int
+  course      UniCourse? @relation(fields: [courseId], references: [id])
+  courseId    Int?
+  title       String
+  content     String
+  createdAt   DateTime   @default(now())
+  attachments NoteAttachment[]
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([createdAt])
+}
+
+model NoteAttachment {
+  id        Int      @id @default(autoincrement())
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  noteId    Int
+  name      String
+  url       String
+  type      String   // "pdf", "docx", "pptx", etc.
+  size      Int
+  createdAt DateTime @default(now())
+
+  @@index([noteId])
+}
+
+model WorkTask {
+  id             Int      @id @default(autoincrement())
+  user           User     @relation(fields: [userId], references: [id])
+  userId         Int
+  title          String
+  context        String?
+  status         String   @default("todo")
+  dueDate        DateTime?
+  source         String?
+  externalId     String?
+  followupPeople String?  // JSON-encoded array of people names
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([dueDate])
+}
+
+model CalendarEvent {
+  id              Int       @id @default(autoincrement())
+  user            User      @relation(fields: [userId], references: [id])
+  userId          Int
+  title           String
+  description     String?
+  start           DateTime
+  end             DateTime
+  type            String
+  sourceId        String?
+  sourceExtraJson String?
+
+  @@index([userId])
+  @@index([userId, start])
+}
+
+model MicrosoftToken {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+}
+
+model GmailToken {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  email        String?  // Store the connected email address
+}
+
+model EmailMessage {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  messageId   String   @unique
+  subject     String
+  from        String
+  receivedAt  DateTime
+  preview     String?
+  isTask      Boolean  @default(false)
+  rawJson     String?
+  hidden      Boolean  @default(false)
+}
+
+model Person {
+  id     Int    @id @default(autoincrement())
+  user   User   @relation(fields: [userId], references: [id])
+  userId Int
+  name   String
+
+  @@unique([userId, name])
+}
+
+model FinanceProfile {
+  id                   Int      @id @default(autoincrement())
+  user                 User     @relation(fields: [userId], references: [id])
+  userId               Int      @unique
+  savingsBalance       Float    @default(0)
+  spendingBalance      Float    @default(0)
+  investingCashBalance Float    @default(0)
+  savingPercent        Float    @default(70)
+  spendingPercent      Float    @default(10)
+  investingPercent     Float    @default(20)
+  savingsInterestRatePA Float  @default(4)
+  investingCashBalanceUsd Float @default(0)
+  hourlyWage           Float    @default(0)
+  hoursWorked          Float    @default(0)
+  updatedAt            DateTime @updatedAt
+}
+
+model FortnightSpending {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  periodStart DateTime
+  amountSpent Float   @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, periodStart])
+  @@index([userId])
+}
+
+model StockHolding {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int
+  ticker       String
+  exchange     String?
+  shares       Float
+  averagePrice Float
+  currency     String   @default("AUD")
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
