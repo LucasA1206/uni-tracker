@@ -19,26 +19,43 @@ const DocViewer = dynamic(() => import("@cyntler/react-doc-viewer"), {
 // Note: @cyntler/react-doc-viewer exports DocViewerRenderers
 import { DocViewerRenderers } from "@cyntler/react-doc-viewer";
 
+
 const Container = styled.div`
   width: 100%;
-  height: 500px; /* "Around half an A4 page size" - adjusting for screen but giving enough height */
+  height: 500px;
   overflow: hidden;
   border-radius: 12px;
   background-color: #f3f4f6;
-  
-  /* Dark mode support usually easier via CSS variables or props, but styled-components 
-     needs theme context or explicit colors. For simplicity we'll stick to a neutral 
-     background that works for both or use passed-in classNames for the container div. 
-  */
 
   .react-doc-viewer-style {
     background: transparent !important;
   }
   
   #header-bar {
-    background-color: transparent !important;
-    box-shadow: none !important;
+    background-color: #ffffff !important;
     border-bottom: 1px solid rgba(0,0,0,0.1);
+  }
+
+  /* Style the navigation buttons */
+  #header-bar button {
+    background-color: white !important;
+    color: #4f46e5 !important; /* Indigo-600 - Matches app theme */
+    border: 1px solid #e5e7eb !important;
+    border-radius: 6px !important;
+    margin: 0 4px;
+    transition: all 0.2s;
+  }
+
+  #header-bar button:hover {
+    background-color: #f9fafb !important;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  
+  /* Ensure icons (svg) inside buttons are the correct color */
+  #header-bar button svg {
+    fill: #4f46e5 !important;
+    stroke: #4f46e5 !important;
   }
 `;
 
@@ -54,7 +71,7 @@ export default function CustomDocViewer({ docs }: DocViewerProps) {
             <Container>
                 <DocViewer
                     documents={docs}
-                    pluginRenderers={DocViewerRenderers} // Enabled default renderers (PDF, Images, Google Doc Viewer for Office)
+                    pluginRenderers={DocViewerRenderers}
                     style={{ height: 500 }}
                     config={{
                         header: {
@@ -62,15 +79,19 @@ export default function CustomDocViewer({ docs }: DocViewerProps) {
                             disableFileName: false,
                             retainURLParams: false,
                         },
-                        pdfVerticalScrollByDefault: true,
+                        pdfVerticalScrollByDefault: true, // Ensures scrolling behavior
+                        pdfZoom: {
+                            defaultZoom: 1.1,
+                            zoomJump: 0.1,
+                        },
                     }}
                     theme={{
-                        primary: "#6366f1",
-                        secondary: "#ffffff",
-                        tertiary: "#4f46e5",
-                        textPrimary: "#333333",
-                        textSecondary: "#666666",
-                        textTertiary: "#999999",
+                        primary: "#ffffff", // White background for header/controls
+                        secondary: "#4f46e5", // Indigo accent
+                        tertiary: "#e0e7ff", // Light indigo hover
+                        textPrimary: "#1f2937", // Gray-800
+                        textSecondary: "#4b5563", // Gray-600
+                        textTertiary: "#9ca3af", // Gray-400
                         disableThemeScrollbar: false,
                     }}
                 />
