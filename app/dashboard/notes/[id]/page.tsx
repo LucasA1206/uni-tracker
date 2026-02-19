@@ -139,10 +139,10 @@ export default function NoteDetailPage() {
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || !e.target.files[0] || !note) return;
-        const file = e.target.files[0];
-        setIsUploading(true);
+        if (!e.target.files || e.target.files.length === 0 || !note) return;
 
+        setIsUploading(true);
+        const file = e.target.files[0];
         const formData = new FormData();
         formData.append("file", file);
 
@@ -154,12 +154,32 @@ export default function NoteDetailPage() {
 
             if (!res.ok) throw new Error("Upload failed");
 
-            await fetchAttachments();
-        } catch (err) {
+            const newAttachment = await res.json();
+            setAttachments([...attachments, newAttachment.attachment]);
+        } catch (error) {
+            console.error("Error uploading file:", error);
             alert("Failed to upload file");
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
+    const handleDeleteAttachment = async (attachmentId: number) => {
+        if (!note) return;
+        if (!confirm("Are you sure you want to delete this attachment?")) return;
+
+        try {
+            const res = await fetch(`/api/uni/notes/${note.id}/attachments/${attachmentId}`, {
+                method: "DELETE",
+            });
+
+            if (!res.ok) throw new Error("Delete failed");
+
+            setAttachments(attachments.filter(a => a.id !== attachmentId));
+        } catch (error) {
+            console.error("Error deleting attachment:", error);
+            alert("Failed to delete attachment");
         }
     };
 
@@ -307,21 +327,35 @@ export default function NoteDetailPage() {
                             {/* File List */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {attachments.map(att => (
-                                    <a
+                                    <div
                                         key={att.id}
-                                        href={att.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#121214] hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors group"
+                                        className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#121214] hover:bg-gray-100 dark:hover:bg-[#1F1F23] transition-colors group"
                                     >
-                                        <div className="p-2 rounded bg-white dark:bg-gray-800 text-indigo-500 shadow-sm group-hover:scale-105 transition-transform">
-                                            <FileIcon className="w-4 h-4" />
-                                        </div>
-                                        <div className="overflow-hidden">
-                                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate" title={att.name}>{att.name}</p>
-                                            <p className="text-[10px] text-gray-500 uppercase">{att.type.split('/').pop() || 'File'}</p>
-                                        </div>
-                                    </a>
+                                        <a
+                                            href={att.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-3 flex-1 min-w-0" // min-w-0 for truncation
+                                        >
+                                            <div className="p-2 rounded bg-white dark:bg-gray-800 text-indigo-500 shadow-sm group-hover:scale-105 transition-transform">
+                                                <FileIcon className="w-4 h-4" />
+                                            </div>
+                                            <div className="overflow-hidden">
+                                                <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate" title={att.name}>{att.name}</p>
+                                                <p className="text-[10px] text-gray-500 uppercase">{att.type.split('/').pop() || 'File'}</p>
+                                            </div>
+                                        </a>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleDeleteAttachment(att.id);
+                                            }}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                            title="Delete Attachment"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 ))}
                             </div>
                         </div>

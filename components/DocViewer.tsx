@@ -14,6 +14,11 @@ const DocViewer = dynamic(() => import("@cyntler/react-doc-viewer"), {
     ),
 });
 
+// We need to import renderers for PPTX, DOCX etc.
+// Since we are loading DocViewer dynamically, we should probably pass the renderers when it loads or just try importing them.
+// Note: @cyntler/react-doc-viewer exports DocViewerRenderers
+import { DocViewerRenderers } from "@cyntler/react-doc-viewer";
+
 const Container = styled.div`
   width: 100%;
   height: 500px; /* "Around half an A4 page size" - adjusting for screen but giving enough height */
@@ -49,7 +54,7 @@ export default function CustomDocViewer({ docs }: DocViewerProps) {
             <Container>
                 <DocViewer
                     documents={docs}
-                    pluginRenderers={undefined} // Allows it to load default renderers including PDF and Office
+                    pluginRenderers={DocViewerRenderers} // Enabled default renderers (PDF, Images, Google Doc Viewer for Office)
                     style={{ height: 500 }}
                     config={{
                         header: {
