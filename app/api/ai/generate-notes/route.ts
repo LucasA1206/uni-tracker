@@ -86,15 +86,27 @@ export async function POST(req: NextRequest) {
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite-001" });
 
         // 1. Save Chunk
-        tempFilePath = join(tmpdir(), `${fileId}-${originalName}`);
+        // Ensure tmpdir is valid and use resolve
+        const tempDir = tmpdir();
+        console.log(`[AI-API] Using temp dir: ${tempDir}`);
+        const safeFileId = fileId.replace(/[^a-zA-Z0-9-]/g, '');
+        const safeOriginalName = originalName.replace(/[^a-zA-Z0-9.-]/g, '');
+        tempFilePath = join(tempDir, `${safeFileId}-${safeOriginalName}`);
+
+        console.log(`[AI-API] Processing chunk ${chunkIndex}/${totalChunks} for file: ${tempFilePath}`);
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        if (chunkIndex === 0) {
-            await writeFile(tempFilePath, buffer);
-        } else {
-            await appendFile(tempFilePath, buffer);
+        try {
+            if (chunkIndex === 0) {
+                await writeFile(tempFilePath, buffer);
+            } else {
+                await appendFile(tempFilePath, buffer);
+            }
+        } catch (fsError: any) {
+            console.error("[AI-API] File system error:", fsError);
+            throw new Error(`Failed to write temp file: ${fsError.message}`);
         }
 
         // If not the last chunk, return success and wait for next
