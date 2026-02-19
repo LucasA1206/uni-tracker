@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const user = await getAuthUser();
@@ -30,30 +28,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    // Enforce 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: "File size exceeds 5MB limit" }, { status: 400 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Ensure directory exists
-    const uploadDir = join(process.cwd(), "public", "uploads", "notes", noteId.toString());
-    await mkdir(uploadDir, { recursive: true });
-
-    const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const filepath = join(uploadDir, filename);
-    const publicUrl = `/uploads/notes/${noteId}/${filename}`;
-
-    await writeFile(filepath, buffer);
-
+    // Create attachment in DB with content
     const attachment = await prisma.noteAttachment.create({
         data: {
             noteId: noteId,
             name: file.name,
-            url: publicUrl,
             type: file.type || "application/octet-stream",
             size: file.size,
+            content: buffer,
+            url: "", // Will update with correct URL after creation
         },
     });
 
-    return NextResponse.json({ attachment }, { status: 201 });
+    // Update URL to point to our new API
+    // We do this in a second step or could calculate it if ID was known, but update is safer here
+    const publicUrl = `/api/attachments/${attachment.id}`;
+
+    const updatedAttachment = await prisma.noteAttachment.update({
+        where: { id: attachment.id },
+        data: { url: publicUrl },
+        select: {
+            id: true,
+            noteId: true,
+            name: true,
+            url: true,
+            type: true,
+            size: true,
+            createdAt: true,
+            // Exclude content from response to keep it light
+        }
+    });
+
+    return NextResponse.json({ attachment: updatedAttachment }, { status: 201 });
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -77,6 +91,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const attachments = await prisma.noteAttachment.findMany({
         where: { noteId },
         orderBy: { createdAt: "desc" },
+        select: {
+            id: true,
+            noteId: true,
+            name: true,
+            url: true,
+            type: true,
+            size: true,
+            createdAt: true,
+            // Exclude content
+        }
     });
 
     return NextResponse.json({ attachments });

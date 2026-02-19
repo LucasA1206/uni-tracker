@@ -96,6 +96,7 @@ model NoteAttachment {
   url       String
   type      String   // "pdf", "docx", "pptx", etc.
   size      Int
+  content   Bytes?   // Store file content directly
   createdAt DateTime @default(now())
 
   @@index([noteId])
