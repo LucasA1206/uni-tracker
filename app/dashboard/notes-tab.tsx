@@ -228,10 +228,10 @@ export default function NotesTab() {
         setDragActive(false);
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             const file = e.dataTransfer.files[0];
-            if (file.type.includes("audio") || file.type.includes("video") || file.name.endsWith(".mp3") || file.name.endsWith(".mp4")) {
+            if (file.type === "audio/mpeg" || file.name.toLowerCase().endsWith(".mp3")) {
                 setUploadFile(file);
             } else {
-                alert("Please upload an audio or video file (.mp3, .mp4)");
+                alert("Please upload an MP3 file (.mp3)");
             }
         }
     }, []);
@@ -336,7 +336,7 @@ export default function NotesTab() {
                     AI Lecture Notes
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Upload your lecture recordings (.mp4 or .mp3) and let AI generate detailed, structured notes for you.
+                    Upload your lecture recordings (.mp3) and let AI generate detailed, structured notes for you.
                 </p>
             </div>
 
@@ -379,7 +379,7 @@ export default function NotesTab() {
                                         Drag & drop your recording here
                                     </h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Supports MP4, MP3 audio files (max 500MB)
+                                        Supports MP3 audio files (max 500MB)
                                     </p>
                                 </div>
                                 <div className="relative">
@@ -392,7 +392,7 @@ export default function NotesTab() {
                                 </div>
                                 <label className="cursor-pointer rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                                     Browse Files
-                                    <input type="file" className="hidden" accept=".mp3,audio/*,video/mp4" onChange={handleFileChange} />
+                                    <input type="file" className="hidden" accept=".mp3,audio/mpeg" onChange={handleFileChange} />
                                 </label>
                             </>
                         ) : (
