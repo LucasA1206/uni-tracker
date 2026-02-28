@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleAIFileManager, FileState } from "@google/generative-ai/server";
-import { writeFile, appendFile, unlink } from "fs/promises"; // stat removed as we rely on Gemini
+import { env, pipeline } from "@xenova/transformers";
+import { writeFile, appendFile, unlink, readFile } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
+import { WaveFile } from "wavefile";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegStatic from "ffmpeg-static";
+
+// Configure fluent-ffmpeg to use the static binary
+if (ffmpegStatic) {
+    ffmpeg.setFfmpegPath(ffmpegStatic);
+}
 
 export const maxDuration = 300; // Increased timeout for long audio processing
+
+// Configure Transformers.js for server-side
+env.allowLocalModels = false;
+env.useBrowserCache = false;
 
 // System prompt to guide the AI
 const SYSTEM_PROMPT = `
@@ -49,17 +60,11 @@ Follow this structure and formatting guide exactly:
 
 8.  **## Summary & Definitions**
     *   Conclude with a glossery of terms or a final summary.
-
-**Formatting Rules:**
-*   **Tiered Headers**: H1 (#) for Title, H2 (##) for high-level sections, H3 (###) for subsections.
-*   **Emphasis**: Use **bold** for key concepts and *italics* for minor emphasis.
-*   **Lists**: Use indented bullet points (-) for readability.
-*   **Tables**: Essential for structured data.
 `;
 
 export async function POST(req: NextRequest) {
     let tempFilePath = "";
-    let uploadedFileUri = "";
+    let wavFilePath = "";
 
     try {
         const formData = await req.formData();
@@ -73,17 +78,6 @@ export async function POST(req: NextRequest) {
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
-
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            console.error("GEMINI_API_KEY is not set");
-            return NextResponse.json({ error: "Server configuration error: GEMINI_API_KEY missing" }, { status: 500 });
-        }
-
-        // Initialize Gemini clients
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const fileManager = new GoogleAIFileManager(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite-001" });
 
         // 1. Save Chunk
         tempFilePath = join(tmpdir(), `${fileId}-${originalName}`);
@@ -103,44 +97,68 @@ export async function POST(req: NextRequest) {
         }
 
         // --- LAST CHUNK RECEIVED: PROCESS FILE ---
-        console.log("All chunks received. Processing file with Gemini:", tempFilePath);
+        console.log("All chunks received. Processing file locally:", tempFilePath);
 
-        // 2. Upload to Gemini File API
-        console.log("Uploading to Gemini File Manager...");
-        const uploadResponse = await fileManager.uploadFile(tempFilePath, {
-            mimeType: "audio/mp3", // Defaulting to mp3, but Gemini is flexible. Could infer from extension.
-            displayName: originalName,
+        wavFilePath = tempFilePath + ".wav";
+        console.log("Converting audio to 16kHz WAV using FFmpeg...");
+
+        await new Promise<void>((resolve, reject) => {
+            ffmpeg(tempFilePath)
+                .toFormat("wav")
+                .audioChannels(1)
+                .audioFrequency(16000)
+                .on("end", () => resolve())
+                .on("error", (err: any) => reject(new Error("FFmpeg conversion failed: " + err.message)))
+                .save(wavFilePath);
         });
 
-        uploadedFileUri = uploadResponse.file.uri;
-        console.log(`Uploaded file: ${uploadResponse.file.displayName} as ${uploadedFileUri}`);
+        console.log("Reading WAV file...");
+        const wavBuffer = await readFile(wavFilePath);
+        const wav = new WaveFile(wavBuffer);
+        wav.toBitDepth("32f"); // Convert to 32-bit float
+        wav.toSampleRate(16000); // Ensure sample rate is correct
 
-        // Wait for processing to be active
-        let fileState = uploadResponse.file.state;
-        while (fileState === FileState.PROCESSING) {
-            console.log("Waiting for file processing...");
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            const fileStatus = await fileManager.getFile(uploadResponse.file.name);
-            fileState = fileStatus.state;
-            if (fileState === FileState.FAILED) {
-                throw new Error("Gemini file processing failed.");
-            }
+        let audioData: any = wav.getSamples(false, Float32Array as any);
+        if (Array.isArray(audioData)) {
+            // Downmix to mono if stereos were somehow bypassed by ffmpeg
+            audioData = audioData[0];
         }
 
-        console.log("File is ready. Generating notes...");
+        console.log("Loading Whisper model (this may take a bit on first run)...");
+        const transcriber = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny.en");
 
-        // 3. Generate Content
-        const result = await model.generateContent([
-            SYSTEM_PROMPT,
-            {
-                fileData: {
-                    fileUri: uploadedFileUri,
-                    mimeType: uploadResponse.file.mimeType,
-                },
-            },
-        ]);
+        console.log("Transcribing audio (local CPU processing)...");
+        const output = await transcriber(audioData, {
+            chunk_length_s: 30,
+            stride_length_s: 5,
+            return_timestamps: false,
+        });
 
-        const generatedNotes = result.response.text();
+        const transcription = Array.isArray(output) ? output[0].text : output.text;
+        console.log("Transcription complete. Length:", transcription.length);
+
+        console.log("Loading instruction model for formatting...");
+        // Using a tiny instruction model
+        const generator = await pipeline("text-generation", "Xenova/Qwen1.5-0.5B-Chat");
+
+        console.log("Generating structured notes...");
+        const prompt = `<|im_start|>system\n${SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\nPlease format the following lecture transcript into notes:\n\n${transcription}<|im_end|>\n<|im_start|>assistant\n`;
+
+        const genOutput = await generator(prompt, {
+            max_new_tokens: 1500,
+            temperature: 0.3,
+        });
+
+        let generatedNotes = "";
+        if (Array.isArray(genOutput) && genOutput.length > 0) {
+            const rawText = (genOutput[0] as any).generated_text as string;
+            // Extract just the assistant's reply
+            generatedNotes = rawText.split("<|im_start|>assistant\\n").pop() || "";
+            generatedNotes = generatedNotes.replace("<|im_end|>", "").trim();
+        } else {
+            generatedNotes = transcription; // Fallback to raw transcription
+        }
+
         console.log("Notes generated successfully. Length:", generatedNotes.length);
 
         // Extract a title
@@ -162,14 +180,9 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // Cleanup local file
+        // Cleanup local files
         await unlink(tempFilePath).catch(() => { });
-
-        // Cleanup Gemini file (best practice to not clutter storage)
-        // We can do this in the background or await it
-        await fileManager.deleteFile(uploadResponse.file.name).catch((err) => {
-            console.warn("Failed to delete file from Gemini:", err);
-        });
+        await unlink(wavFilePath).catch(() => { });
 
         return NextResponse.json({ note: newNote }, { status: 201 });
 
@@ -179,6 +192,9 @@ export async function POST(req: NextRequest) {
         // Cleanup on error
         if (tempFilePath && tempFilePath.includes("upload-")) {
             await unlink(tempFilePath).catch(() => { });
+        }
+        if (wavFilePath) {
+            await unlink(wavFilePath).catch(() => { });
         }
 
         return NextResponse.json(
