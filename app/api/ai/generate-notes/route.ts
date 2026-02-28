@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
         const courseId = formData.get("courseId") as string | null;
         const chunkIndex = parseInt(formData.get("chunkIndex") as string || "0");
         const totalChunks = parseInt(formData.get("totalChunks") as string || "1");
-        const fileId = formData.get("fileId") as string || \`upload-$\\{Date.now()\\}\`;
+        const fileId = formData.get("fileId") as string || `upload-${Date.now()}`;
         const originalName = formData.get("originalName") as string || "file";
 
         if (!file) {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         const tempDir = tmpdir();
         const safeFileId = fileId.replace(/[^a-zA-Z0-9-]/g, '');
         const safeOriginalName = originalName.replace(/[^a-zA-Z0-9.-]/g, '');
-        tempFilePath = join(tempDir, \`$\\{safeFileId\\}-$\\{safeOriginalName\\}\`);
+        tempFilePath = join(tempDir, `${safeFileId}-${safeOriginalName}`);
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const audioBuffer = await readFile(tempFilePath);
-        
+
         const ext = safeOriginalName.split('.').pop()?.toLowerCase();
         let mimeType = "audio/mp3";
         if (ext === "webm") mimeType = "audio/webm";
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         console.log("Notes generated successfully. Length:", generatedNotes.length);
 
         const titleMatch = generatedNotes.match(/^# (.*)$/m);
-        const title = titleMatch ? titleMatch[1].replace(/[*#]/g, '').trim() : \`Lecture Notes: $\\{originalName\\}\`;
+        const title = titleMatch ? titleMatch[1].replace(/[*#]/g, '').trim() : `Lecture Notes: ${originalName}`;
 
         const user = await prisma.user.findFirst();
         if (!user) {

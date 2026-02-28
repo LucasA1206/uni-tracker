@@ -1,0 +1,181 @@
+   ▲ Next.js 16.0.7 (Turbopack)
+   - Environments: .env
+   - Experiments (use with caution):
+     · serverActions
+     ? serverComponentsExternalPackages (invalid experimental key)
+
+   Creating an optimized production build ...
+
+
+STDERR:
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ Invalid next.config.ts options detected: 
+ ⚠     Unrecognized key(s) in object: 'serverComponentsExternalPackages' at "experimental"
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+ ⚠ `experimental.serverComponentsExternalPackages` has been moved to `serverExternalPackages`. Please update your next.config.ts file accordingly.
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+> Build error occurred
+Error: Turbopack build failed with 6 errors:
+./components/DocViewer.tsx
+Module not found: Can't resolve '@cyntler/react-doc-viewer'
+
+
+Import traces:
+  Client Component Browser:
+    ./components/DocViewer.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/DocViewer.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/DocViewer.tsx:18:1
+Module not found: Can't resolve '@cyntler/react-doc-viewer'
+[0m [90m 16 |[39m [90m// Since we are loading DocViewer dynamically, we should probably pass the renderers when it loads or just try importing them.[39m
+ [90m 17 |[39m [90m// Note: @cyntler/react-doc-viewer exports DocViewerRenderers[39m
+[31m[1m>[22m[39m[90m 18 |[39m [36mimport[39m { [33mDocViewerRenderers[39m } [36mfrom[39m [32m"@cyntler/react-doc-viewer"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 19 |[39m [36mconst[39m [33mContainer[39m [33m=[39m styled[33m.[39mdiv[32m`[39m
+ [90m 20 |[39m [32m  width: 100%;[39m
+ [90m 21 |[39m [32m  height: 500px;[39m[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./components/DocViewer.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/DocViewer.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/DocViewer.tsx:20:1
+Module not found: Can't resolve '@cyntler/react-doc-viewer'
+[0m [90m 18 |[39m [90m// Since we are loading DocViewer dynamically, we should probably pass the renderers when it loads or just try importing them.[39m
+ [90m 19 |[39m [90m// Note: @cyntler/react-doc-viewer exports DocViewerRenderers[39m
+[31m[1m>[22m[39m[90m 20 |[39m [36mimport[39m { [33mDocViewerRenderers[39m } [36mfrom[39m [32m"@cyntler/react-doc-viewer"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 21 |[39m
+ [90m 22 |[39m
+ [90m 23 |[39m [36mconst[39m [33mContainer[39m [33m=[39m styled[33m.[39mdiv[32m`[39m[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./components/DocViewer.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/DocViewer.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/DocViewer.tsx:7:33
+Module not found: Can't resolve '@cyntler/react-doc-viewer'
+[0m [90m  5 |[39m [36mimport[39m styled [36mfrom[39m [32m"styled-components"[39m[33m;[39m
+ [90m  6 |[39m [36mimport[39m { [33mLoader2[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mconst[39m [33mDocViewer[39m [33m=[39m dynamic(() [33m=>[39m [36mimport[39m([32m"@cyntler/react-doc-viewer"[39m)[33m,[39m {
+ [90m    |[39m                                 [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m   ssr[33m:[39m [36mfalse[39m[33m,[39m
+ [90m  9 |[39m   loading[33m:[39m () [33m=>[39m [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex items-center justify-center p-12 bg-gray-50 dark:bg-[#1A1A1A] rounded-xl border border-dashed border-gray-200 dark:border-gray-800"[39m[33m>[39m
+ [90m 10 |[39m             [33m<[39m[33mLoader2[39m className[33m=[39m[32m"w-6 h-6 animate-spin text-gray-400"[39m [33m/[39m[33m>[39m[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./components/DocViewer.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/DocViewer.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/DocViewer.tsx:5:1
+Module not found: Can't resolve 'styled-components'
+[0m [90m 3 |[39m [36mimport[39m { c [36mas[39m _c } [36mfrom[39m [32m"react/compiler-runtime"[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m dynamic [36mfrom[39m [32m"next/dynamic"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 5 |[39m [36mimport[39m styled [36mfrom[39m [32m"styled-components"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 6 |[39m [36mimport[39m { [33mLoader2[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m
+ [90m 7 |[39m [36mconst[39m [33mDocViewer[39m [33m=[39m dynamic(() [33m=>[39m [36mimport[39m([32m"@cyntler/react-doc-viewer"[39m)[33m,[39m {
+ [90m 8 |[39m   ssr[33m:[39m [36mfalse[39m[33m,[39m[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./components/DocViewer.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/DocViewer.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/DocViewer.tsx:4:1
+Module not found: Can't resolve 'styled-components'
+[0m [90m 2 |[39m
+ [90m 3 |[39m [36mimport[39m dynamic [36mfrom[39m [32m"next/dynamic"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 4 |[39m [36mimport[39m styled [36mfrom[39m [32m"styled-components"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 5 |[39m [36mimport[39m { [33mLoader2[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m
+ [90m 6 |[39m
+ [90m 7 |[39m [36mconst[39m [33mDocViewer[39m [33m=[39m dynamic(() [33m=>[39m [36mimport[39m([32m"@cyntler/react-doc-viewer"[39m)[33m,[39m {[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./components/DocViewer.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component Browser]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/DocViewer.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Client Component SSR]
+    ./app/dashboard/notes/[id]/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/DocViewer.tsx:18:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/DocViewer.tsx:20:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/DocViewer.tsx:7:33)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/DocViewer.tsx:5:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/DocViewer.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
