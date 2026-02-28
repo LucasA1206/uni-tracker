@@ -1,0 +1,64 @@
+   ▲ Next.js 16.0.7 (Turbopack)
+   - Environments: .env
+   - Experiments (use with caution):
+     · serverActions
+     ? serverComponentsExternalPackages (invalid experimental key)
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 5.7s
+   Running TypeScript ...
+   Collecting page data using 11 workers ...
+   Generating static pages using 11 workers (0/36) ...
+   Generating static pages using 11 workers (9/36) 
+   Generating static pages using 11 workers (18/36) 
+   Generating static pages using 11 workers (27/36) 
+ ✓ Generating static pages using 11 workers (36/36) in 640.4ms
+   Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/account/me
+├ ƒ /api/ai/generate-notes
+├ ƒ /api/ai/generate-quiz
+├ ƒ /api/attachments/[id]
+├ ƒ /api/auth/dev-login
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/signup/start
+├ ƒ /api/calendar/events
+├ ƒ /api/emails
+├ ƒ /api/emails/[id]
+├ ƒ /api/emails/poll
+├ ƒ /api/finance
+├ ƒ /api/finance/fortnight
+├ ƒ /api/finance/holdings
+├ ƒ /api/finance/quote
+├ ƒ /api/finance/stock-search
+├ ƒ /api/integrations/canvas/sync
+├ ƒ /api/integrations/gmail/callback
+├ ƒ /api/integrations/gmail/login
+├ ƒ /api/integrations/microsoft/callback
+├ ƒ /api/integrations/microsoft/login
+├ ƒ /api/uni/assignments
+├ ƒ /api/uni/courses
+├ ƒ /api/uni/notes
+├ ƒ /api/uni/notes/[id]/attachments
+├ ƒ /api/uni/notes/[id]/attachments/[attachmentId]
+├ ƒ /api/work/people
+├ ƒ /api/work/tasks
+├ ○ /dashboard
+├ ƒ /dashboard/notes/[id]
+├ ƒ /google-verification
+├ ○ /login
+├ ○ /notes
+├ ○ /oauth-consent
+├ ○ /privacy-policy
+└ ○ /signup
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
