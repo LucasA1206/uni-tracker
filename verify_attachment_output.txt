@@ -1,0 +1,19 @@
+Testing attachment storage...
+(node:22552) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/lucas/projects/uni-tracker/scripts/verify-attachment-db.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\lucas\projects\uni-tracker\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PrismaClientKnownRequestError: 
+Invalid `prisma.user.findFirst()` invocation:
+
+
+The column `main.User.canvasApiToken` does not exist in the current database.
+    at ei.handleRequestError (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\src\runtime\RequestHandler.ts:228:13)
+    at ei.handleAndLogRequestError (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+    at ei.request (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+    at async a (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+    at async main (file:///C:/Users/lucas/projects/uni-tracker/scripts/verify-attachment-db.ts:15:16) {
+  code: 'P2022',
+  meta: { modelName: 'User', column: 'main.User.canvasApiToken' },
+  clientVersion: '6.19.0'
+}

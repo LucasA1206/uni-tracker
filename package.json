@@ -4,14 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "node scripts/vercel-build.js",
     "start": "next start",
     "lint": "eslint",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:studio": "npx prisma studio",
+    "db:push:prod": "npx prisma db push --schema prisma/schema.postgres.prisma",
     "seed": "node prisma/seed.mjs"
   },
   "dependencies": {
+    "@cyntler/react-doc-viewer": "^1.17.1",
     "@google/generative-ai": "^0.24.1",
     "@headlessui/react": "^2.2.9",
     "@huggingface/inference": "^4.13.14",
@@ -45,6 +47,7 @@
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.1",
     "react-markdown": "^9.0.0",
+    "styled-components": "^6.3.10",
     "tailwind-merge": "^3.4.0",
     "ts-node": "^10.9.2",
     "wavefile": "^11.0.0",
