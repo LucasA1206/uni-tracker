@@ -249,7 +249,7 @@ export default function NotesTab() {
         setProcessingStage("Starting upload...");
 
         try {
-            const CHUNK_SIZE = 4 * 1024 * 1024; // Increased chunk size for faster uploads
+            const CHUNK_SIZE = 1 * 1024 * 1024; // Decreased chunk size to 1MB to avoid payload size limit
             const totalChunks = Math.ceil(uploadFile.size / CHUNK_SIZE);
             const fileId = `upload-${Date.now()}`;
 
