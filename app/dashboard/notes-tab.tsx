@@ -228,10 +228,12 @@ export default function NotesTab() {
         setDragActive(false);
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             const file = e.dataTransfer.files[0];
-            if (file.type === "audio/mpeg" || file.name.toLowerCase().endsWith(".mp3")) {
+            const isMp3 = file.type === "audio/mpeg" || file.name.toLowerCase().endsWith(".mp3");
+            const isWebm = file.type === "audio/webm" || file.type === "video/webm" || file.name.toLowerCase().endsWith(".webm");
+            if (isMp3 || isWebm) {
                 setUploadFile(file);
             } else {
-                alert("Please upload an MP3 file (.mp3)");
+                alert("Please upload an MP3 or WEBM file (.mp3, .webm)");
             }
         }
     }, []);
@@ -379,7 +381,7 @@ export default function NotesTab() {
                                         Drag & drop your recording here
                                     </h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Supports MP3 audio files (max 500MB)
+                                        Supports MP3 & WEBM audio files (max 500MB)
                                     </p>
                                 </div>
                                 <div className="relative">
@@ -392,7 +394,7 @@ export default function NotesTab() {
                                 </div>
                                 <label className="cursor-pointer rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                                     Browse Files
-                                    <input type="file" className="hidden" accept=".mp3,audio/mpeg" onChange={handleFileChange} />
+                                    <input type="file" className="hidden" accept=".mp3,audio/mpeg,.webm,audio/webm,video/webm" onChange={handleFileChange} />
                                 </label>
                             </>
                         ) : (

@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { env, pipeline } from "@xenova/transformers";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getAuthUser } from "@/lib/auth";
 
-// Allow enough time for local CPU inference
 export const maxDuration = 300;
-
-// Configure Transformers.js for server-side
-env.allowLocalModels = false;
-env.useBrowserCache = false;
 
 export async function POST(req: NextRequest) {
     try {
@@ -15,6 +11,18 @@ export async function POST(req: NextRequest) {
 
         if (!noteId && !courseId) {
             return NextResponse.json({ error: "Must provide either noteId or courseId" }, { status: 400 });
+        }
+
+        const authUser = await getAuthUser();
+        if (!authUser) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: authUser.userId }
+        });
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
         // Fetch content based on source
@@ -38,12 +46,17 @@ export async function POST(req: NextRequest) {
             contentToQuiz = notes.map(n => `Title: ${n.title}\n\nContent:\n${n.content}`).join("\n\n---\n\n");
         }
 
-        console.log("Loading Qwen1.5-0.5B-Chat model...");
-        const generator = await pipeline("text-generation", "Xenova/Qwen1.5-0.5B-Chat");
+        const apiKey = user.googleApiKey || process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return NextResponse.json({ error: "No Google API Key configured. Please add one in settings or configure the server." }, { status: 400 });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", generationConfig: { responseMimeType: "application/json" } });
 
         const promptTemplate = `
 You are an expert tutor. Create a quiz with exactly ${questionCount} questions based on the following study notes.
-Output MUST be a valid JSON array of objects. Do not include any markdown formatting like \`\`\`json. Just the raw JSON.
+Output MUST be a valid JSON array of objects.
 
 Structure each object as:
 {
@@ -58,22 +71,9 @@ Study Content:
 ${contentToQuiz.substring(0, 15000)}
 `;
 
-        const prompt = `<|im_start|>system\n${promptTemplate}<|im_end|>\n<|im_start|>user\nPlease generate the JSON array quiz.<|im_end|>\n<|im_start|>assistant\n`;
-
-        console.log("Generating quiz...");
-        const result = await generator(prompt, {
-            max_new_tokens: 2048,
-            temperature: 0.1, // Low temp for structured outputs
-        });
-
-        let outputText = "";
-        if (Array.isArray(result) && result.length > 0) {
-            const rawText = (result[0] as any).generated_text as string;
-            outputText = rawText.split("<|im_start|>assistant\n").pop() || "";
-            outputText = outputText.replace("<|im_end|>", "").trim();
-        } else {
-            outputText = (result as any).generated_text || "";
-        }
+        console.log("Generating quiz with Gemini...");
+        const result = await model.generateContent(promptTemplate);
+        let outputText = result.response.text();
 
         // Attempt to clean markdown backticks if the model added them anyway
         outputText = outputText.trim();
