@@ -1,4 +1,4 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { X, Sparkles, Loader2, BrainCircuit } from "lucide-react";
 import QuizActive, { Question } from "./QuizActive";
@@ -10,16 +10,50 @@ interface QuizModalProps {
     noteId?: number;
     courseId?: number;
     title: string;
+    existingQuiz?: any; // Provide this when resuming a quiz
 }
 
-export default function QuizModal({ isOpen, onClose, noteId, courseId, title }: QuizModalProps) {
+export default function QuizModal({ isOpen, onClose, noteId, courseId, title, existingQuiz }: QuizModalProps) {
     const [step, setStep] = useState<"config" | "loading" | "active" | "results">("config");
     const [questionCount, setQuestionCount] = useState<number>(noteId ? 10 : 25);
     const [questions, setQuestions] = useState<Question[]>([]);
+    const [quizId, setQuizId] = useState<number | undefined>(undefined);
     const [results, setResults] = useState<{ score: number, wrongAnswers: any[] } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const availableCounts = noteId ? [10, 20, 30] : [25, 50, 75];
+
+    useEffect(() => {
+        if (isOpen && existingQuiz) {
+            try {
+                const parsedQuestions = typeof existingQuiz.questionsJson === 'string'
+                    ? JSON.parse(existingQuiz.questionsJson)
+                    : existingQuiz.questionsJson;
+
+                setQuestions(parsedQuestions);
+                setQuizId(existingQuiz.id);
+
+                if (existingQuiz.isCompleted) {
+                    const parsedWrongAnswers = typeof existingQuiz.wrongAnswersJson === 'string' && existingQuiz.wrongAnswersJson
+                        ? JSON.parse(existingQuiz.wrongAnswersJson)
+                        : [];
+                    setResults({ score: existingQuiz.score, wrongAnswers: parsedWrongAnswers });
+                    setStep("results");
+                } else {
+                    setStep("active");
+                }
+            } catch (err) {
+                console.error("Failed to parse existing quiz", err);
+                setStep("config");
+            }
+        } else if (isOpen) {
+            setStep("config");
+            setQuestions([]);
+            setQuizId(undefined);
+            setResults(null);
+            setError(null);
+        }
+    }, [isOpen, existingQuiz]);
 
     const generateQuiz = async () => {
         setStep("loading");
@@ -44,6 +78,25 @@ export default function QuizModal({ isOpen, onClose, noteId, courseId, title }: 
             if (!data.quiz || !Array.isArray(data.quiz)) throw new Error("Invalid format received");
 
             setQuestions(data.quiz);
+
+            // Save to DB initially as progress 0
+            const saveRes = await fetch("/api/quiz", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    noteId,
+                    courseId,
+                    title,
+                    totalQuestions: data.quiz.length,
+                    questions: data.quiz
+                })
+            });
+
+            if (saveRes.ok) {
+                const saveData = await saveRes.json();
+                setQuizId(saveData.quiz.id);
+            }
+
             setStep("active");
         } catch (err: any) {
             console.error(err);
@@ -60,6 +113,7 @@ export default function QuizModal({ isOpen, onClose, noteId, courseId, title }: 
     const handleClose = () => {
         setStep("config");
         setQuestions([]);
+        setQuizId(undefined);
         setResults(null);
         setError(null);
         onClose();
@@ -121,8 +175,8 @@ export default function QuizModal({ isOpen, onClose, noteId, courseId, title }: 
                                                                 key={count}
                                                                 onClick={() => setQuestionCount(count)}
                                                                 className={`py-3 rounded-xl border text-sm font-semibold transition-all ${questionCount === count
-                                                                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
-                                                                        : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
+                                                                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
+                                                                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
                                                                     }`}
                                                             >
                                                                 {count} Questions
@@ -163,6 +217,10 @@ export default function QuizModal({ isOpen, onClose, noteId, courseId, title }: 
 
                                     {step === "active" && (
                                         <QuizActive
+                                            quizId={quizId}
+                                            initialIndex={existingQuiz?.currentIndex || 0}
+                                            initialScore={existingQuiz?.score || 0}
+                                            initialWrongAnswers={existingQuiz?.wrongAnswersJson ? JSON.parse(existingQuiz.wrongAnswersJson) : []}
                                             questions={questions}
                                             onComplete={handleComplete}
                                             onCancel={handleClose}

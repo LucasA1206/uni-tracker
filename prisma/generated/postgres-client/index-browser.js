@@ -271,6 +271,22 @@ exports.Prisma.StockHoldingScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.RecentQuizScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  noteId: 'noteId',
+  courseId: 'courseId',
+  title: 'title',
+  score: 'score',
+  totalQuestions: 'totalQuestions',
+  currentIndex: 'currentIndex',
+  questionsJson: 'questionsJson',
+  wrongAnswersJson: 'wrongAnswersJson',
+  isCompleted: 'isCompleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -301,7 +317,8 @@ exports.Prisma.ModelName = {
   Person: 'Person',
   FinanceProfile: 'FinanceProfile',
   FortnightSpending: 'FortnightSpending',
-  StockHolding: 'StockHolding'
+  StockHolding: 'StockHolding',
+  RecentQuiz: 'RecentQuiz'
 };
 
 /**

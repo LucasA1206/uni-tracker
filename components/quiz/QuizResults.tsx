@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 interface QuizResultsProps {
     score: number;
     totalQuestions: number;
-    wrongAnswers: { question: string, correctAnswer: string, userAnswer: string }[];
+    wrongAnswers: { question: string, correctAnswer: string, userAnswer: string, feedback?: string }[];
     onClose: () => void;
     onRetry: () => void;
 }
@@ -72,6 +72,11 @@ export default function QuizResults({ score, totalQuestions, wrongAnswers, onClo
                                         <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
                                         <span className="text-gray-900 dark:text-white font-medium">{item.correctAnswer}</span>
                                     </div>
+                                    {item.feedback && (
+                                        <div className="flex gap-2 mt-2 pt-2 border-t border-red-200 dark:border-red-800/50">
+                                            <span className="text-gray-800 dark:text-gray-200 text-sm"><strong>AI Feedback:</strong> {item.feedback}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
