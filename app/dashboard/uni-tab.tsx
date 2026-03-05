@@ -24,6 +24,10 @@ interface Assignment {
 }
 
 function getSessionFromCourse(course: Course): string {
+  if (course.name && course.name.includes("- ")) {
+    const parts = course.name.split("- ");
+    return parts[parts.length - 1].trim();
+  }
   if (course.term && course.year) {
     return `${course.term} ${course.year}`;
   }
@@ -222,16 +226,17 @@ export default function UniTab() {
   }
 
   function getSessionValue(course: Course): number {
-    const text = `${course.name} ${course.code}`;
-    const match = text.match(/(Autumn|Spring)\s+(\d{4})/i);
-    if (!match) return -1; // Unknown sessions at the bottom
+    const session = getSessionFromCourse(course);
+    const yearMatch = session.match(/(\d{4})/);
+    const year = yearMatch ? parseInt(yearMatch[1], 10) : 0;
 
-    const term = match[1].toLowerCase();
-    const year = parseInt(match[2], 10);
+    const lower = session.toLowerCase();
+    let termVal = 1; // default Autumn
+    if (lower.includes("spring")) termVal = 2;
+    else if (lower.includes("summer")) termVal = 3;
+    else if (lower.includes("winter")) termVal = 0;
 
-    // Spring = 2, Autumn = 1
-    const termVal = term === "spring" ? 2 : 1;
-    return year * 10 + termVal;
+    return year > 0 ? year * 10 + termVal : -1;
   }
 
   const assignmentsByCourse = useMemo(() => {
@@ -479,12 +484,10 @@ export default function UniTab() {
                   }, {} as Record<string, typeof assignmentsByCourse>)
                 )
                   .sort(([sessionA], [sessionB]) => {
-                    const [termA, yearA] = sessionA.split(' ');
-                    const [termB, yearB] = sessionB.split(' ');
-
-                    // Handle cases where year might be missing (e.g. "Unknown")
-                    const yA = parseInt(yearA);
-                    const yB = parseInt(yearB);
+                    const matchA = sessionA.match(/(\d{4})/);
+                    const matchB = sessionB.match(/(\d{4})/);
+                    const yA = matchA ? parseInt(matchA[1], 10) : NaN;
+                    const yB = matchB ? parseInt(matchB[1], 10) : NaN;
 
                     if (!isNaN(yA) && !isNaN(yB) && yA !== yB) {
                       return yB - yA;
@@ -492,8 +495,15 @@ export default function UniTab() {
                     if (isNaN(yA) && !isNaN(yB)) return 1; // Put Unknown at bottom
                     if (!isNaN(yA) && isNaN(yB)) return -1;
 
-                    const termOrder: Record<string, number> = { Autumn: 1, Spring: 2, Summer: 3, Winter: 0 };
-                    return (termOrder[termB] || 0) - (termOrder[termA] || 0);
+                    const termOrder: Record<string, number> = { autumn: 1, spring: 2, summer: 3, winter: 0 };
+                    const getTermWeight = (s: string) => {
+                      const lower = s.toLowerCase();
+                      for (const t in termOrder) {
+                        if (lower.includes(t)) return termOrder[t];
+                      }
+                      return 0;
+                    };
+                    return getTermWeight(sessionB) - getTermWeight(sessionA);
                   })
                   .map(([session, items]) => {
                     const isHidden = hiddenSemesters.includes(session);

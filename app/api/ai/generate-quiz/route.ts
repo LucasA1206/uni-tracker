@@ -57,13 +57,14 @@ export async function POST(req: NextRequest) {
         const promptTemplate = `
 You are an expert tutor. Create a quiz with exactly ${questionCount} questions based on the following study notes.
 Output MUST be a valid JSON array of objects.
+Mix Multiple Choice Questions (MCQ) and Short Answer (SA) questions about 50/50.
 
 Structure each object as:
 {
   "type": "MCQ" or "SA",
   "question": "The question text",
-  "options": ["A", "B", "C", "D"],
-  "correctAnswer": "The exact option match, or short answer model",
+  "options": ["A", "B", "C", "D"], // ONLY IF type is "MCQ"
+  "correctAnswer": "The exact option match, or the model answer for SA",
   "explanation": "Why this is correct"
 }
 

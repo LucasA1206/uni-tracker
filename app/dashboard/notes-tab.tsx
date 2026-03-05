@@ -119,6 +119,7 @@ int main() {
 export default function NotesTab() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
+    const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
 
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [selectedCourseId, setSelectedCourseId] = useState<string>("");
@@ -128,7 +129,7 @@ export default function NotesTab() {
 
 
     const router = useRouter();
-    const [quizConfig, setQuizConfig] = useState<{ courseId: number, title: string } | null>(null);
+    const [quizConfig, setQuizConfig] = useState<{ courseId?: number, noteId?: number, title: string, existingQuiz?: any } | null>(null);
 
     // Recorder State
     const [recordingSource, setRecordingSource] = useState<'mic' | 'system'>('mic');
@@ -190,9 +191,10 @@ export default function NotesTab() {
 
     const refresh = useCallback(async () => {
         try {
-            const [coursesRes, notesRes] = await Promise.all([
+            const [coursesRes, notesRes, quizzesRes] = await Promise.all([
                 fetch("/api/uni/courses"),
                 fetch("/api/uni/notes"),
+                fetch("/api/quiz")
             ]);
 
             if (coursesRes.ok) {
@@ -202,6 +204,10 @@ export default function NotesTab() {
             if (notesRes.ok) {
                 const data = await notesRes.json();
                 setNotes(data.notes || []);
+            }
+            if (quizzesRes.ok) {
+                const data = await quizzesRes.json();
+                setRecentQuizzes(data.quizzes || []);
             }
         } catch (err) {
             console.error("Failed to load notes tab data", err);
@@ -317,6 +323,13 @@ export default function NotesTab() {
         e.stopPropagation();
         if (!confirm("Are you sure you want to delete this note?")) return;
         await fetch(`/api/uni/notes?id=${id}`, { method: "DELETE" });
+        void refresh();
+    };
+
+    const deleteQuiz = async (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this quiz record?")) return;
+        await fetch(`/api/quiz/${id}`, { method: "DELETE" });
         void refresh();
     };
 
@@ -553,6 +566,68 @@ export default function NotesTab() {
 
             </div>
 
+            {/* Recent Quizzes List */}
+            {recentQuizzes.length > 0 && (
+                <div className="space-y-6">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <BrainCircuit className="w-5 h-5 text-indigo-500" />
+                        Recent Quizzes
+                    </h2>
+
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {recentQuizzes.map((quiz) => (
+                            <motion.div
+                                key={quiz.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                onClick={() => setQuizConfig({
+                                    courseId: quiz.courseId || undefined,
+                                    noteId: quiz.noteId || undefined,
+                                    title: quiz.title,
+                                    existingQuiz: quiz
+                                })}
+                                className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                            >
+                                <div className="space-y-2 pointer-events-none">
+                                    <div className="flex items-start justify-between">
+                                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={quiz.title}>
+                                            {quiz.title}
+                                        </h3>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className={`px-2 py-1 rounded-md font-medium ${quiz.isCompleted ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                                            {quiz.isCompleted ? `Score: ${quiz.score}/${quiz.totalQuestions}` : `In Progress: ${quiz.currentIndex}/${quiz.totalQuestions}`}
+                                        </span>
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                                            {new Date(quiz.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between pointer-events-none">
+                                    <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 pointer-events-auto" onClick={(e) => {
+                                        e.stopPropagation();
+                                        setQuizConfig({
+                                            courseId: quiz.courseId || undefined,
+                                            noteId: quiz.noteId || undefined,
+                                            title: quiz.title,
+                                            existingQuiz: quiz
+                                        });
+                                    }}>
+                                        {quiz.isCompleted ? "View Results" : "Continue Quiz"}
+                                    </button>
+                                    <button
+                                        onClick={(e) => deleteQuiz(e, quiz.id)}
+                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors pointer-events-auto"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Notes List */}
             <div className="space-y-6">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -634,9 +709,11 @@ export default function NotesTab() {
             {/* Quiz Modal */}
             <QuizModal
                 isOpen={!!quizConfig}
-                onClose={() => setQuizConfig(null)}
+                onClose={() => { setQuizConfig(null); refresh(); }}
                 courseId={quizConfig?.courseId}
+                noteId={quizConfig?.noteId}
                 title={quizConfig?.title || ""}
+                existingQuiz={quizConfig?.existingQuiz}
             />
         </div>
     );
