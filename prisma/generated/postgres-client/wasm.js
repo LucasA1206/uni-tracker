@@ -317,7 +317,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\lucas\\projects\\uni-tracker\\prisma\\schema.postgres.prisma",
+    "sourceFilePath": "C:\\Users\\lucas\\projects\\uni-tracker\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
@@ -331,6 +331,7 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {

@@ -23,7 +23,7 @@ try {
     execSync('npx prisma generate', { stdio: 'inherit' });
 
     console.log('Running next build...');
-    execSync('next build', { stdio: 'inherit' });
+    execSync('npx next build', { stdio: 'inherit' });
 } catch (error) {
     console.error('Build failed:', error);
     process.exit(1);
