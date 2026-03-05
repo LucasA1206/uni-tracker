@@ -1,0 +1,19 @@
+Checking database for user: LucasA001 or LucasA01...
+Error connecting to database or checking data: PrismaClientKnownRequestError: 
+Invalid `prisma.user.findUnique()` invocation in
+C:\Users\lucas\projects\uni-tracker\scripts\check-user.js:12:34
+
+   9 console.log(`Checking database for user: ${username} or ${altUsername}...`);
+  10 
+  11 // Try to find the user by either username or alternatively search
+→ 12 let user = await prisma.user.findUnique(
+The column `main.User.googleApiKey` does not exist in the current database.
+    at ei.handleRequestError (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (C:\Users\lucas\projects\uni-tracker\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async main (C:\Users\lucas\projects\uni-tracker\scripts\check-user.js:12:16) {
+  code: 'P2022',
+  meta: { modelName: 'User', column: 'main.User.googleApiKey' },
+  clientVersion: '6.19.0'
+}
