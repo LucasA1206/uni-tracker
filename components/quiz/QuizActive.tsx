@@ -68,12 +68,33 @@ export default function QuizActive({
         }
     };
 
+    const checkIsCorrect = (opt: string, correctAns: string) => {
+        if (!opt || !correctAns) return false;
+        const o = String(opt).trim();
+        const c = String(correctAns).trim();
+        if (o === c) return true;
+        if (o.toLowerCase() === c.toLowerCase()) return true;
+
+        if (c.length === 1 && /^[a-zA-Z]$/.test(c)) {
+            if (o.toLowerCase().startsWith(c.toLowerCase() + ".") ||
+                o.toLowerCase().startsWith(c.toLowerCase() + ")") ||
+                o.toLowerCase().startsWith(c.toLowerCase() + " ")) {
+                return true;
+            }
+        }
+
+        const strippedO = o.replace(/^[a-zA-Z][\.\)]\s*/, "").trim();
+        if (strippedO.toLowerCase() === c.toLowerCase()) return true;
+
+        return false;
+    };
+
     const handleMcqSelect = (option: string) => {
         if (isAnswered) return;
         setSelectedOption(option);
         setIsAnswered(true);
 
-        const isCorrect = option === currentQuestion.correctAnswer;
+        const isCorrect = checkIsCorrect(option, currentQuestion.correctAnswer);
         const newScore = isCorrect ? score + 1 : score;
         const newWrongAnswers = isCorrect ? wrongAnswers : [...wrongAnswers, {
             question: currentQuestion.question,
@@ -178,9 +199,12 @@ export default function QuizActive({
                                     let optionStyle = "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800";
 
                                     if (isAnswered) {
-                                        if (option === currentQuestion.correctAnswer) {
+                                        const isThisOptionCorrect = checkIsCorrect(option, currentQuestion.correctAnswer);
+                                        const isThisOptionSelected = option === selectedOption;
+
+                                        if (isThisOptionCorrect) {
                                             optionStyle = "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400";
-                                        } else if (option === selectedOption && option !== currentQuestion.correctAnswer) {
+                                        } else if (isThisOptionSelected && !isThisOptionCorrect) {
                                             optionStyle = "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400";
                                         } else {
                                             optionStyle = "opacity-50 border-gray-200 dark:border-gray-800";
@@ -195,8 +219,8 @@ export default function QuizActive({
                                             className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-between group ${optionStyle}`}
                                         >
                                             <span className="flex-1">{option}</span>
-                                            {isAnswered && option === currentQuestion.correctAnswer && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                                            {isAnswered && option === selectedOption && option !== currentQuestion.correctAnswer && <XCircle className="w-5 h-5 text-red-500" />}
+                                            {isAnswered && checkIsCorrect(option, currentQuestion.correctAnswer) && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                                            {isAnswered && option === selectedOption && !checkIsCorrect(option, currentQuestion.correctAnswer) && <XCircle className="w-5 h-5 text-red-500" />}
                                         </button>
                                     );
                                 })}
