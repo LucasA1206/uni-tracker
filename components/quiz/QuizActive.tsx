@@ -1,86 +1,175 @@
-import { useState } from "react";
-import { CheckCircle2, XCircle, ArrowRight, HelpCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CheckCircle2, XCircle, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export interface Question {
     type: "MCQ" | "SA";
     question: string;
-    options?: string[]; // Only for MCQ
+    options?: string[];
     correctAnswer: string;
     explanation?: string;
 }
 
 interface QuizActiveProps {
+    quizId?: number;
+    initialIndex?: number;
+    initialScore?: number;
+    initialWrongAnswers?: { question: string, correctAnswer: string, userAnswer: string, feedback?: string }[];
     questions: Question[];
-    onComplete: (score: number, wrongAnswers: { question: string, correctAnswer: string, userAnswer: string }[]) => void;
+    onComplete: (score: number, wrongAnswers: { question: string, correctAnswer: string, userAnswer: string, feedback?: string }[]) => void;
     onCancel: () => void;
 }
 
-export default function QuizActive({ questions, onComplete, onCancel }: QuizActiveProps) {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [score, setScore] = useState(0);
-    const [wrongAnswers, setWrongAnswers] = useState<{ question: string, correctAnswer: string, userAnswer: string }[]>([]);
+export default function QuizActive({
+    quizId,
+    initialIndex = 0,
+    initialScore = 0,
+    initialWrongAnswers = [],
+    questions,
+    onComplete,
+    onCancel
+}: QuizActiveProps) {
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [score, setScore] = useState(initialScore);
+    const [wrongAnswers, setWrongAnswers] = useState<{ question: string, correctAnswer: string, userAnswer: string, feedback?: string }[]>(initialWrongAnswers);
 
-    // State for current question interaction
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [saUserAnswer, setSaUserAnswer] = useState("");
     const [isAnswered, setIsAnswered] = useState(false);
-    const [saRevealed, setSaRevealed] = useState(false);
-    const [saUserRating, setSaUserRating] = useState<"correct" | "incorrect" | null>(null);
+
+    // SA Specific
+    const [isMarking, setIsMarking] = useState(false);
+    const [saFeedback, setSaFeedback] = useState<string | null>(null);
+    const [saCorrect, setSaCorrect] = useState<boolean | null>(null);
 
     const currentQuestion = questions[currentIndex];
+
+    // Added bounds check at beginning to guarantee safety
+    if (!currentQuestion) {
+        return null;
+    }
+
+    const saveProgress = async (newIndex: number, newScore: number, newWrongAnswers: any[], isCompleted: boolean = false) => {
+        if (!quizId) return;
+        try {
+            await fetch("/api/quiz", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    quizId,
+                    score: newScore,
+                    currentIndex: newIndex,
+                    wrongAnswers: newWrongAnswers,
+                    isCompleted
+                })
+            });
+        } catch (error) {
+            console.error("Failed to save progress", error);
+        }
+    };
+
+    const checkIsCorrect = (opt: string, correctAns: string) => {
+        if (!opt || !correctAns) return false;
+        const o = String(opt).trim();
+        const c = String(correctAns).trim();
+        if (o === c) return true;
+        if (o.toLowerCase() === c.toLowerCase()) return true;
+
+        if (c.length === 1 && /^[a-zA-Z]$/.test(c)) {
+            if (o.toLowerCase().startsWith(c.toLowerCase() + ".") ||
+                o.toLowerCase().startsWith(c.toLowerCase() + ")") ||
+                o.toLowerCase().startsWith(c.toLowerCase() + " ")) {
+                return true;
+            }
+        }
+
+        const strippedO = o.replace(/^[a-zA-Z][\.\)]\s*/, "").trim();
+        if (strippedO.toLowerCase() === c.toLowerCase()) return true;
+
+        return false;
+    };
 
     const handleMcqSelect = (option: string) => {
         if (isAnswered) return;
         setSelectedOption(option);
         setIsAnswered(true);
 
-        const isCorrect = option === currentQuestion.correctAnswer;
-        if (isCorrect) {
-            setScore(prev => prev + 1);
-        } else {
-            setWrongAnswers(prev => [...prev, {
-                question: currentQuestion.question,
-                correctAnswer: currentQuestion.correctAnswer,
-                userAnswer: option
-            }]);
-        }
+        const isCorrect = checkIsCorrect(option, currentQuestion.correctAnswer);
+        const newScore = isCorrect ? score + 1 : score;
+        const newWrongAnswers = isCorrect ? wrongAnswers : [...wrongAnswers, {
+            question: currentQuestion.question,
+            correctAnswer: currentQuestion.correctAnswer,
+            userAnswer: option
+        }];
+
+        if (isCorrect) setScore(newScore);
+        else setWrongAnswers(newWrongAnswers);
+
+        saveProgress(currentIndex, newScore, newWrongAnswers, false);
     };
 
-    const handleSaReveal = () => {
-        setSaRevealed(true);
-    };
+    const handleSaMark = async () => {
+        if (!saUserAnswer.trim() || isAnswered || isMarking) return;
 
-    const handleSaRate = (rating: "correct" | "incorrect") => {
-        setSaUserRating(rating);
-        setIsAnswered(true);
+        setIsMarking(true);
+        try {
+            const res = await fetch("/api/ai/mark-answer", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    question: currentQuestion.question,
+                    correctAnswer: currentQuestion.correctAnswer,
+                    userAnswer: saUserAnswer
+                })
+            });
 
-        if (rating === "correct") {
-            setScore(prev => prev + 1);
-        } else {
-            setWrongAnswers(prev => [...prev, {
+            if (!res.ok) throw new Error("Marking failed");
+
+            const data = await res.json();
+
+            setIsAnswered(true);
+            setSaCorrect(data.isCorrect);
+            setSaFeedback(data.feedback);
+
+            const newScore = data.isCorrect ? score + 1 : score;
+            const newWrongAnswers = data.isCorrect ? wrongAnswers : [...wrongAnswers, {
                 question: currentQuestion.question,
                 correctAnswer: currentQuestion.correctAnswer,
-                userAnswer: "Self-rated incorrect"
-            }]);
+                userAnswer: saUserAnswer,
+                feedback: data.feedback
+            }];
+
+            if (data.isCorrect) setScore(newScore);
+            else setWrongAnswers(newWrongAnswers);
+
+            saveProgress(currentIndex, newScore, newWrongAnswers, false);
+
+        } catch (error) {
+            console.error(error);
+            alert("Failed to mark answer, please try again.");
+        } finally {
+            setIsMarking(false);
         }
     };
 
     const nextQuestion = () => {
         if (currentIndex < questions.length - 1) {
-            setCurrentIndex(prev => prev + 1);
-            // Reset state
+            const nextIdx = currentIndex + 1;
+            setCurrentIndex(nextIdx);
             setSelectedOption(null);
+            setSaUserAnswer("");
             setIsAnswered(false);
-            setSaRevealed(false);
-            setSaUserRating(null);
+            setSaFeedback(null);
+            setSaCorrect(null);
+            saveProgress(nextIdx, score, wrongAnswers, false);
         } else {
+            saveProgress(currentIndex, score, wrongAnswers, true);
             onComplete(score, wrongAnswers);
         }
     };
 
     return (
         <div className="flex flex-col h-full max-h-[80vh]">
-            {/* Header */}
             <div className="flex justify-between items-center mb-6 border-b pb-4 dark:border-gray-800">
                 <div>
                     <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Question {currentIndex + 1} of {questions.length}</span>
@@ -91,7 +180,6 @@ export default function QuizActive({ questions, onComplete, onCancel }: QuizActi
                 <button onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white">Exit Quiz</button>
             </div>
 
-            {/* Question Area */}
             <div className="flex-1 overflow-y-auto pr-2">
                 <AnimatePresence mode="wait">
                     <motion.div
@@ -105,16 +193,18 @@ export default function QuizActive({ questions, onComplete, onCancel }: QuizActi
                             {currentQuestion.question}
                         </h3>
 
-                        {/* MCQ Options */}
                         {currentQuestion.type === "MCQ" && currentQuestion.options && (
                             <div className="space-y-3">
                                 {currentQuestion.options.map((option, idx) => {
                                     let optionStyle = "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800";
 
                                     if (isAnswered) {
-                                        if (option === currentQuestion.correctAnswer) {
+                                        const isThisOptionCorrect = checkIsCorrect(option, currentQuestion.correctAnswer);
+                                        const isThisOptionSelected = option === selectedOption;
+
+                                        if (isThisOptionCorrect) {
                                             optionStyle = "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400";
-                                        } else if (option === selectedOption && option !== currentQuestion.correctAnswer) {
+                                        } else if (isThisOptionSelected && !isThisOptionCorrect) {
                                             optionStyle = "border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400";
                                         } else {
                                             optionStyle = "opacity-50 border-gray-200 dark:border-gray-800";
@@ -129,65 +219,71 @@ export default function QuizActive({ questions, onComplete, onCancel }: QuizActi
                                             className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-between group ${optionStyle}`}
                                         >
                                             <span className="flex-1">{option}</span>
-                                            {isAnswered && option === currentQuestion.correctAnswer && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                                            {isAnswered && option === selectedOption && option !== currentQuestion.correctAnswer && <XCircle className="w-5 h-5 text-red-500" />}
+                                            {isAnswered && checkIsCorrect(option, currentQuestion.correctAnswer) && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                                            {isAnswered && option === selectedOption && !checkIsCorrect(option, currentQuestion.correctAnswer) && <XCircle className="w-5 h-5 text-red-500" />}
                                         </button>
                                     );
                                 })}
                             </div>
                         )}
 
-                        {/* Short Answer Logic */}
                         {currentQuestion.type === "SA" && (
                             <div className="space-y-6">
-                                {!saRevealed ? (
+                                {!isAnswered ? (
                                     <div className="space-y-4">
-                                        <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-center text-gray-500 text-sm">
-                                            Think of your answer, then click reveal to compare.
-                                        </div>
+                                        <textarea
+                                            value={saUserAnswer}
+                                            onChange={(e) => setSaUserAnswer(e.target.value)}
+                                            placeholder="Type your answer here..."
+                                            className="w-full p-4 min-h-[120px] rounded-xl border border-gray-300 dark:border-gray-700 bg-transparent focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                                        />
                                         <button
-                                            onClick={handleSaReveal}
-                                            className="w-full py-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-medium rounded-xl hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors"
+                                            onClick={handleSaMark}
+                                            disabled={!saUserAnswer.trim() || isMarking}
+                                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
                                         >
-                                            Reveal Answer
+                                            {isMarking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                            {isMarking ? "Marking with AI..." : "Mark Answer"}
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-                                        <div className="p-5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
-                                            <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-2">Correct Answer</p>
-                                            <p className="text-gray-800 dark:text-gray-200">{currentQuestion.correctAnswer}</p>
-                                        </div>
-
-                                        {!isAnswered && (
-                                            <div className="space-y-2">
-                                                <p className="text-center text-sm text-gray-500">How did you do?</p>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <button
-                                                        onClick={() => handleSaRate("incorrect")}
-                                                        className="flex items-center justify-center gap-2 py-3 border-2 border-red-100 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 rounded-xl transition-colors"
-                                                    >
-                                                        <XCircle className="w-4 h-4" /> Got it wrong
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleSaRate("correct")}
-                                                        className="flex items-center justify-center gap-2 py-3 border-2 border-green-100 dark:border-green-900/30 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 rounded-xl transition-colors"
-                                                    >
-                                                        <CheckCircle2 className="w-4 h-4" /> Got it right
-                                                    </button>
-                                                </div>
+                                        <div className={`p-5 rounded-xl border ${saCorrect ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900/50' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/50'}`}>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                {saCorrect ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <XCircle className="w-5 h-5 text-red-500" />}
+                                                <h4 className={`font-bold ${saCorrect ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                                                    {saCorrect ? "Correct!" : "Incorrect"}
+                                                </h4>
                                             </div>
-                                        )}
+
+                                            <div className="space-y-3">
+                                                <div className="bg-white/50 dark:bg-black/20 p-3 rounded-lg">
+                                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Your Answer</p>
+                                                    <p className="text-gray-800 dark:text-gray-200">{saUserAnswer}</p>
+                                                </div>
+
+                                                <div className="bg-white/50 dark:bg-black/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-900/30">
+                                                    <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-1">AI Feedback</p>
+                                                    <p className="text-gray-800 dark:text-gray-200">{saFeedback}</p>
+                                                </div>
+
+                                                {!saCorrect && (
+                                                    <div className="mt-4">
+                                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Ideal Answer</p>
+                                                        <p className="text-gray-700 dark:text-gray-300 italic">{currentQuestion.correctAnswer}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* Explanation / Next Button */}
                         {isAnswered && (
                             <div className="pt-4 border-t dark:border-gray-800 animate-in fade-in">
-                                {currentQuestion.explanation && (
-                                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-sm text-blue-800 dark:text-blue-300">
+                                {currentQuestion.explanation && currentQuestion.type === "MCQ" && (
+                                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-sm text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-blue-900/30">
                                         <span className="font-semibold mr-2">Explanation:</span> {currentQuestion.explanation}
                                     </div>
                                 )}

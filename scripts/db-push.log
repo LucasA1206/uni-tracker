@@ -1,0 +1,44 @@
+Loaded Prisma config from prisma.config.ts.
+
+Prisma config detected, skipping environment variable loading.
+Prisma schema loaded from prisma\schema.postgres.prisma
+Datasource "db": PostgreSQL database "dev.db", schema "public" at "file:./dev.db"
+Error: Error in RPC
+ Request: {
+  "id": 1,
+  "jsonrpc": "2.0",
+  "method": "schemaPush",
+  "params": {
+    "force": false,
+    "schema": {
+      "files": [
+        {
+          "path": "C:\\Users\\lucas\\projects\\uni-tracker\\prisma\\schema.postgres.prisma",
+          "content": "// Prisma schema for Uni & Work tracker\r\n// This file is used for PROD (Vercel Postgres)\r\n// Local dev uses schema.prisma (SQLite)\r\n\r\ndatasource db {\r\n  provider = \"postgresql\"\r\n  url = env(\"POSTGRES_PRISMA_URL\") // uses connection pooling\r\n  directUrl = env(\"STORAGE_POSTGRES_URL\") // uses a direct connection\r\n}\r\n\r\ngenerator client {\r\n  provider = \"prisma-client-js\"\r\n}\r\n\r\nmodel User {\r\n  universityEmail String @unique\r\n  id              Int              @id @default(autoincrement())\r\n  name            String\r\n  username        String           @unique\r\n  passwordHash    String\r\n  role            String           @default(\"user\") // \"user\" | \"admin\"\r\n\r\n  canvasApiToken  String?\r\n  googleApiKey    String?\r\n\r\n  uniCourses      UniCourse[]\r\n  workTasks       WorkTask[]\r\n  notes           Note[]\r\n  events          CalendarEvent[]\r\n  microsoftTokens MicrosoftToken[]\r\n  gmailTokens     GmailToken[]\r\n  emailMessages   EmailMessage[]\r\n  people          Person[]\r\n  financeProfile  FinanceProfile?\r\n  fortnightSpend  FortnightSpending[]\r\n  stockHoldings   StockHolding[]\r\n}\r\n\r\n\r\nmodel UniCourse {\r\n  id          Int           @id @default(autoincrement())\r\n  user        User          @relation(fields: [userId], references: [id])\r\n  userId      Int\r\n  name        String\r\n  code        String\r\n  term        String   @default(\"Autumn\")\r\n  year        Int      @default(2026)\r\n  canvasId    String?\r\n  assignments Assignment[]\r\n  notes       Note[]\r\n\r\n  @@unique([userId, canvasId])\r\n  @@index([userId])\r\n}\r\n\r\nmodel Assignment {\r\n  id             Int        @id @default(autoincrement())\r\n  course         UniCourse  @relation(fields: [courseId], references: [id])\r\n  courseId       Int\r\n  title          String\r\n  description    String?\r\n  dueDate        DateTime\r\n  weight         Float\r\n  maxGrade       Float\r\n  grade          Float?\r\n  status         String     @default(\"pending\")\r\n  followupPeople String?    // JSON-encoded array of people names\r\n  canvasId       String?\r\n\r\n  @@unique([courseId, canvasId])\r\n  @@index([courseId])\r\n  @@index([dueDate])\r\n  @@index([status])\r\n}\r\n\r\nmodel Note {\r\n  id          Int        @id @default(autoincrement())\r\n  user        User       @relation(fields: [userId], references: [id])\r\n  userId      Int\r\n  course      UniCourse? @relation(fields: [courseId], references: [id])\r\n  courseId    Int?\r\n  title       String\r\n  content     String\r\n  createdAt   DateTime   @default(now())\r\n  attachments NoteAttachment[]\r\n\r\n  @@index([userId])\r\n  @@index([courseId])\r\n  @@index([createdAt])\r\n}\r\n\r\nmodel NoteAttachment {\r\n  id        Int      @id @default(autoincrement())\r\n  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)\r\n  noteId    Int\r\n  name      String\r\n  url       String\r\n  type      String   // \"pdf\", \"docx\", \"pptx\", etc.\r\n  size      Int\r\n  content   Bytes?   // Store file content directly\r\n  createdAt DateTime @default(now())\r\n\r\n  @@index([noteId])\r\n}\r\n\r\nmodel WorkTask {\r\n  id             Int      @id @default(autoincrement())\r\n  user           User     @relation(fields: [userId], references: [id])\r\n  userId         Int\r\n  title          String\r\n  context        String?\r\n  status         String   @default(\"todo\")\r\n  dueDate        DateTime?\r\n  source         String?\r\n  externalId     String?\r\n  followupPeople String?  // JSON-encoded array of people names\r\n\r\n  @@index([userId])\r\n  @@index([userId, status])\r\n  @@index([dueDate])\r\n}\r\n\r\nmodel CalendarEvent {\r\n  id              Int       @id @default(autoincrement())\r\n  user            User      @relation(fields: [userId], references: [id])\r\n  userId          Int\r\n  title           String\r\n  description     String?\r\n  start           DateTime\r\n  end             DateTime\r\n  type            String\r\n  sourceId        String?\r\n  sourceExtraJson String?\r\n\r\n  @@index([userId])\r\n  @@index([userId, start])\r\n}\r\n\r\nmodel MicrosoftToken {\r\n  id           Int      @id @default(autoincrement())\r\n  user         User     @relation(fields: [userId], references: [id])\r\n  userId       Int      @unique\r\n  accessToken  String\r\n  refreshToken String\r\n  expiresAt    DateTime\r\n}\r\n\r\nmodel GmailToken {\r\n  id           Int      @id @default(autoincrement())\r\n  user         User     @relation(fields: [userId], references: [id])\r\n  userId       Int      @unique\r\n  accessToken  String\r\n  refreshToken String\r\n  expiresAt    DateTime\r\n  email        String?  // Store the connected email address\r\n}\r\n\r\nmodel EmailMessage {\r\n  id          Int      @id @default(autoincrement())\r\n  user        User     @relation(fields: [userId], references: [id])\r\n  userId      Int\r\n  messageId   String   @unique\r\n  subject     String\r\n  from        String\r\n  receivedAt  DateTime\r\n  preview     String?\r\n  isTask      Boolean  @default(false)\r\n  rawJson     String?\r\n  hidden      Boolean  @default(false)\r\n}\r\n\r\nmodel Person {\r\n  id     Int    @id @default(autoincrement())\r\n  user   User   @relation(fields: [userId], references: [id])\r\n  userId Int\r\n  name   String\r\n\r\n  @@unique([userId, name])\r\n}\r\n\r\nmodel FinanceProfile {\r\n  id                   Int      @id @default(autoincrement())\r\n  user                 User     @relation(fields: [userId], references: [id])\r\n  userId               Int      @unique\r\n  savingsBalance       Float    @default(0)\r\n  spendingBalance      Float    @default(0)\r\n  investingCashBalance Float    @default(0)\r\n  savingPercent        Float    @default(70)\r\n  spendingPercent      Float    @default(10)\r\n  investingPercent     Float    @default(20)\r\n  savingsInterestRatePA Float  @default(4)\r\n  investingCashBalanceUsd Float @default(0)\r\n  hourlyWage           Float    @default(0)\r\n  hoursWorked          Float    @default(0)\r\n  updatedAt            DateTime @updatedAt\r\n}\r\n\r\nmodel FortnightSpending {\r\n  id         Int      @id @default(autoincrement())\r\n  user       User     @relation(fields: [userId], references: [id])\r\n  userId     Int\r\n  periodStart DateTime\r\n  amountSpent Float   @default(0)\r\n  createdAt  DateTime @default(now())\r\n\r\n  @@unique([userId, periodStart])\r\n  @@index([userId])\r\n}\r\n\r\nmodel StockHolding {\r\n  id           Int      @id @default(autoincrement())\r\n  user         User     @relation(fields: [userId], references: [id])\r\n  userId       Int\r\n  ticker       String\r\n  exchange     String?\r\n  shares       Float\r\n  averagePrice Float\r\n  currency     String   @default(\"AUD\")\r\n  createdAt    DateTime @default(now())\r\n\r\n  @@index([userId])\r\n}\r\n"
+        }
+      ]
+    },
+    "filters": {
+      "externalTables": [],
+      "externalEnums": []
+    }
+  }
+}
+Response: {
+  "jsonrpc": "2.0",
+  "error": {
+    "code": 4466,
+    "message": "An error happened. Check the data field for details.",
+    "data": {
+      "is_panic": false,
+      "message": "",
+      "meta": {
+        "full_error": ""
+      },
+      "error_code": "P1012"
+    }
+  },
+  "id": 1
+}
+An error happened. Check the data field for details.
+

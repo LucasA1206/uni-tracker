@@ -9,6 +9,7 @@
     "lint": "eslint",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:studio": "npx prisma studio",
+    "prisma:studio:prod": "npx prisma studio --schema prisma/schema.postgres.prisma",
     "db:push:prod": "npx prisma db push --schema prisma/schema.postgres.prisma",
     "seed": "node prisma/seed.mjs"
   },

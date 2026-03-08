@@ -4,6 +4,7 @@ import { writeFile, appendFile, unlink, readFile } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getAuthUser } from "@/lib/auth";
 
 export const maxDuration = 300;
 
@@ -78,9 +79,21 @@ export async function POST(req: NextRequest) {
 
         console.log("All chunks received. Processing file with Gemini:", tempFilePath);
 
-        const apiKey = process.env.GEMINI_API_KEY;
+        const authUser = await getAuthUser();
+        if (!authUser) {
+            throw new Error("Unauthorized");
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: authUser.userId }
+        });
+        if (!user) {
+            throw new Error("No user found in database.");
+        }
+
+        const apiKey = user.googleApiKey || process.env.GEMINI_API_KEY;
         if (!apiKey) {
-            throw new Error("GEMINI_API_KEY is not configured.");
+            throw new Error("No Google API Key configured. Please add one in settings or configure the server.");
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
@@ -115,11 +128,6 @@ export async function POST(req: NextRequest) {
 
         const titleMatch = generatedNotes.match(/^# (.*)$/m);
         const title = titleMatch ? titleMatch[1].replace(/[*#]/g, '').trim() : `Lecture Notes: ${originalName}`;
-
-        const user = await prisma.user.findFirst();
-        if (!user) {
-            throw new Error("No user found in database.");
-        }
 
         const newNote = await prisma.note.create({
             data: {

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play } from "lucide-react";
 import { useWhisper } from "@/hooks/useWhisper";
 import QuizModal from "@/components/quiz/QuizModal";
 
@@ -119,9 +119,9 @@ int main() {
 export default function NotesTab() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
+    const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
 
     const [uploadFile, setUploadFile] = useState<File | null>(null);
-    const [convertedMp3Blob, setConvertedMp3Blob] = useState<Blob | null>(null);
     const [selectedCourseId, setSelectedCourseId] = useState<string>("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingStage, setProcessingStage] = useState("");
@@ -129,7 +129,7 @@ export default function NotesTab() {
 
 
     const router = useRouter();
-    const [quizConfig, setQuizConfig] = useState<{ courseId: number, title: string } | null>(null);
+    const [quizConfig, setQuizConfig] = useState<{ courseId?: number, noteId?: number, title: string, existingQuiz?: any } | null>(null);
 
     // Recorder State
     const [recordingSource, setRecordingSource] = useState<'mic' | 'system'>('mic');
@@ -191,9 +191,10 @@ export default function NotesTab() {
 
     const refresh = useCallback(async () => {
         try {
-            const [coursesRes, notesRes] = await Promise.all([
+            const [coursesRes, notesRes, quizzesRes] = await Promise.all([
                 fetch("/api/uni/courses"),
                 fetch("/api/uni/notes"),
+                fetch("/api/quiz")
             ]);
 
             if (coursesRes.ok) {
@@ -203,6 +204,10 @@ export default function NotesTab() {
             if (notesRes.ok) {
                 const data = await notesRes.json();
                 setNotes(data.notes || []);
+            }
+            if (quizzesRes.ok) {
+                const data = await quizzesRes.json();
+                setRecentQuizzes(data.quizzes || []);
             }
         } catch (err) {
             console.error("Failed to load notes tab data", err);
@@ -230,12 +235,11 @@ export default function NotesTab() {
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             const file = e.dataTransfer.files[0];
             const isMp3 = file.type === "audio/mpeg" || file.name.toLowerCase().endsWith(".mp3");
-            const isMp4 = file.type === "video/mp4" || file.name.toLowerCase().endsWith(".mp4");
-            if (isMp3 || isMp4) {
+            const isWebm = file.type === "audio/webm" || file.type === "video/webm" || file.name.toLowerCase().endsWith(".webm");
+            if (isMp3 || isWebm) {
                 setUploadFile(file);
-                setConvertedMp3Blob(null);
             } else {
-                alert("Please upload an MP3 (.mp3) or MP4 (.mp4) file");
+                alert("Please upload an MP3 or WEBM file (.mp3, .webm)");
             }
         }
     }, []);
@@ -243,63 +247,6 @@ export default function NotesTab() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setUploadFile(e.target.files[0]);
-            setConvertedMp3Blob(null);
-        }
-    };
-
-    const handleConvertMp4 = async () => {
-        if (!uploadFile) return;
-
-        setIsProcessing(true);
-        setProcessingStage("Starting MP4 upload...");
-
-        try {
-            const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks for video
-            const totalChunks = Math.ceil(uploadFile.size / CHUNK_SIZE);
-            const fileId = `upload-${Date.now()}`;
-
-            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                const percent = Math.round(((chunkIndex) / totalChunks) * 100);
-                setProcessingStage(`Uploading video... ${percent}%`);
-
-                const start = chunkIndex * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, uploadFile.size);
-                const chunk = uploadFile.slice(start, end);
-
-                const formData = new FormData();
-                formData.append("file", chunk);
-                formData.append("chunkIndex", chunkIndex.toString());
-                formData.append("totalChunks", totalChunks.toString());
-                formData.append("fileId", fileId);
-                formData.append("originalName", uploadFile.name);
-
-                if (chunkIndex === totalChunks - 1) {
-                    setProcessingStage("Converting MP4 to MP3... (this may take a while depending on file size)");
-                }
-
-                const res = await fetch("/api/ai/convert-mp4", {
-                    method: "POST",
-                    body: formData,
-                });
-
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
-                    throw new Error(errorData.error || `Upload failed at chunk ${chunkIndex + 1}`);
-                }
-
-                if (chunkIndex === totalChunks - 1) {
-                    setProcessingStage("Finalizing conversion...");
-                    const blob = await res.blob();
-                    setConvertedMp3Blob(blob);
-                    return;
-                }
-            }
-        } catch (err: any) {
-            console.error("Failed to convert MP4", err);
-            alert(`Error: ${err.message}`);
-        } finally {
-            setIsProcessing(false);
-            setProcessingStage("");
         }
     };
 
@@ -379,6 +326,13 @@ export default function NotesTab() {
         void refresh();
     };
 
+    const deleteQuiz = async (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this quiz record?")) return;
+        await fetch(`/api/quiz/${id}`, { method: "DELETE" });
+        void refresh();
+    };
+
     // Group notes by course
     const notesByCourse = useMemo(() => {
         const grouped: Record<string, Note[]> = {};
@@ -440,7 +394,7 @@ export default function NotesTab() {
                                         Drag & drop your recording here
                                     </h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Supports MP3 audio and MP4 video files (max 500MB)
+                                        Supports MP3 & WEBM audio files (max 500MB)
                                     </p>
                                 </div>
                                 <div className="relative">
@@ -453,7 +407,7 @@ export default function NotesTab() {
                                 </div>
                                 <label className="cursor-pointer rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                                     Browse Files
-                                    <input type="file" className="hidden" accept=".mp3,audio/mpeg,.mp4,video/mp4" onChange={handleFileChange} />
+                                    <input type="file" className="hidden" accept=".mp3,audio/mpeg,.webm,audio/webm,video/webm" onChange={handleFileChange} />
                                 </label>
                             </>
                         ) : (
@@ -461,7 +415,7 @@ export default function NotesTab() {
                                 <div className="flex items-start justify-between gap-4 mb-6">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-500">
-                                            {uploadFile.name.toLowerCase().endsWith('.mp4') ? <Video className="w-6 h-6" /> : <FileAudio className="w-6 h-6" />}
+                                            <FileAudio className="w-6 h-6" />
                                         </div>
                                         <div className="text-left">
                                             <p className="font-medium text-gray-900 dark:text-white line-clamp-1">{uploadFile.name}</p>
@@ -495,60 +449,13 @@ export default function NotesTab() {
                                     </div>
 
                                     <div className="pt-2">
-                                        {!uploadFile.name.toLowerCase().endsWith(".mp4") ? (
-                                            <button
-                                                onClick={handleGenerate}
-                                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                            >
-                                                <Mic className="w-4 h-4" />
-                                                Generate Detailed Notes
-                                            </button>
-                                        ) : !convertedMp3Blob ? (
-                                            <button
-                                                onClick={handleConvertMp4}
-                                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                            >
-                                                <Video className="w-4 h-4" />
-                                                Convert MP4 to MP3
-                                            </button>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                <div className="p-3 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl flex items-center gap-3">
-                                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                                    <div className="text-sm text-left">
-                                                        <p className="font-medium text-green-700 dark:text-green-400">Conversion Complete</p>
-                                                        <p className="text-green-600 dark:text-green-500/80">{(convertedMp3Blob.size / 1024 / 1024).toFixed(2)} MB</p>
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <button
-                                                        onClick={() => {
-                                                            const url = URL.createObjectURL(convertedMp3Blob);
-                                                            const a = document.createElement('a');
-                                                            a.href = url;
-                                                            a.download = `${uploadFile.name.replace(/\.[^/.]+$/, "")}.mp3`;
-                                                            document.body.appendChild(a);
-                                                            a.click();
-                                                            document.body.removeChild(a);
-                                                            URL.revokeObjectURL(url);
-                                                        }}
-                                                        className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-[#0F0F12]"
-                                                    >
-                                                        <Download className="w-4 h-4" /> Save MP3
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            const file = new File([convertedMp3Blob], `${uploadFile.name.replace(/\.[^/.]+$/, "")}.mp3`, { type: convertedMp3Blob.type });
-                                                            setUploadFile(file);
-                                                            setConvertedMp3Blob(null);
-                                                        }}
-                                                        className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-                                                    >
-                                                        <Mic className="w-4 h-4" /> Use for AI Notes
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
+                                        <button
+                                            onClick={handleGenerate}
+                                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                        >
+                                            <Mic className="w-4 h-4" />
+                                            Generate Detailed Notes
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -659,6 +566,68 @@ export default function NotesTab() {
 
             </div>
 
+            {/* Recent Quizzes List */}
+            {recentQuizzes.length > 0 && (
+                <div className="space-y-6">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <BrainCircuit className="w-5 h-5 text-indigo-500" />
+                        Recent Quizzes
+                    </h2>
+
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {recentQuizzes.map((quiz) => (
+                            <motion.div
+                                key={quiz.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                onClick={() => setQuizConfig({
+                                    courseId: quiz.courseId || undefined,
+                                    noteId: quiz.noteId || undefined,
+                                    title: quiz.title,
+                                    existingQuiz: quiz
+                                })}
+                                className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                            >
+                                <div className="space-y-2 pointer-events-none">
+                                    <div className="flex items-start justify-between">
+                                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={quiz.title}>
+                                            {quiz.title}
+                                        </h3>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className={`px-2 py-1 rounded-md font-medium ${quiz.isCompleted ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                                            {quiz.isCompleted ? `Score: ${quiz.score}/${quiz.totalQuestions}` : `In Progress: ${quiz.currentIndex}/${quiz.totalQuestions}`}
+                                        </span>
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                                            {new Date(quiz.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between pointer-events-none">
+                                    <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 pointer-events-auto" onClick={(e) => {
+                                        e.stopPropagation();
+                                        setQuizConfig({
+                                            courseId: quiz.courseId || undefined,
+                                            noteId: quiz.noteId || undefined,
+                                            title: quiz.title,
+                                            existingQuiz: quiz
+                                        });
+                                    }}>
+                                        {quiz.isCompleted ? "View Results" : "Continue Quiz"}
+                                    </button>
+                                    <button
+                                        onClick={(e) => deleteQuiz(e, quiz.id)}
+                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors pointer-events-auto"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Notes List */}
             <div className="space-y-6">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -740,9 +709,11 @@ export default function NotesTab() {
             {/* Quiz Modal */}
             <QuizModal
                 isOpen={!!quizConfig}
-                onClose={() => setQuizConfig(null)}
+                onClose={() => { setQuizConfig(null); refresh(); }}
                 courseId={quizConfig?.courseId}
+                noteId={quizConfig?.noteId}
                 title={quizConfig?.title || ""}
+                existingQuiz={quizConfig?.existingQuiz}
             />
         </div>
     );

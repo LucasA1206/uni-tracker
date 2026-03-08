@@ -1,0 +1,36 @@
+Connecting to Vercel Postgres...
+(node:16944) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Connected directly to Postgres.
+
+✅ User 'LucasA001' found! (ID: 1, Email: lucas7.ableson@gmail.com, Name: Lucas)
+
+--- NOTES (16) ---
+  1. Lecture 1 Notes
+     Attachments (1): EPA Week1 workshop- AU2026.pdf (application/pdf)
+  2. Lecture 1: C++ Introduction Lecture
+  3. Lecture 0 Prep Notes
+  4. Lecture 1: Fun of C Lecture
+  5. Lecture 2: C++ Lecture Notes: Core Concepts
+  6. Lecture 2: Project Management Life Cycle
+  7. Workshop 2: How to write a Resume and Cover Letter
+  8. Lecture 2: Data Types and Operators
+  9. Lecture 1: Information Systems Development Methodologies
+  10. Lecture 2: Information Systems Development Methodologies
+  11. Lecture Week 3: C++ Templates and Iterators
+  12. Workshop 3: Navigating the Internship Landscape: From Search to Registration
+  13. Lecture 3: Information Systems Development Methodologies
+  14. Lecture 3: The Role and Responsibilities of Engineers in Engineering Projects
+  15. Lecture 3: Program Solving with Algorithms
+  16. Tut Week 3: Understanding Data, Information, and Knowledge
+
+--- OTHER DATA ---
+  🎓 Courses: 13
+  ☑️ Tasks: 0
