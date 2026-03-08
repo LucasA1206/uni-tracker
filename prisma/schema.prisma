@@ -19,6 +19,7 @@ model User {
   role            String           @default("user") // "user" | "admin"
 
   canvasApiToken  String?
+  googleApiKey    String?
 
   uniCourses      UniCourse[]
   workTasks       WorkTask[]
@@ -31,6 +32,7 @@ model User {
   financeProfile  FinanceProfile?
   fortnightSpend  FortnightSpending[]
   stockHoldings   StockHolding[]
+  recentQuizzes   RecentQuiz[]
 }
 
 
@@ -214,6 +216,25 @@ model StockHolding {
   averagePrice Float
   currency     String   @default("AUD")
   createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RecentQuiz {
+  id               Int      @id @default(autoincrement())
+  user             User     @relation(fields: [userId], references: [id])
+  userId           Int
+  noteId           Int?
+  courseId         Int?
+  title            String
+  score            Int      @default(0)
+  totalQuestions   Int
+  currentIndex     Int      @default(0)
+  questionsJson    String
+  wrongAnswersJson String?
+  isCompleted      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([userId])
 }

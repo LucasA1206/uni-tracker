@@ -18,6 +18,7 @@ interface AccountInfo {
   username: string;
   universityEmail: string;
   canvasApiToken?: string | null;
+  googleApiKey?: string | null;
 }
 
 function DashboardContent() {
@@ -65,6 +66,7 @@ function DashboardContent() {
         username: data.user.username,
         universityEmail: data.user.universityEmail,
         canvasApiToken: data.user.canvasApiToken ?? "",
+        googleApiKey: data.user.googleApiKey ?? "",
       });
     } catch (err) {
       console.error(err);
@@ -99,6 +101,7 @@ function DashboardContent() {
           username: account.username,
           universityEmail: account.universityEmail,
           canvasApiToken: account.canvasApiToken ?? "",
+          googleApiKey: account.googleApiKey ?? "",
           currentPassword: currentPassword || undefined,
           newPassword: newPassword || undefined,
           confirmNewPassword: confirmNewPassword || undefined,
@@ -114,6 +117,7 @@ function DashboardContent() {
         username: data.user.username,
         universityEmail: data.user.universityEmail,
         canvasApiToken: data.user.canvasApiToken ?? "",
+        googleApiKey: data.user.googleApiKey ?? "",
       });
       setCurrentPassword("");
       setNewPassword("");
@@ -309,6 +313,27 @@ function DashboardContent() {
                     <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
                       This key is stored per-account and used to sync your
                       courses and assignments from Canvas.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium mb-1">
+                      Google API Key
+                    </label>
+                    <input
+                      type="password"
+                      className="w-full rounded-md bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={account.googleApiKey ?? ""}
+                      onChange={(e) =>
+                        setAccount((prev) =>
+                          prev
+                            ? { ...prev, googleApiKey: e.target.value }
+                            : prev
+                        )
+                      }
+                    />
+                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                      Used for generating AI notes and quizzes. Uses Google Gemini API.
                     </p>
                   </div>
 
