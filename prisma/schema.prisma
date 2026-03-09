@@ -238,3 +238,14 @@ model RecentQuiz {
 
   @@index([userId])
 }
+
+model FileChunk {
+  id         Int      @id @default(autoincrement())
+  fileId     String
+  chunkIndex Int
+  data       Bytes
+  createdAt  DateTime @default(now())
+
+  @@index([fileId])
+  @@unique([fileId, chunkIndex])
+}
