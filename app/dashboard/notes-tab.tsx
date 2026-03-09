@@ -261,7 +261,7 @@ export default function NotesTab() {
         setProcessingStage("Starting MP4 upload...");
 
         try {
-            const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks for video
+            const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks to avoid Next.js payload size limits
             const totalChunks = Math.ceil(uploadFile.size / CHUNK_SIZE);
             const fileId = `upload-${Date.now()}`;
 
