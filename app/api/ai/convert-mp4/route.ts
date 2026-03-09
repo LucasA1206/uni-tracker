@@ -4,6 +4,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegStatic from "ffmpeg-static";
+import { prisma } from "@/lib/prisma";
 
 // Configure ffmpeg to use the static binary
 if (ffmpegStatic) {
@@ -37,19 +38,44 @@ export async function POST(req: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Append chunk to the temporary MP4 file
-        if (chunkIndex === 0) {
-            await writeFile(tempMp4Path, buffer);
-        } else {
-            await appendFile(tempMp4Path, buffer);
-        }
+        // Save chunk to database
+        await prisma.fileChunk.create({
+            data: {
+                fileId: safeFileId,
+                chunkIndex,
+                data: buffer,
+            }
+        });
 
         // If not the last chunk, acknowledge receipt
         if (chunkIndex < totalChunks - 1) {
             return NextResponse.json({ status: "chunk_received", chunkIndex }, { status: 200 });
         }
 
-        console.log("All chunks received. Converting MP4 to MP3:", tempMp4Path);
+        console.log("All chunks received. Assembling file from DB...", safeFileId);
+
+        // Fetch all chunks from DB in order
+        const chunks = await prisma.fileChunk.findMany({
+            where: { fileId: safeFileId },
+            orderBy: { chunkIndex: 'asc' }
+        });
+
+        if (chunks.length !== totalChunks) {
+            throw new Error(`Expected ${totalChunks} chunks but found ${chunks.length}. Upload may have been interrupted. Please try again.`);
+        }
+
+        // Write all chunks to the temporary file
+        await writeFile(tempMp4Path, Buffer.alloc(0));
+        for (const chunk of chunks) {
+            await appendFile(tempMp4Path, chunk.data);
+        }
+
+        // Clean up chunks from DB
+        await prisma.fileChunk.deleteMany({
+            where: { fileId: safeFileId }
+        });
+
+        console.log("File assembled. Converting MP4 to MP3:", tempMp4Path);
 
         // All chunks received, perform the conversion
         await new Promise<void>((resolve, reject) => {

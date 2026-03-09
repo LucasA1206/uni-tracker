@@ -67,17 +67,43 @@ export async function POST(req: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        if (chunkIndex === 0) {
-            await writeFile(tempFilePath, buffer);
-        } else {
-            await appendFile(tempFilePath, buffer);
-        }
+        // Save chunk to database
+        await prisma.fileChunk.create({
+            data: {
+                fileId: safeFileId,
+                chunkIndex,
+                data: buffer,
+            }
+        });
 
         if (chunkIndex < totalChunks - 1) {
             return NextResponse.json({ status: "chunk_received", chunkIndex }, { status: 200 });
         }
 
-        console.log("All chunks received. Processing file with Gemini:", tempFilePath);
+        console.log("All chunks received. Assembling file from DB...", safeFileId);
+
+        // Fetch all chunks from DB in order
+        const chunks = await prisma.fileChunk.findMany({
+            where: { fileId: safeFileId },
+            orderBy: { chunkIndex: 'asc' }
+        });
+
+        if (chunks.length !== totalChunks) {
+            throw new Error(`Expected ${totalChunks} chunks but found ${chunks.length}. Upload may have been interrupted. Please try again.`);
+        }
+
+        // Write all chunks to the temporary file
+        await writeFile(tempFilePath, Buffer.alloc(0));
+        for (const chunk of chunks) {
+            await appendFile(tempFilePath, chunk.data);
+        }
+
+        // Clean up chunks from DB
+        await prisma.fileChunk.deleteMany({
+            where: { fileId: safeFileId }
+        });
+
+        console.log("File assembled. Processing file with Gemini:", tempFilePath);
 
         const authUser = await getAuthUser();
         if (!authUser) {
