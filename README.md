@@ -184,4 +184,4 @@ To fully sync with Canvas:
 
    - `https://YOUR_APP.vercel.app/api/integrations/microsoft/callback`
 
-After deploy, you can log in with `LucasA06 / SuperD00per` and start using the dashboard.
+After deploy, you can log in with `DemoUser1 / DemoPassword123!` and start using the dashboard.

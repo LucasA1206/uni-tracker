@@ -1,7 +1,11 @@
 const { Client } = require('pg');
 
 async function main() {
-    const connectionString = "${POSTGRES_PRISMA_URL}";
+    const connectionString = process.env.POSTGRES_PRISMA_URL;
+    if (!connectionString) {
+        console.error("POSTGRES_PRISMA_URL is required.");
+        process.exit(1);
+    }
 
     const client = new Client({
         connectionString,
@@ -12,8 +16,8 @@ async function main() {
         await client.connect();
         console.log('Connected directly to Postgres.');
 
-        const username = 'LucasA001';
-        const altUsername = 'LucasA01';
+        const username = 'DemoUser1';
+        const altUsername = 'DemoUser2';
 
         // Check user
         const res = await client.query('SELECT * FROM "User" WHERE username = $1 OR username = $2', [username, altUsername]);

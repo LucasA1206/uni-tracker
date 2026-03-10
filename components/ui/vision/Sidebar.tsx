@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { GraduationCap, Briefcase, CalendarDays, Wallet, Notebook, Orbit } from "lucide-react";
+import { GraduationCap, CalendarDays, Wallet, Notebook, Orbit } from "lucide-react";
 
-type Tab = "Uni" | "Work" | "Calendar" | "Finance" | "Notes";
+type Tab = "Uni" | "Calendar" | "Finance" | "Notes";
 
 interface SidebarProps {
   active: Tab;
@@ -12,7 +12,6 @@ interface SidebarProps {
 
 const items: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "Uni", label: "Uni", icon: GraduationCap },
-  { key: "Work", label: "Work", icon: Briefcase },
   { key: "Calendar", label: "Calendar", icon: CalendarDays },
   { key: "Finance", label: "Finance", icon: Wallet },
   { key: "Notes", label: "Notes", icon: Notebook },

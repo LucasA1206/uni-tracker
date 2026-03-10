@@ -3,8 +3,8 @@ const { PrismaClient } = require('../prisma/generated/postgres-client');
 const prisma = new PrismaClient();
 
 async function main() {
-    const username = 'LucasA001';
-    const altUsername = 'LucasA01';
+    const username = 'DemoUser1';
+    const altUsername = 'DemoUser2';
 
     console.log(`Checking POSTGRES database for user: ${username} or ${altUsername}...`);
 
