@@ -141,7 +141,7 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
 
   if (!hasCourseData) {
     return (
-      <div className="rounded-lg bg-slate-900/60 p-3 text-xs text-slate-400">
+      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3 text-xs text-gray-500 dark:text-slate-400">
         No graded assignments yet. Charts will appear once you start entering grades.
       </div>
     );
@@ -163,8 +163,8 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* Pie chart: each slice sized by weighted percentage, labels outside */}
-      <div className="rounded-lg bg-slate-900/60 p-4">
-        <h3 className="mb-4 text-sm font-semibold text-slate-100">Weighted grade per course (pie)</h3>
+      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-4">
+        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Weighted grade per course (pie)</h3>
         <div className="h-80 pt-4 pb-6">
           <Pie
             data={{
@@ -204,7 +204,7 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
         {/* Custom legend below the pie so it never overlaps labels */}
         <div className="mt-4 space-y-1 text-[11px]">
           {labels.map((label, idx) => (
-            <div key={label} className="flex items-center gap-2 text-slate-300">
+            <div key={label} className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
               <span
                 className="inline-block h-2 w-2 rounded-full"
                 style={{ backgroundColor: backgroundColors[idx] }}
@@ -216,8 +216,8 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
       </div>
 
       {/* Bar chart: same data, easier to compare courses */}
-      <div className="rounded-lg bg-slate-900/60 p-3">
-        <h3 className="mb-2 text-sm font-semibold text-slate-100">Weighted grade per course (bar)</h3>
+      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3">
+        <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-slate-100">Weighted grade per course (bar)</h3>
         <div className="h-100">
           <Bar
             data={{
@@ -245,8 +245,8 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
       </div>
 
       {/* Line chart: grades over time */}
-      <div className="rounded-lg bg-slate-900/60 p-3 md:col-span-2">
-        <h3 className="mb-2 text-sm font-semibold text-slate-100">Grades over time</h3>
+      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3 md:col-span-2">
+        <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-slate-100">Grades over time</h3>
         <div className="h-64">
           <Line
             data={{
@@ -280,8 +280,8 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
       </div>
 
       {/* Histogram: how many assignments fall into each grade band */}
-      <div className="rounded-lg bg-slate-900/60 p-3 md:col-span-2">
-        <h3 className="mb-2 text-sm font-semibold text-slate-100">Grade distribution</h3>
+      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3 md:col-span-2">
+        <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-slate-100">Grade distribution</h3>
         <div className="h-64">
           <Bar
             data={{

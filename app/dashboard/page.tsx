@@ -5,12 +5,11 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Shell from "@/components/ui/vision/Shell";
 import Card from "@/components/ui/vision/Card";
 import UniTab from "./uni-tab";
-import WorkTab from "./work-tab";
 import CalendarTab from "./calendar-tab";
 import FinanceTab from "./finance-tab";
 import NotesTab from "./notes-tab";
 
-const TABS = ["Uni", "Work", "Calendar", "Finance", "Notes"] as const;
+const TABS = ["Uni", "Calendar", "Finance", "Notes"] as const;
 type Tab = (typeof TABS)[number];
 
 interface AccountInfo {
@@ -172,11 +171,6 @@ function DashboardContent() {
         {tab === "Uni" && (
           <Card className="p-4">
             <UniTab />
-          </Card>
-        )}
-        {tab === "Work" && (
-          <Card className="p-4">
-            <WorkTab />
           </Card>
         )}
         {tab === "Calendar" && (

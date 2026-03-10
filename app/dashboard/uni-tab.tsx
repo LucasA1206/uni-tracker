@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import GradeCharts, { AssignmentForCharts } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
+import AssignmentsCardOverview from "@/components/AssignmentsCardOverview";
 
 interface Course {
   id: number;
@@ -391,6 +392,8 @@ export default function UniTab() {
               Sync from Canvas
             </button>
           </div>
+
+          <AssignmentsCardOverview assignments={assignments} courses={courses} />
 
           <form onSubmit={addAssignment} className="grid gap-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 md:grid-cols-5 text-xs">
             <select

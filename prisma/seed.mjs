@@ -4,33 +4,34 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash("LiverpoolSucks123", 10);
+  const passwordHash = await bcrypt.hash("DemoPassword123!", 10);
 
   await prisma.user.upsert({
-    where: { username: "LucasA06" },
+    where: { username: "DemoUser1" },
     update: {},
     create: {
-      username: "LucasA06",
-      universityEmail: "lucas@university.edu",
+      username: "DemoUser1",
+      universityEmail: "demo1@university.edu",
       passwordHash,
       role: "admin",
-      name: "LucasA06",
+      name: "Demo User 1",
     },
-  }),
-    await prisma.user.upsert({
-      where: { username: "Riley001" },
-      update: {},
-      create: {
-        username: "Riley001",
-        universityEmail: "riley@university.edu",
-        passwordHash,
-        role: "admin",
-        name: "Riley001",
-      },
-    });
+  });
+  
+  await prisma.user.upsert({
+    where: { username: "DemoUser2" },
+    update: {},
+    create: {
+      username: "DemoUser2",
+      universityEmail: "demo2@university.edu",
+      passwordHash,
+      role: "admin",
+      name: "Demo User 2",
+    },
+  });
 
   console.log({ passwordHash });
-  console.log("Seeded default admin user: LucasA06 / LiverpoolSucks123");
+  console.log("Seeded default admin user: DemoUser1 / DemoPassword123!");
 }
 
 main()

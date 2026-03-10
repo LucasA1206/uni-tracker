@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    const username = 'LucasA001'; // Sometimes it might be LucasA01, let's also check if it's LucasA001
-    const altUsername = 'LucasA01';
+    const username = 'DemoUser1'; // Sometimes it might be DemoUser2, let's also check if it's DemoUser1
+    const altUsername = 'DemoUser2';
 
     console.log(`Checking database for user: ${username} or ${altUsername}...`);
 
