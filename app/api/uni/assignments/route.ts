@@ -6,13 +6,24 @@ export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const CANVAS_BASE_URL = process.env.CANVAS_BASE_URL ?? "https://canvas.lms.uq.edu.au";
+
   const assignments = await prisma.assignment.findMany({
     where: { course: { userId: user.userId } },
-    include: { course: { select: { id: true, code: true } } },
+    include: { course: { select: { id: true, code: true, canvasId: true } } },
     orderBy: { dueDate: "asc" },
   });
 
-  return NextResponse.json({ assignments });
+  // Attach canvasUrl where available
+  const enriched = assignments.map((a) => ({
+    ...a,
+    canvasUrl:
+      CANVAS_BASE_URL && a.course.canvasId && a.canvasId
+        ? `${CANVAS_BASE_URL}/courses/${a.course.canvasId}/assignments/${a.canvasId}`
+        : null,
+  }));
+
+  return NextResponse.json({ assignments: enriched });
 }
 
 export async function POST(req: NextRequest) {
