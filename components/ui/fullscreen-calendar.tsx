@@ -35,12 +35,15 @@ interface ApiEvent {
     courseId?: number
     assignmentId?: number
     courseCode?: string
+    courseName?: string
     description?: string
     weight?: number
     maxGrade?: number
     grade?: number
     status?: string
     canvasUrl?: string
+    noteUrl?: string
+    isSummary?: boolean
   };
 }
 
@@ -73,36 +76,88 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
   }, [openEvent, openCreate, openDay])
 
   // Map our API events into FullCalendar events
-  const fcEvents = events.map(e => ({
-    id: e.id,
-    title: e.title,
-    start: e.start,
-    end: e.end,
-    extendedProps: {
-      type: e.type,
-      ...e.meta
+  const fcEvents = React.useMemo(() => {
+    const list: any[] = [];
+    const byDay: Record<string, ApiEvent[]> = {};
+    for (const e of events) {
+      if (!e.start) continue;
+      const day = e.start.split('T')[0];
+      if (!byDay[day]) byDay[day] = [];
+      byDay[day].push(e);
     }
-  }))
+
+    for (const [day, dayEvents] of Object.entries(byDay)) {
+      const notes = dayEvents.filter(e => e.type === 'note');
+      const assignments = dayEvents.filter(e => e.type === 'assignment');
+      const others = dayEvents.filter(e => e.type !== 'note' && e.type !== 'assignment');
+
+      assignments.forEach(a => list.push({
+        id: a.id, title: a.title, start: a.start, end: a.end, extendedProps: { type: a.type, ...a.meta }
+      }));
+      others.forEach(o => list.push({
+        id: o.id, title: o.title, start: o.start, end: o.end, extendedProps: { type: o.type, ...o.meta }
+      }));
+
+      if (assignments.length > 0) {
+        if (notes.length > 0) {
+           list.push({
+             id: `notes-summary-${day}`,
+             title: `+ ${notes.length} note${notes.length > 1 ? 's' : ''}`,
+             start: day,
+             allDay: true,
+             extendedProps: { type: 'summary', isSummary: true }
+           });
+        }
+      } else {
+        if (notes.length > 0) {
+           const sortedNotes = [...notes].sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+           const firstNote = sortedNotes[0];
+           list.push({
+             id: firstNote.id, title: firstNote.title, start: firstNote.start, end: firstNote.end, extendedProps: { type: firstNote.type, ...firstNote.meta }
+           });
+           if (sortedNotes.length > 1) {
+             list.push({
+               id: `notes-summary-${day}`,
+               title: `+ ${sortedNotes.length - 1} note${sortedNotes.length - 1 > 1 ? 's' : ''}`,
+               start: day,
+               allDay: true,
+               extendedProps: { type: 'summary', isSummary: true }
+             });
+           }
+        }
+      }
+    }
+    return list;
+  }, [events]);
 
   const renderEventContent = (eventInfo: any) => {
     const { event } = eventInfo;
-    const { type, courseId, weight, maxGrade, grade } = event.extendedProps;
+    const { type, courseId, weight, maxGrade, grade, isSummary } = event.extendedProps;
     
+    if (isSummary) {
+      return (
+        <div className="text-xs text-gray-400 dark:text-gray-500 font-medium pl-1 italic">
+          {event.title}
+        </div>
+      );
+    }
+
     const isNote = type === 'note';
     const isAssignment = type === 'assignment';
     const isWork = type === 'work';
     
-    const colorClass = courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400";
+    const colorClassRaw = courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400";
+    const noteSolidClass = `${colorClassRaw} text-white shadow-sm border-transparent`;
 
     return (
       <div className={cn(
         "relative overflow-hidden w-full text-left flex flex-col items-start gap-1 rounded-md p-1.5 text-xs leading-tight transition-colors",
-        isNote ? "bg-transparent border border-dashed border-gray-400 dark:border-gray-600 opacity-90" : "bg-white dark:bg-[#1A1A1E] border border-gray-200 dark:border-[#2A2A2E] shadow-sm"
+        isNote ? noteSolidClass : "bg-white dark:bg-[#1A1A1E] border border-gray-200 dark:border-[#2A2A2E] shadow-sm"
       )}>
-        <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClass)} />
-        <div className="pl-1 w-full overflow-hidden">
-          <div className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100 w-full truncate">
-            {isNote ? <FileText size={11} className="text-gray-500 dark:text-gray-400 shrink-0" /> : 
+        {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} />}
+        <div className={cn("w-full overflow-hidden", !isNote && "pl-1")}>
+          <div className={cn("flex items-center gap-1.5 font-medium w-full truncate", isNote ? "text-white" : "text-gray-900 dark:text-gray-100")}>
+            {isNote ? <FileText size={11} className="text-white shrink-0 opacity-80" /> : 
              isAssignment ? <CheckSquare size={11} className="text-blue-500 shrink-0" /> : 
              isWork ? <Briefcase size={11} className="text-purple-500 shrink-0" /> :
              <CalendarIcon size={11} className="text-gray-400 shrink-0" />}
@@ -110,7 +165,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
             <span className="truncate">{event.title}</span>
           </div>
           
-          <p className="leading-none text-gray-500 dark:text-gray-400 mt-1.5 text-[10px]">
+          <p className={cn("leading-none mt-1.5 text-[10px]", isNote ? "text-white/80" : "text-gray-500 dark:text-gray-400")}>
             {event.start && format(event.start, "h:mm a")} 
             {event.end && event.start.getTime() !== event.end.getTime() && ` - ${format(event.end, "h:mm a")}`}
           </p>
@@ -250,11 +305,11 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
       
       {openDay && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
           onClick={() => setOpenDay(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
+            className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -269,11 +324,11 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
               </button>
             </div>
             {openDay.dayEvents.length === 0 ? (
-              <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+              <div className="flex-1 flex flex-col justify-center items-center py-8 text-center text-sm text-gray-400 dark:text-gray-500">
                 No events on this day.
               </div>
             ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+              <div className="space-y-2 flex-1 overflow-y-auto pr-1">
                 {openDay.dayEvents.map((ev) => {
                   const isNote = ev.type === 'note'
                   const colorClass = ev.meta?.courseId != null
@@ -304,7 +359,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
                         </div>
                         <div className="mt-1 text-gray-500 dark:text-gray-400">
                           {format(new Date(ev.start), "h:mm a")}
-                          {ev.meta?.courseCode && <span className="ml-2 text-gray-400 dark:text-gray-500">· {ev.meta.courseCode}</span>}
+                          {ev.meta?.courseName && <span className="ml-2 text-gray-400 dark:text-gray-500">· {ev.meta.courseName}</span>}
                         </div>
                       </div>
                     </button>
@@ -331,27 +386,29 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
       
       {openEvent && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
           onClick={() => setOpenEvent(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
+            className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight pr-4">{openEvent.title}</h3>
             </div>
             <Separator className="my-4 dark:border-[#1F1F23]" />
-            <div className="space-y-3 text-sm">
+            <div className="space-y-3 text-sm flex-1 overflow-y-auto pr-1">
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                <span className="text-gray-500 dark:text-gray-400">Due / Start</span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  {openEvent.type === 'note' ? 'Date Created' : (openEvent.type === 'assignment' ? 'Due' : 'Due / Start')}
+                </span>
                 <span className="font-medium text-gray-900 dark:text-white">{format(new Date(openEvent.start), "MMM d, yyyy h:mm a")}</span>
               </div>
               
-              {openEvent.meta?.courseCode && (
+              {openEvent.meta?.courseName && (
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
                   <span className="text-gray-500 dark:text-gray-400">Course</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.courseCode}</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.courseName}</span>
                 </div>
               )}
               
@@ -384,17 +441,25 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
               )}
               
               {openEvent.meta?.description && (
-                <div className="mt-4 pt-2">
+                <div className="mt-4 pt-2 flex flex-col flex-1">
                   <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider block mb-2">Description</span>
                   <div
-                    className="max-h-48 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                    className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
                     dangerouslySetInnerHTML={{ __html: openEvent.meta.description }}
                   />
                 </div>
               )}
               
-              <div className="pt-4 flex items-center justify-end gap-3 mt-4">
+              <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-gray-100 dark:border-[#1F1F23]">
                 <Button variant="outline" onClick={() => setOpenEvent(null)}>Close</Button>
+                {openEvent.meta?.noteUrl && (
+                  <button
+                    onClick={() => window.location.href = openEvent.meta!.noteUrl!}
+                    className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white px-4 py-2 text-sm hover:bg-indigo-700 transition"
+                  >
+                    Open Note
+                  </button>
+                )}
                 {openEvent.meta?.canvasUrl && (
                   <a
                     href={openEvent.meta.canvasUrl}
@@ -414,11 +479,11 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
       
       {openCreate && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
           onClick={() => setOpenCreate(false)}
         >
           <div
-            className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
+            className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -426,7 +491,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
             </div>
             <Separator className="my-4 dark:border-[#1F1F23]" />
             <form
-              className="space-y-4 text-sm"
+              className="space-y-4 text-sm flex-1 flex flex-col overflow-y-auto pr-1"
               onSubmit={async (e) => {
                 e.preventDefault()
                 const startIso = new Date(`${createForm.date}T${createForm.startTime}`).toISOString()
@@ -457,10 +522,10 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
                   placeholder="Event title"
                 />
               </div>
-              <div className="grid gap-2">
-                <label className="text-gray-700 dark:text-gray-300 font-medium">Description</label>
+              <div className="grid gap-2 flex-1 flex flex-col">
+                <label className="text-gray-700 dark:text-gray-300 font-medium w-full">Description</label>
                 <textarea
-                  className="min-h-[100px] rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="min-h-[100px] flex-1 w-full rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   value={createForm.description}
                   onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder="Optional description"
@@ -498,7 +563,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
                   />
                 </div>
               </div>
-              <div className="pt-4 flex items-center justify-end gap-3">
+              <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-gray-100 dark:border-[#1F1F23]">
                 <Button type="button" variant="outline" onClick={() => setOpenCreate(false)}>Cancel</Button>
                 <Button type="submit">Add Event</Button>
               </div>

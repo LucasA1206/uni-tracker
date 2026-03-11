@@ -23,7 +23,7 @@ export async function GET() {
         grade: true,
         status: true,
         canvasId: true,
-        course: { select: { id: true, code: true, canvasId: true } },
+        course: { select: { id: true, code: true, name: true, canvasId: true } },
       },
       orderBy: { dueDate: "asc" },
     }),
@@ -33,7 +33,7 @@ export async function GET() {
         id: true,
         title: true,
         createdAt: true,
-        course: { select: { id: true, code: true } },
+        course: { select: { id: true, code: true, name: true } },
       },
     }),
     prisma.workTask.findMany({
@@ -87,6 +87,7 @@ export async function GET() {
           courseId: a.course.id,
           assignmentId: a.id,
           courseCode: a.course.code,
+          courseName: a.course.name ? a.course.name.split("-")[0].trim() : a.course.code,
           description: a.description ?? undefined,
           weight: a.weight,
           maxGrade: a.maxGrade,
@@ -105,6 +106,8 @@ export async function GET() {
       meta: {
         courseId: n.course?.id,
         courseCode: n.course?.code,
+        courseName: n.course?.name ? n.course.name.split("-")[0].trim() : n.course?.code,
+        noteUrl: `/dashboard/notes/${n.id}`,
       },
     })),
     ...tasks
