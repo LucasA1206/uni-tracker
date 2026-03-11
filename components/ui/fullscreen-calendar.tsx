@@ -51,6 +51,7 @@ interface FullScreenCalendarProps {
 
 export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProps) {
   const [openEvent, setOpenEvent] = React.useState<ApiEvent | null>(null)
+  const [openDay, setOpenDay] = React.useState<{ dateStr: string; dayEvents: ApiEvent[] } | null>(null)
   const [openCreate, setOpenCreate] = React.useState(false)
   const [createForm, setCreateForm] = React.useState<{ title: string; description: string; date: string; startTime: string; endTime: string }>({
     title: "",
@@ -61,7 +62,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
   })
 
   React.useEffect(() => {
-    if (openEvent || openCreate) {
+    if (openEvent || openCreate || openDay) {
       document.body.style.overflow = "hidden"
     } else {
       document.body.style.overflow = ""
@@ -69,7 +70,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
     return () => {
       document.body.style.overflow = ""
     }
-  }, [openEvent, openCreate])
+  }, [openEvent, openCreate, openDay])
 
   // Map our API events into FullCalendar events
   const fcEvents = events.map(e => ({
@@ -131,12 +132,25 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
   }
 
   const handleDateClick = (info: any) => {
-    setCreateForm(prev => ({ ...prev, date: info.dateStr.split('T')[0] }))
-    setOpenCreate(true)
+    // Show events for clicked day instead of opening create form
+    const clickedDate = info.dateStr.split('T')[0]
+    const dayEvents = events.filter(e => e.start.startsWith(clickedDate))
+    setOpenDay({ dateStr: clickedDate, dayEvents })
   }
 
   return (
     <div className="flex flex-1 flex-col w-full h-[800px] overflow-hidden">
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => {
+            setCreateForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00" })
+            setOpenCreate(true)
+          }}
+          className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1E] transition-colors"
+        >
+          <span className="text-lg leading-none">+</span> New Event
+        </button>
+      </div>
       <style>{`
         /* Minimalist Light/Dark Mode FullCalendar Styles */
         .fc {
@@ -233,6 +247,87 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
           meridiem: 'short'
         }}
       />
+      
+      {openDay && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm"
+          onClick={() => setOpenDay(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                {format(new Date(openDay.dateStr + "T00:00:00"), "MMMM d, yyyy")}
+              </h3>
+              <button
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-[#1F1F23] rounded-md px-2 py-1"
+                onClick={() => setOpenDay(null)}
+              >
+                Close
+              </button>
+            </div>
+            {openDay.dayEvents.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+                No events on this day.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {openDay.dayEvents.map((ev) => {
+                  const isNote = ev.type === 'note'
+                  const colorClass = ev.meta?.courseId != null
+                    ? COURSE_COLORS[ev.meta.courseId % COURSE_COLORS.length].replace('bg-', 'border-l-').replace('-500', '-500')
+                    : 'border-l-gray-300'
+                  return (
+                    <button
+                      key={ev.id}
+                      className={cn(
+                        "w-full text-left rounded-lg border p-3 text-xs hover:bg-gray-50 dark:hover:bg-[#1A1A1E] relative overflow-hidden transition-colors",
+                        isNote
+                          ? "border-dashed border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12]"
+                          : "border-solid border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12]"
+                      )}
+                      onClick={() => {
+                        setOpenDay(null)
+                        setOpenEvent(ev)
+                      }}
+                    >
+                      <div className={cn("absolute top-0 bottom-0 left-0 w-1", ev.meta?.courseId != null ? COURSE_COLORS[ev.meta.courseId % COURSE_COLORS.length] : "bg-gray-300")} />
+                      <div className="pl-2">
+                        <div className="flex items-center gap-1.5">
+                          {isNote
+                            ? <span className="text-gray-400">📄</span>
+                            : <span className="text-blue-500">☑</span>
+                          }
+                          <span className="font-semibold text-gray-900 dark:text-white">{ev.title}</span>
+                        </div>
+                        <div className="mt-1 text-gray-500 dark:text-gray-400">
+                          {format(new Date(ev.start), "h:mm a")}
+                          {ev.meta?.courseCode && <span className="ml-2 text-gray-400 dark:text-gray-500">· {ev.meta.courseCode}</span>}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-[#1F1F23]">
+              <button
+                className="text-xs text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium"
+                onClick={() => {
+                  setOpenDay(null)
+                  setCreateForm(prev => ({ ...prev, date: openDay.dateStr }))
+                  setOpenCreate(true)
+                }}
+              >
+                + Add event on this day
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       
       {openEvent && typeof document !== "undefined" && createPortal(
         <div
