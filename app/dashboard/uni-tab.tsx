@@ -358,7 +358,7 @@ export default function UniTab() {
             <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-3 py-2">
               <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${COURSE_COLORS[c.id % COURSE_COLORS.length]}`} />
               <div className="pl-2">
-                <div className="font-medium">{c.name}</div>
+                <div className="font-medium">{c.name.split("-")[0].trim()}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
               </div>
               <button
@@ -442,7 +442,7 @@ export default function UniTab() {
               <option value="">Select course</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.code} – {c.name}
+                  {c.code} – {c.name.split("-")[0].trim()}
                 </option>
               ))}
             </select>
@@ -564,7 +564,7 @@ export default function UniTab() {
                             <div key={course.id} className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] p-4">
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <div className="text-sm font-bold text-gray-900 dark:text-white">{course.name}</div>
+                                  <div className="text-sm font-bold text-gray-900 dark:text-white">{course.name.split("-")[0].trim()}</div>
                                   <div className="text-[11px] text-gray-500 dark:text-gray-400">{course.code}</div>
                                 </div>
                                 <button
@@ -678,7 +678,7 @@ export default function UniTab() {
                 <option value="">No course</option>
                 {courses.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.code} – {c.name}
+                    {c.code} – {c.name.split("-")[0].trim()}
                   </option>
                 ))}
               </select>

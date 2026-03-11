@@ -15,6 +15,11 @@
   },
   "dependencies": {
     "@cyntler/react-doc-viewer": "^1.17.1",
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
     "@google/generative-ai": "^0.24.1",
     "@headlessui/react": "^2.2.9",
     "@huggingface/inference": "^4.13.14",

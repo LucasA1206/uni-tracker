@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Shell from "@/components/ui/vision/Shell";
 import Card from "@/components/ui/vision/Card";
@@ -80,9 +81,24 @@ function DashboardContent() {
     void loadAccount();
     try {
       const stored = typeof window !== "undefined" ? window.localStorage.getItem("theme") : null;
-      setTheme(stored === "light" ? "light" : "dark");
+      const themeVal = stored === "light" ? "light" : "dark";
+      setTheme(themeVal);
+      if (themeVal === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
     } catch { }
   }, []);
+
+  useEffect(() => {
+    if (accountOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; }
+  }, [accountOpen]);
 
   async function saveAccount(e: React.FormEvent) {
     e.preventDefault();
@@ -189,9 +205,9 @@ function DashboardContent() {
           </Card>
         )}
 
-        {accountOpen && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-            <div className="w-full max-w-lg rounded-xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] p-6 text-sm">
+        {accountOpen && typeof document !== "undefined" && createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm">
+            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] p-6 text-sm shadow-xl">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Account details</h2>
                 <button
@@ -237,8 +253,9 @@ function DashboardContent() {
                           onClick={() => {
                             setTheme("light");
                             try { window.localStorage.setItem("theme", "light"); } catch { }
+                            document.documentElement.classList.remove("dark");
                           }}
-                          className={`rounded-md border px-3 py-1 text-xs ${theme === "light" ? "bg-gray-200 dark:bg-gray-700" : ""}`}
+                          className={`rounded-md border border-gray-200 dark:border-gray-800 px-3 py-1 text-xs text-gray-900 dark:text-white ${theme === "light" ? "bg-gray-200 dark:bg-gray-700 font-medium" : ""}`}
                         >
                           Light
                         </button>
@@ -247,8 +264,9 @@ function DashboardContent() {
                           onClick={() => {
                             setTheme("dark");
                             try { window.localStorage.setItem("theme", "dark"); } catch { }
+                            document.documentElement.classList.add("dark");
                           }}
-                          className={`rounded-md border px-3 py-1 text-xs ${theme === "dark" ? "bg-gray-200 dark:bg-gray-700" : ""}`}
+                          className={`rounded-md border border-gray-200 dark:border-gray-800 px-3 py-1 text-xs text-gray-900 dark:text-white ${theme === "dark" ? "bg-gray-200 dark:bg-gray-700 font-medium" : ""}`}
                         >
                           Dark
                         </button>
@@ -396,7 +414,7 @@ function DashboardContent() {
                       <button
                         type="button"
                         onClick={() => void deleteAccount()}
-                        className="rounded-md border border-red-700 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-900/60"
+                        className="rounded-md border border-red-300 dark:border-red-800 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/60 transition-colors"
                       >
                         Delete account
                       </button>
@@ -416,10 +434,11 @@ function DashboardContent() {
               )}
 
               {accountError && !account && (
-                <p className="mt-2 text-sm text-red-400">{accountError}</p>
+                <p className="mt-2 text-sm text-red-500 dark:text-red-400">{accountError}</p>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </Shell>
     </div>
