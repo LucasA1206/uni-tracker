@@ -388,7 +388,7 @@ export default function UniTab() {
                     type="button"
                     className={`rounded-full border px-2 py-0.5 ${hidden
                       ? "border-gray-200 dark:border-[#1F1F23] text-gray-500 dark:text-gray-400 bg-white dark:bg-[#0F0F12]"
-                      : "border-indigo-400 text-indigo-100 bg-indigo-500/20"
+                      : "border-indigo-600 dark:border-indigo-400 text-indigo-700 dark:text-indigo-100 bg-indigo-50 dark:bg-indigo-500/20"
                       }`}
                     onClick={() =>
                       setHiddenForCharts((prev) => {
@@ -639,7 +639,7 @@ export default function UniTab() {
                                               </select>
                                               <button
                                                 type="button"
-                                                className="rounded-full border border-red-700 px-2 py-0.5 text-[10px] text-red-200 hover:bg-red-900/60"
+                                                className="rounded-full border border-red-600 dark:border-red-700 px-2 py-0.5 text-[10px] text-red-600 dark:text-red-200 hover:bg-red-50 dark:hover:bg-red-900/60"
                                                 onClick={() => void deleteAssignment(a.id)}
                                               >
                                                 Delete
