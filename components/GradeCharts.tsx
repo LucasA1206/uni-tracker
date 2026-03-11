@@ -19,6 +19,7 @@ import "chartjs-adapter-date-fns";
 const outsideLabelPlugin = {
   id: "outsideLabelPlugin",
   afterDraw(chart: any) {
+    if (chart.config.type !== "pie") return;
     const { ctx } = chart;
     const meta = chart.getDatasetMeta(0);
     const total = chart.data.datasets[0].data.reduce((sum: number, v: number) => sum + v, 0);
