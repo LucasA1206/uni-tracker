@@ -34,6 +34,8 @@ interface Assignment {
   weight: number;
   maxGrade: number;
   status: string;
+  canvasUrl?: string | null;
+  description?: string | null;
 }
 
 function getSessionFromCourse(course: Course): string {
@@ -663,18 +665,18 @@ export default function UniTab() {
           </div>
           {selectedAssignment && typeof document !== "undefined" && createPortal(
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+              className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
               onClick={() => setSelectedAssignment(null)}
             >
               <div
-                className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
+                className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight pr-4">{selectedAssignment.title}</h3>
                 </div>
                 <div className="border-t border-gray-100 dark:border-[#1F1F23] my-4" />
-                <div className="space-y-3 text-sm">
+                <div className="space-y-3 text-sm flex-1 overflow-y-auto pr-1">
                   <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
                     <span className="text-gray-500 dark:text-gray-400">Course</span>
                     <span className="font-medium text-gray-900 dark:text-white">{selectedAssignment.course.code}</span>
@@ -705,8 +707,18 @@ export default function UniTab() {
                     <span className="text-gray-500 dark:text-gray-400">Status</span>
                     <span className="font-medium text-gray-900 dark:text-white uppercase text-[11px] tracking-wider">{selectedAssignment.status.replace("_", " ")}</span>
                   </div>
+
+                  {selectedAssignment.description && (
+                    <div className="mt-4 pt-2 flex flex-col flex-1">
+                      <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider block mb-2">Description</span>
+                      <div
+                        className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: selectedAssignment.description }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="pt-4 flex justify-end">
+                <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-gray-100 dark:border-[#1F1F23]">
                   <button
                     type="button"
                     className="rounded-lg border border-gray-200 dark:border-[#1F1F23] px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1E] transition-colors"
@@ -714,6 +726,16 @@ export default function UniTab() {
                   >
                     Close
                   </button>
+                  {selectedAssignment.canvasUrl && (
+                    <a
+                      href={selectedAssignment.canvasUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white px-4 py-2 text-sm hover:bg-indigo-700 transition"
+                    >
+                      Open in Canvas
+                    </a>
+                  )}
                 </div>
               </div>
             </div>,

@@ -10,7 +10,7 @@ export async function GET() {
 
   const assignments = await prisma.assignment.findMany({
     where: { course: { userId: user.userId } },
-    include: { course: { select: { id: true, code: true, canvasId: true } } },
+    include: { course: { select: { id: true, code: true, name: true, canvasId: true } } },
     orderBy: { dueDate: "asc" },
   });
 
