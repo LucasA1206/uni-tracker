@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { MenuBar } from "@/components/ui/glow-menu";
 import { History, CalendarClock, LineChart, Settings, X } from "lucide-react";
 import { Line } from "react-chartjs-2";
@@ -108,6 +109,15 @@ export default function AssignmentsCardOverview({ assignments, courses }: Props)
       }
     } catch (err) {}
   }, []);
+
+  useEffect(() => {
+    if (gpaSettingsOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; }
+  }, [gpaSettingsOpen]);
 
   const saveManualGpas = (newGpas: Record<string, number>) => {
     setManualGpas(newGpas);
@@ -366,7 +376,7 @@ export default function AssignmentsCardOverview({ assignments, courses }: Props)
         )}
       </div>
 
-      {gpaSettingsOpen && (
+      {gpaSettingsOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] p-6 shadow-xl relative">
             <button 
@@ -410,7 +420,8 @@ export default function AssignmentsCardOverview({ assignments, courses }: Props)
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

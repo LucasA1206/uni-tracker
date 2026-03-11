@@ -23,7 +23,7 @@ export async function GET() {
         grade: true,
         status: true,
         canvasId: true,
-        course: { select: { code: true, canvasId: true } },
+        course: { select: { id: true, code: true, canvasId: true } },
       },
       orderBy: { dueDate: "asc" },
     }),
@@ -33,7 +33,7 @@ export async function GET() {
         id: true,
         title: true,
         createdAt: true,
-        course: { select: { code: true } },
+        course: { select: { id: true, code: true } },
       },
     }),
     prisma.workTask.findMany({
@@ -79,11 +79,12 @@ export async function GET() {
           : undefined;
       return {
         id: `assignment-${a.id}`,
-        title: `[${a.course.code}] ${a.title}`,
+        title: a.title,
         start: a.dueDate.toISOString(),
         end: a.dueDate.toISOString(),
         type: "assignment",
         meta: {
+          courseId: a.course.id,
           assignmentId: a.id,
           courseCode: a.course.code,
           description: a.description ?? undefined,
@@ -97,10 +98,14 @@ export async function GET() {
     }),
     ...notes.map((n) => ({
       id: `note-${n.id}`,
-      title: n.course?.code ? `[${n.course.code}] ${n.title}` : n.title,
+      title: n.title,
       start: n.createdAt.toISOString(),
       end: n.createdAt.toISOString(),
       type: "note",
+      meta: {
+        courseId: n.course?.id,
+        courseCode: n.course?.code,
+      },
     })),
     ...tasks
       .filter((t) => t.dueDate)

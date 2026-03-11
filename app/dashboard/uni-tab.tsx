@@ -4,6 +4,18 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import GradeCharts, { AssignmentForCharts } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import AssignmentsCardOverview from "@/components/AssignmentsCardOverview";
+import { createPortal } from "react-dom";
+
+const COURSE_COLORS = [
+  "bg-red-500",
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-yellow-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-indigo-500",
+  "bg-teal-500"
+];
 
 interface Course {
   id: number;
@@ -96,6 +108,24 @@ export default function UniTab() {
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [sessionFilter, setSessionFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (selectedNote) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; }
+  }, [selectedNote]);
+
+  useEffect(() => {
+    const storedHidden = window.localStorage.getItem("uni_hidden_charts");
+    if (storedHidden) {
+      try { setHiddenForCharts(JSON.parse(storedHidden)); } catch {}
+    }
+    const storedSession = window.localStorage.getItem("uni_session_filter");
+    if (storedSession) setSessionFilter(storedSession);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -325,8 +355,9 @@ export default function UniTab() {
         </form>
         <ul className="space-y-1 text-sm">
           {courses.map((c) => (
-            <li key={c.id} className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-3 py-2">
-              <div>
+            <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-3 py-2">
+              <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${COURSE_COLORS[c.id % COURSE_COLORS.length]}`} />
+              <div className="pl-2">
                 <div className="font-medium">{c.name}</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
               </div>
@@ -359,11 +390,13 @@ export default function UniTab() {
                       : "border-indigo-400 text-indigo-100 bg-indigo-500/20"
                       }`}
                     onClick={() =>
-                      setHiddenForCharts((prev) =>
-                        prev.includes(c.id)
+                      setHiddenForCharts((prev) => {
+                        const next = prev.includes(c.id)
                           ? prev.filter((id) => id !== c.id)
-                          : [...prev, c.id],
-                      )
+                          : [...prev, c.id];
+                        window.localStorage.setItem("uni_hidden_charts", JSON.stringify(next));
+                        return next;
+                      })
                     }
                   >
                     {hidden ? `Show ${c.code}` : `Hide ${c.code}`}
@@ -694,7 +727,7 @@ export default function UniTab() {
             ))}
           </div>
 
-          {selectedNote && (
+          {selectedNote && typeof document !== "undefined" && createPortal(
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
               <div className="w-full max-w-xl rounded-xl bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] p-4 text-xs shadow-xl">
                 <div className="mb-2 flex items-center justify-between">
@@ -717,7 +750,8 @@ export default function UniTab() {
                   {selectedNote.content}
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 
@@ -730,7 +764,11 @@ export default function UniTab() {
                 <select
                   className="rounded-md border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-2 py-1"
                   value={sessionFilter}
-                  onChange={(e) => setSessionFilter(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSessionFilter(val);
+                    window.localStorage.setItem("uni_session_filter", val);
+                  }}
                 >
                   <option value="all">All</option>
                   {sessionOptions.map((s) => (

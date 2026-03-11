@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import {
   add,
   eachDayOfInterval,
@@ -27,6 +28,17 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useMediaQuery } from "@/hooks/use-media-query"
 
+const COURSE_COLORS = [
+  "bg-red-500",
+  "bg-blue-500",
+  "bg-green-500",
+  "bg-yellow-500",
+  "bg-purple-500",
+  "bg-pink-500",
+  "bg-indigo-500",
+  "bg-teal-500"
+];
+
 interface Event {
   id: number
   name: string
@@ -34,6 +46,7 @@ interface Event {
   datetime: string
   type?: string
   meta?: {
+    courseId?: number
     assignmentId?: number
     courseCode?: string
     description?: string
@@ -81,6 +94,17 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
     startTime: "09:00",
     endTime: "10:00",
   })
+
+  React.useEffect(() => {
+    if (openEvent || openDay || openCreate) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [openEvent, openDay, openCreate])
 
   const days = eachDayOfInterval({
     start: startOfWeek(firstDayCurrentMonth),
@@ -181,9 +205,12 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
                     <div>
                       {data.filter((date) => isSameDay(date.day, day)).map((date) => (
                         <div key={date.day.toString()} className="-mx-0.5 mt-auto flex flex-wrap-reverse">
-                          {date.events.map((event) => (
-                            <span key={event.id} className="mx-0.5 mt-1 h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                          ))}
+                          {date.events.map((event) => {
+                            const colorClass = event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground";
+                            return (
+                              <span key={event.id} className={cn("mx-0.5 mt-1 h-1.5 w-1.5 rounded-full", colorClass)} />
+                            );
+                          })}
                         </div>
                       ))}
                     </div>
@@ -219,16 +246,27 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
                   <div className="flex-1 p-2.5">
                     {data.filter((event) => isSameDay(event.day, day)).map((day) => (
                       <div key={day.day.toString()} className="space-y-1.5">
-                        {day.events.slice(0, 3).map((event) => (
-                          <button
-                            key={event.id}
-                            className="w-full text-left flex flex-col items-start gap-1 rounded-lg border bg-muted/50 p-2 text-xs leading-tight hover:bg-muted"
-                            onClick={() => setOpenEvent({ event, day: day.day })}
-                          >
-                            <p className="font-medium leading-none">{event.name}</p>
-                            <p className="leading-none text-muted-foreground">{event.time}</p>
-                          </button>
-                        ))}
+                        {day.events.slice(0, 3).map((event) => {
+                          const isNote = event.type === 'note';
+                          const colorClass = event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground";
+                          
+                          return (
+                            <button
+                              key={event.id}
+                              className={cn(
+                                "relative overflow-hidden w-full text-left flex flex-col items-start gap-1 rounded-lg border p-2 text-xs leading-tight hover:bg-muted",
+                                isNote ? "bg-background border-dashed" : "bg-muted/50 border-solid"
+                              )}
+                              onClick={() => setOpenEvent({ event, day: day.day })}
+                            >
+                              <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClass)} />
+                              <div className="pl-1.5 w-full">
+                                <p className="font-medium leading-none">{event.name}</p>
+                                <p className="leading-none text-muted-foreground mt-1">{event.time}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
                         {day.events.length > 3 && (
                           <button
                             className="text-left text-xs text-muted-foreground hover:underline"
@@ -268,14 +306,17 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
                   <div>
                     {data.filter((date) => isSameDay(date.day, day)).map((date) => (
                       <div key={date.day.toString()} className="-mx-0.5 mt-auto flex flex-wrap-reverse items-center gap-1">
-                        {date.events.slice(0, 3).map((event) => (
-                          <button
-                            key={event.id}
-                            className="mx-0.5 mt-1 h-1.5 w-1.5 rounded-full bg-muted-foreground"
-                            onClick={() => setOpenEvent({ event, day })}
-                            aria-label={event.name}
-                          />
-                        ))}
+                        {date.events.slice(0, 3).map((event) => {
+                          const colorClass = event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground";
+                          return (
+                            <button
+                              key={event.id}
+                              className={cn("mx-0.5 mt-1 h-1.5 w-1.5 rounded-full", colorClass)}
+                              onClick={() => setOpenEvent({ event, day })}
+                              aria-label={event.name}
+                            />
+                          );
+                        })}
                         {date.events.length > 3 && (
                           <button
                             className="ml-1 text-[10px] text-muted-foreground underline"
@@ -293,7 +334,7 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
           </div>
         </div>
       </div>
-      {openEvent && (
+      {openEvent && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setOpenEvent(null)}
@@ -362,9 +403,10 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-      {openDay && (
+      {openDay && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setOpenDay(null)}
@@ -382,10 +424,14 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
               {openDay.events.map((event) => (
                 <button
                   key={event.id}
-                  className="w-full text-left rounded-md border p-2 text-xs hover:bg-muted"
+                  className={cn(
+                    "w-full text-left rounded-md border p-2 text-xs hover:bg-muted relative overflow-hidden",
+                    event.type === 'note' ? "border-dashed bg-background" : "border-solid bg-muted/50"
+                  )}
                   onClick={() => setOpenEvent({ event, day: openDay.day })}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className={cn("absolute top-0 bottom-0 left-0 w-1", event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground")} />
+                  <div className="flex items-center justify-between pl-1">
                     <span className="font-medium">{event.name}</span>
                     <span className="text-muted-foreground">{event.time}</span>
                   </div>
@@ -393,9 +439,10 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-      {openCreate && (
+      {openCreate && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setOpenCreate(false)}
@@ -483,7 +530,8 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
