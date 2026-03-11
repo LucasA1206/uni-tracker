@@ -121,3 +121,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Fix for unreadable highlighted text in dark mode descriptions */
+.dark .prose :where(mark),
+.dark .prose :where(mark) *,
+.dark .prose :where([style*="background-color"]),
+.dark .prose :where([style*="background-color"]) * {
+  color: #000000 !important;
+}
