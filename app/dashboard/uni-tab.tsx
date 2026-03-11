@@ -314,7 +314,8 @@ export default function UniTab() {
   }, [courses]);
 
   return (
-    <div className="grid gap-6 md:grid-cols-3">
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-3">
       <section className="md:col-span-1 space-y-4">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">Courses</h2>
         <form onSubmit={addCourse} className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6">
@@ -508,7 +509,7 @@ export default function UniTab() {
             </button>
           </form>
 
-          <div className="space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 max-h-[50rem] overflow-auto">
+          <div className="space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 min-h-[20rem] max-h-[50rem] overflow-auto">
             {assignments.length === 0 && (
               <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet.</p>
             )}
@@ -742,54 +743,56 @@ export default function UniTab() {
             document.body
           )}
         </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Grade visualisations</h2>
-            {sessionOptions.length > 0 && (
-              <div className="flex items-center gap-2 text-[11px]">
-                <span className="text-gray-500 dark:text-gray-400">Session:</span>
-                <select
-                  className="rounded-md border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-2 py-1"
-                  value={sessionFilter}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSessionFilter(val);
-                    window.localStorage.setItem("uni_session_filter", val);
-                  }}
-                >
-                  <option value="all">All</option>
-                  {sessionOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-          <GradeCharts
-            assignments={useMemo(() =>
-              assignments
-                .filter((a) => !hiddenForCharts.includes(a.course.id))
-                .filter((a) => {
-                  if (sessionFilter === "all") return true;
-                  const course = courses.find((c) => c.id === a.course.id);
-                  const session = course ? getSessionFromCourse(course) : "Unknown";
-                  return session === sessionFilter;
-                })
-                .map<AssignmentForCharts>((a) => ({
-                  courseCode: a.course.code,
-                  weight: a.weight,
-                  maxGrade: a.maxGrade,
-                  grade: a.grade,
-                  dueDate: a.dueDate,
-                })),
-              [assignments, hiddenForCharts, sessionFilter, courses]
-            )}
-          />
-        </div>
       </section>
+      </div>
+
+      {/* Grade Visualisations — Full Width */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Grade visualisations</h2>
+          {sessionOptions.length > 0 && (
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-gray-500 dark:text-gray-400">Session:</span>
+              <select
+                className="rounded-md border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-2 py-1"
+                value={sessionFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSessionFilter(val);
+                  window.localStorage.setItem("uni_session_filter", val);
+                }}
+              >
+                <option value="all">All</option>
+                {sessionOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        <GradeCharts
+          assignments={useMemo(() =>
+            assignments
+              .filter((a) => !hiddenForCharts.includes(a.course.id))
+              .filter((a) => {
+                if (sessionFilter === "all") return true;
+                const course = courses.find((c) => c.id === a.course.id);
+                const session = course ? getSessionFromCourse(course) : "Unknown";
+                return session === sessionFilter;
+              })
+              .map<AssignmentForCharts>((a) => ({
+                courseCode: a.course.code,
+                weight: a.weight,
+                maxGrade: a.maxGrade,
+                grade: a.grade,
+                dueDate: a.dueDate,
+              })),
+            [assignments, hiddenForCharts, sessionFilter, courses]
+          )}
+        />
+      </div>
     </div>
   );
 }

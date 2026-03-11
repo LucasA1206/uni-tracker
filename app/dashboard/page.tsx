@@ -9,6 +9,7 @@ import UniTab from "./uni-tab";
 import CalendarTab from "./calendar-tab";
 import FinanceTab from "./finance-tab";
 import NotesTab from "./notes-tab";
+import GettingStartedGuide from "@/components/GettingStartedGuide";
 
 const TABS = ["Uni", "Calendar", "Finance", "Notes"] as const;
 type Tab = (typeof TABS)[number];
@@ -35,6 +36,7 @@ function DashboardContent() {
     router.push(`${pathname}?${params.toString()}`);
   };
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [showGuide, setShowGuide] = useState(false);
 
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountLoading, setAccountLoading] = useState(false);
@@ -88,6 +90,8 @@ function DashboardContent() {
       } else {
         document.documentElement.classList.remove("dark");
       }
+      const hasSeen = window.localStorage.getItem("has_seen_guide");
+      if (!hasSeen) setShowGuide(true);
     } catch { }
   }, []);
 
@@ -183,6 +187,7 @@ function DashboardContent() {
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
+      {showGuide && <GettingStartedGuide onClose={() => setShowGuide(false)} />}
       <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)}>
         {tab === "Uni" && (
           <Card className="p-4">
