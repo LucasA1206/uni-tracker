@@ -502,7 +502,7 @@ export default function NotesTab() {
                                             <option value="">Select a course...</option>
                                             {courses.map(course => (
                                                 <option key={course.id} value={course.id}>
-                                                    {course.code} - {course.name}
+                                                    {course.code} - {course.name.split("-")[0].trim()}
                                                 </option>
                                             ))}
                                         </select>

@@ -2,31 +2,17 @@
 
 import * as React from "react"
 import { createPortal } from "react-dom"
-import {
-  add,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  getDay,
-  isEqual,
-  isSameDay,
-  isSameMonth,
-  isToday,
-  parse,
-  startOfToday,
-  startOfWeek,
-} from "date-fns"
-import {
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  PlusCircle as PlusCircleIcon,
-} from "lucide-react"
+import { format } from "date-fns"
+import { CheckSquare, FileText, Calendar as CalendarIcon, Briefcase } from "lucide-react"
+
+import FullCalendar from "@fullcalendar/react"
+import dayGridPlugin from "@fullcalendar/daygrid"
+import timeGridPlugin from "@fullcalendar/timegrid"
+import interactionPlugin from "@fullcalendar/interaction"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { useMediaQuery } from "@/hooks/use-media-query"
 
 const COURSE_COLORS = [
   "bg-red-500",
@@ -39,12 +25,12 @@ const COURSE_COLORS = [
   "bg-teal-500"
 ];
 
-interface Event {
-  id: number
-  name: string
-  time: string
-  datetime: string
-  type?: string
+interface ApiEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  type: string;
   meta?: {
     courseId?: number
     assignmentId?: number
@@ -55,48 +41,27 @@ interface Event {
     grade?: number
     status?: string
     canvasUrl?: string
-  }
-}
-
-interface CalendarData {
-  day: Date
-  events: Event[]
+  };
 }
 
 interface FullScreenCalendarProps {
-  data: CalendarData[]
+  events: ApiEvent[]
   onRefresh?: () => void
 }
 
-const colStartClasses = [
-  "",
-  "col-start-2",
-  "col-start-3",
-  "col-start-4",
-  "col-start-5",
-  "col-start-6",
-  "col-start-7",
-]
-
-export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
-  const today = startOfToday()
-  const [selectedDay, setSelectedDay] = React.useState(today)
-  const [currentMonth, setCurrentMonth] = React.useState(format(today, "MMM-yyyy"))
-  const firstDayCurrentMonth = parse(currentMonth, "MMM-yyyy", new Date())
-  const isDesktop = useMediaQuery("(min-width: 768px)")
-  const [openEvent, setOpenEvent] = React.useState<{ event: Event; day: Date } | null>(null)
-  const [openDay, setOpenDay] = React.useState<{ day: Date; events: Event[] } | null>(null)
+export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProps) {
+  const [openEvent, setOpenEvent] = React.useState<ApiEvent | null>(null)
   const [openCreate, setOpenCreate] = React.useState(false)
   const [createForm, setCreateForm] = React.useState<{ title: string; description: string; date: string; startTime: string; endTime: string }>({
     title: "",
     description: "",
-    date: format(today, "yyyy-MM-dd"),
+    date: format(new Date(), "yyyy-MM-dd"),
     startTime: "09:00",
     endTime: "10:00",
   })
 
   React.useEffect(() => {
-    if (openEvent || openDay || openCreate) {
+    if (openEvent || openCreate) {
       document.body.style.overflow = "hidden"
     } else {
       document.body.style.overflow = ""
@@ -104,298 +69,243 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
     return () => {
       document.body.style.overflow = ""
     }
-  }, [openEvent, openDay, openCreate])
+  }, [openEvent, openCreate])
 
-  const days = eachDayOfInterval({
-    start: startOfWeek(firstDayCurrentMonth),
-    end: endOfWeek(endOfMonth(firstDayCurrentMonth)),
-  })
+  // Map our API events into FullCalendar events
+  const fcEvents = events.map(e => ({
+    id: e.id,
+    title: e.title,
+    start: e.start,
+    end: e.end,
+    extendedProps: {
+      type: e.type,
+      ...e.meta
+    }
+  }))
 
-  function previousMonth() {
-    const firstDayNextMonth = add(firstDayCurrentMonth, { months: -1 })
-    setCurrentMonth(format(firstDayNextMonth, "MMM-yyyy"))
+  const renderEventContent = (eventInfo: any) => {
+    const { event } = eventInfo;
+    const { type, courseId, weight, maxGrade, grade } = event.extendedProps;
+    
+    const isNote = type === 'note';
+    const isAssignment = type === 'assignment';
+    const isWork = type === 'work';
+    
+    const colorClass = courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400";
+
+    return (
+      <div className={cn(
+        "relative overflow-hidden w-full text-left flex flex-col items-start gap-1 rounded-md p-1.5 text-xs leading-tight transition-colors",
+        isNote ? "bg-transparent border border-dashed border-gray-400 dark:border-gray-600 opacity-90" : "bg-white dark:bg-[#1A1A1E] border border-gray-200 dark:border-[#2A2A2E] shadow-sm"
+      )}>
+        <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClass)} />
+        <div className="pl-1 w-full overflow-hidden">
+          <div className="flex items-center gap-1.5 font-medium text-gray-900 dark:text-gray-100 w-full truncate">
+            {isNote ? <FileText size={11} className="text-gray-500 dark:text-gray-400 shrink-0" /> : 
+             isAssignment ? <CheckSquare size={11} className="text-blue-500 shrink-0" /> : 
+             isWork ? <Briefcase size={11} className="text-purple-500 shrink-0" /> :
+             <CalendarIcon size={11} className="text-gray-400 shrink-0" />}
+             
+            <span className="truncate">{event.title}</span>
+          </div>
+          
+          <p className="leading-none text-gray-500 dark:text-gray-400 mt-1.5 text-[10px]">
+            {event.start && format(event.start, "h:mm a")} 
+            {event.end && event.start.getTime() !== event.end.getTime() && ` - ${format(event.end, "h:mm a")}`}
+          </p>
+
+          {isAssignment && weight != null && maxGrade != null && (
+            <p className="text-[10px] text-gray-600 dark:text-gray-300 mt-1 font-medium bg-gray-100 dark:bg-gray-800/50 inline-block px-1 rounded">
+              {Math.round(weight * 100)}% wgt {grade != null ? `· ${grade}/${maxGrade}` : `· --/${maxGrade}`}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const handleEventClick = (clickInfo: any) => {
+    // Find back original event to pass to modal
+    const originalEvent = events.find(e => e.id === clickInfo.event.id)
+    if (originalEvent) setOpenEvent(originalEvent)
   }
 
-  function nextMonth() {
-    const firstDayNextMonth = add(firstDayCurrentMonth, { months: 1 })
-    setCurrentMonth(format(firstDayNextMonth, "MMM-yyyy"))
-  }
-
-  function goToToday() {
-    setCurrentMonth(format(today, "MMM-yyyy"))
+  const handleDateClick = (info: any) => {
+    setCreateForm(prev => ({ ...prev, date: info.dateStr.split('T')[0] }))
+    setOpenCreate(true)
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex flex-col space-y-4 p-4 md:flex-row md:items-center md:justify-between md:space-y-0 lg:flex-none">
-        <div className="flex flex-auto">
-          <div className="flex items-center gap-4">
-            <div className="hidden w-20 flex-col items-center justify-center rounded-lg border bg-muted p-0.5 md:flex">
-              <h1 className="p-1 text-xs uppercase text-muted-foreground">{format(today, "MMM")}</h1>
-              <div className="flex w-full items-center justify-center rounded-lg border bg-background p-0.5 text-lg font-bold">
-                <span>{format(today, "d")}</span>
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <h2 className="text-lg font-semibold text-foreground">{format(firstDayCurrentMonth, "MMMM, yyyy")}</h2>
-              <p className="text-sm text-muted-foreground">
-                {format(firstDayCurrentMonth, "MMM d, yyyy")} - {format(endOfMonth(firstDayCurrentMonth), "MMM d, yyyy")}
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="flex flex-1 flex-col w-full h-[800px] overflow-hidden">
+      <style>{`
+        /* Minimalist Light/Dark Mode FullCalendar Styles */
+        .fc {
+          --fc-border-color: #e5e7eb;
+          --fc-button-text-color: #111827;
+          --fc-button-bg-color: #f9fafb;
+          --fc-button-border-color: #d1d5db;
+          --fc-button-hover-bg-color: #f3f4f6;
+          --fc-button-hover-border-color: #d1d5db;
+          --fc-button-active-bg-color: #e5e7eb;
+          --fc-button-active-border-color: #d1d5db;
+          --fc-event-bg-color: transparent;
+          --fc-event-border-color: transparent;
+          --fc-today-bg-color: #f3f4f6;
+          --fc-page-bg-color: #ffffff;
+          --fc-neutral-bg-color: #f9fafb;
+          font-family: inherit;
+        }
 
-        <div className="flex flex-col items-center gap-4 md:flex-row md:gap-6">
+        .dark .fc {
+          --fc-border-color: #1F1F23;
+          --fc-button-text-color: #f3f4f6;
+          --fc-button-bg-color: #0F0F12;
+          --fc-button-border-color: #2A2A2E;
+          --fc-button-hover-bg-color: #1A1A1E;
+          --fc-button-hover-border-color: #2A2A2E;
+          --fc-button-active-bg-color: #2A2A2E;
+          --fc-button-active-border-color: #2A2A2E;
+          --fc-today-bg-color: #1A1A1E;
+          --fc-page-bg-color: #0F0F12;
+          --fc-neutral-bg-color: #1A1A1E;
+        }
 
-          <Separator orientation="vertical" className="hidden h-6 lg:block" />
+        .fc-theme-standard .fc-scrollgrid {
+          border: 1px solid var(--fc-border-color);
+        }
+        
+        .fc-toolbar-title {
+          font-size: 1.125rem !important;
+          font-weight: 600 !important;
+          color: #111827;
+        }
 
-          <div className="inline-flex w-full -space-x-px rounded-lg shadow-sm shadow-black/5 md:w-auto rtl:space-x-reverse">
-            <Button onClick={previousMonth} className="rounded-none shadow-none first:rounded-s-lg last:rounded-e-lg focus-visible:z-10" variant="outline" size="icon" aria-label="Navigate to previous month">
-              <ChevronLeftIcon size={16} strokeWidth={2} aria-hidden="true" />
-            </Button>
-            <Button onClick={goToToday} className="w-full rounded-none shadow-none first:rounded-s-lg last:rounded-e-lg focus-visible:z-10 md:w-auto" variant="outline">Today</Button>
-            <Button onClick={nextMonth} className="rounded-none shadow-none first:rounded-s-lg last:rounded-e-lg focus-visible:z-10" variant="outline" size="icon" aria-label="Navigate to next month">
-              <ChevronRightIcon size={16} strokeWidth={2} aria-hidden="true" />
-            </Button>
-          </div>
+        .dark .fc-toolbar-title {
+          color: #f3f4f6;
+        }
 
-          <Separator orientation="vertical" className="hidden h-6 md:block" />
-          <Separator orientation="horizontal" className="block w-full md:hidden" />
+        .fc .fc-col-header-cell-cushion {
+          padding: 10px;
+          font-weight: 600;
+          color: #4b5563; /* text-gray-600 */
+        }
+        
+        .dark .fc .fc-col-header-cell-cushion {
+          color: #9ca3af; /* text-gray-400 */
+        }
 
-          <Button className="w全文 md:w-auto gap-2" onClick={() => setOpenCreate(true)}>
-            <PlusCircleIcon size={16} strokeWidth={2} aria-hidden="true" />
-            <span>New Event</span>
-          </Button>
-        </div>
-      </div>
+        .fc .fc-daygrid-day-number {
+          padding: 8px;
+          color: #374151;
+        }
+        
+        .dark .fc .fc-daygrid-day-number {
+          color: #d1d5db;
+        }
 
-      <div className="lg:flex lg:flex-auto lg:flex-col">
-        <div className="grid grid-cols-7 border text-center text-xs font-semibold leading-6 lg:flex-none">
-          <div className="border-r py-2.5">Sun</div>
-          <div className="border-r py-2.5">Mon</div>
-          <div className="border-r py-2.5">Tue</div>
-          <div className="border-r py-2.5">Wed</div>
-          <div className="border-r py-2.5">Thu</div>
-          <div className="border-r py-2.5">Fri</div>
-          <div className="py-2.5">Sat</div>
-        </div>
-
-        <div className="flex text-xs leading-6 lg:flex-auto">
-          <div className="hidden w-full border-x lg:grid lg:grid-cols-7 lg:grid-rows-5">
-            {days.map((day, dayIdx) => (
-              !isDesktop ? (
-                <button
-                  onClick={() => setSelectedDay(day)}
-                  key={dayIdx}
-                  type="button"
-                  className={cn(
-                    isEqual(day, selectedDay) && "text-primary-foreground",
-                    !isEqual(day, selectedDay) && !isToday(day) && isSameMonth(day, firstDayCurrentMonth) && "text-foreground",
-                    !isEqual(day, selectedDay) && !isToday(day) && !isSameMonth(day, firstDayCurrentMonth) && "text-muted-foreground",
-                    (isEqual(day, selectedDay) || isToday(day)) && "font-semibold",
-                    "flex h-14 flex-col border-b border-r px-3 py-2 hover:bg-muted focus:z-10",
-                  )}
-                >
-                  <time dateTime={format(day, "yyyy-MM-dd")} className={cn(
-                    "ml-auto flex size-6 items-center justify-center rounded-full",
-                    isEqual(day, selectedDay) && isToday(day) && "bg-primary text-primary-foreground",
-                    isEqual(day, selectedDay) && !isToday(day) && "bg-primary text-primary-foreground",
-                  )}>{format(day, "d")}</time>
-                  {data.filter((date) => isSameDay(date.day, day)).length > 0 && (
-                    <div>
-                      {data.filter((date) => isSameDay(date.day, day)).map((date) => (
-                        <div key={date.day.toString()} className="-mx-0.5 mt-auto flex flex-wrap-reverse">
-                          {date.events.map((event) => {
-                            const colorClass = event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground";
-                            return (
-                              <span key={event.id} className={cn("mx-0.5 mt-1 h-1.5 w-1.5 rounded-full", colorClass)} />
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </button>
-              ) : (
-                <div
-                  key={dayIdx}
-                  onClick={() => setSelectedDay(day)}
-                  className={cn(
-                    dayIdx === 0 && colStartClasses[getDay(day)],
-                    !isEqual(day, selectedDay) && !isToday(day) && !isSameMonth(day, firstDayCurrentMonth) && "bg-accent/50 text-muted-foreground",
-                    "relative flex flex-col border-b border-r hover:bg-muted focus:z-10",
-                    !isEqual(day, selectedDay) && "hover:bg-accent/75",
-                  )}
-                >
-                  <header className="flex items-center justify-between p-2.5">
-                    <button
-                      type="button"
-                      className={cn(
-                        isEqual(day, selectedDay) && "text-primary-foreground",
-                        !isEqual(day, selectedDay) && !isToday(day) && isSameMonth(day, firstDayCurrentMonth) && "text-foreground",
-                        !isEqual(day, selectedDay) && !isToday(day) && !isSameMonth(day, firstDayCurrentMonth) && "text-muted-foreground",
-                        isEqual(day, selectedDay) && isToday(day) && "border-none bg-primary",
-                        isEqual(day, selectedDay) && !isToday(day) && "bg-foreground",
-                        (isEqual(day, selectedDay) || isToday(day)) && "font-semibold",
-                        "flex h-7 w-7 items-center justify-center rounded-full text-xs hover:border",
-                      )}
-                    >
-                      <time dateTime={format(day, "yyyy-MM-dd")}>{format(day, "d")}</time>
-                    </button>
-                  </header>
-                  <div className="flex-1 p-2.5">
-                    {data.filter((event) => isSameDay(event.day, day)).map((day) => (
-                      <div key={day.day.toString()} className="space-y-1.5">
-                        {day.events.slice(0, 3).map((event) => {
-                          const isNote = event.type === 'note';
-                          const colorClass = event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground";
-                          
-                          return (
-                            <button
-                              key={event.id}
-                              className={cn(
-                                "relative overflow-hidden w-full text-left flex flex-col items-start gap-1 rounded-lg border p-2 text-xs leading-tight hover:bg-muted",
-                                isNote ? "bg-background border-dashed" : "bg-muted/50 border-solid"
-                              )}
-                              onClick={() => setOpenEvent({ event, day: day.day })}
-                            >
-                              <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClass)} />
-                              <div className="pl-1.5 w-full">
-                                <p className="font-medium leading-none">{event.name}</p>
-                                <p className="leading-none text-muted-foreground mt-1">{event.time}</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                        {day.events.length > 3 && (
-                          <button
-                            className="text-left text-xs text-muted-foreground hover:underline"
-                            onClick={() => setOpenDay({ day: day.day, events: day.events })}
-                          >
-                            + {day.events.length - 3} more
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            ))}
-          </div>
-
-          <div className="isolate grid w-full grid-cols-7 grid-rows-5 border-x lg:hidden">
-            {days.map((day, dayIdx) => (
-              <button
-                onClick={() => setSelectedDay(day)}
-                key={dayIdx}
-                type="button"
-                className={cn(
-                  isEqual(day, selectedDay) && "text-primary-foreground",
-                  !isEqual(day, selectedDay) && !isToday(day) && isSameMonth(day, firstDayCurrentMonth) && "text-foreground",
-                  !isEqual(day, selectedDay) && !isToday(day) && !isSameMonth(day, firstDayCurrentMonth) && "text-muted-foreground",
-                  (isEqual(day, selectedDay) || isToday(day)) && "font-semibold",
-                  "flex h-14 flex-col border-b border-r px-3 py-2 hover:bg-muted focus:z-10",
-                )}
-              >
-                <time dateTime={format(day, "yyyy-MM-dd")} className={cn(
-                  "ml-auto flex size-6 items-center justify-center rounded-full",
-                  isEqual(day, selectedDay) && isToday(day) && "bg-primary text-primary-foreground",
-                  isEqual(day, selectedDay) && !isToday(day) && "bg-primary text-primary-foreground",
-                )}>{format(day, "d")}</time>
-                {data.filter((date) => isSameDay(date.day, day)).length > 0 && (
-                  <div>
-                    {data.filter((date) => isSameDay(date.day, day)).map((date) => (
-                      <div key={date.day.toString()} className="-mx-0.5 mt-auto flex flex-wrap-reverse items-center gap-1">
-                        {date.events.slice(0, 3).map((event) => {
-                          const colorClass = event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground";
-                          return (
-                            <button
-                              key={event.id}
-                              className={cn("mx-0.5 mt-1 h-1.5 w-1.5 rounded-full", colorClass)}
-                              onClick={() => setOpenEvent({ event, day })}
-                              aria-label={event.name}
-                            />
-                          );
-                        })}
-                        {date.events.length > 3 && (
-                          <button
-                            className="ml-1 text-[10px] text-muted-foreground underline"
-                            onClick={() => setOpenDay({ day, events: date.events })}
-                          >
-                            + {date.events.length - 3} more
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+        .fc-event {
+          cursor: pointer;
+        }
+        .fc-h-event {
+          border: none;
+          background: none;
+        }
+      `}</style>
+      
+      <FullCalendar
+        plugins={ [dayGridPlugin, timeGridPlugin, interactionPlugin] }
+        initialView="dayGridMonth"
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek'
+        }}
+        firstDay={1} // Monday
+        events={fcEvents}
+        eventContent={renderEventContent}
+        eventClick={handleEventClick}
+        dateClick={handleDateClick}
+        height="100%"
+        dayMaxEvents={true}
+        eventTimeFormat={{
+          hour: 'numeric',
+          minute: '2-digit',
+          meridiem: 'short'
+        }}
+      />
+      
       {openEvent && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm"
           onClick={() => setOpenEvent(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl border bg-background p-4"
+            className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{openEvent.event.name}</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight pr-4">{openEvent.title}</h3>
             </div>
-            <Separator className="my-3" />
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Due</span>
-                <span>{format(new Date(openEvent.event.datetime), "MMM d, yyyy p")}</span>
+            <Separator className="my-4 dark:border-[#1F1F23]" />
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                <span className="text-gray-500 dark:text-gray-400">Due / Start</span>
+                <span className="font-medium text-gray-900 dark:text-white">{format(new Date(openEvent.start), "MMM d, yyyy h:mm a")}</span>
               </div>
-              {openEvent.event.meta?.courseCode && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Course</span>
-                  <span>{openEvent.event.meta.courseCode}</span>
+              
+              {openEvent.meta?.courseCode && (
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                  <span className="text-gray-500 dark:text-gray-400">Course</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.courseCode}</span>
                 </div>
               )}
-              {typeof openEvent.event.meta?.weight === "number" && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Weight</span>
-                  <span>{Math.round((openEvent.event.meta.weight || 0) * 100)}%</span>
+              
+              {typeof openEvent.meta?.weight === "number" && (
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                  <span className="text-gray-500 dark:text-gray-400">Weight</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{Math.round((openEvent.meta.weight || 0) * 100)}%</span>
                 </div>
               )}
-              {typeof openEvent.event.meta?.maxGrade === "number" && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Max Grade</span>
-                  <span>{openEvent.event.meta.maxGrade}</span>
+              
+              {typeof openEvent.meta?.maxGrade === "number" && (
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                  <span className="text-gray-500 dark:text-gray-400">Max Grade</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.maxGrade}</span>
                 </div>
               )}
-              {typeof openEvent.event.meta?.grade === "number" && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Grade</span>
-                  <span>{openEvent.event.meta.grade}</span>
+              
+              {typeof openEvent.meta?.grade === "number" && (
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                  <span className="text-gray-500 dark:text-gray-400">Grade</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.grade}</span>
                 </div>
               )}
-              {openEvent.event.meta?.status && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Status</span>
-                  <span>{openEvent.event.meta.status}</span>
+              
+              {openEvent.meta?.status && (
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                  <span className="text-gray-500 dark:text-gray-400">Status</span>
+                  <span className="font-medium text-gray-900 dark:text-white uppercase text-[11px] tracking-wider">{openEvent.meta.status}</span>
                 </div>
               )}
-              {openEvent.event.meta?.description && (
-                <div
-                  className="mt-2 max-h-48 overflow-auto rounded-md border p-3 text-[12px] leading-relaxed prose prose-sm dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: openEvent.event.meta.description }}
-                />
+              
+              {openEvent.meta?.description && (
+                <div className="mt-4 pt-2">
+                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider block mb-2">Description</span>
+                  <div
+                    className="max-h-48 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: openEvent.meta.description }}
+                  />
+                </div>
               )}
-              <div className="pt-2 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setOpenEvent(null)}>Close</Button>
-                {openEvent.event.meta?.canvasUrl && (
+              
+              <div className="pt-4 flex items-center justify-end gap-3 mt-4">
+                <Button variant="outline" onClick={() => setOpenEvent(null)}>Close</Button>
+                {openEvent.meta?.canvasUrl && (
                   <a
-                    href={openEvent.event.meta.canvasUrl}
+                    href={openEvent.meta.canvasUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center rounded-md border px-2 py-1 text-[11px] hover:bg-muted"
+                    className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white px-4 py-2 text-sm hover:bg-indigo-700 transition"
                   >
                     Open in Canvas
                   </a>
@@ -406,57 +316,22 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
         </div>,
         document.body
       )}
-      {openDay && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setOpenDay(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-xl border bg-background p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{format(openDay.day, "MMMM d, yyyy")}</h3>
-              <Button variant="ghost" size="sm" onClick={() => setOpenDay(null)}>Close</Button>
-            </div>
-            <Separator className="my-3" />
-            <div className="space-y-2">
-              {openDay.events.map((event) => (
-                <button
-                  key={event.id}
-                  className={cn(
-                    "w-full text-left rounded-md border p-2 text-xs hover:bg-muted relative overflow-hidden",
-                    event.type === 'note' ? "border-dashed bg-background" : "border-solid bg-muted/50"
-                  )}
-                  onClick={() => setOpenEvent({ event, day: openDay.day })}
-                >
-                  <div className={cn("absolute top-0 bottom-0 left-0 w-1", event.meta?.courseId != null ? COURSE_COLORS[event.meta.courseId % COURSE_COLORS.length] : "bg-muted-foreground")} />
-                  <div className="flex items-center justify-between pl-1">
-                    <span className="font-medium">{event.name}</span>
-                    <span className="text-muted-foreground">{event.time}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      
       {openCreate && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm"
           onClick={() => setOpenCreate(false)}
         >
           <div
-            className="w-full max-w-md rounded-xl border bg-background p-4"
+            className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Add Event</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Event</h3>
             </div>
-            <Separator className="my-3" />
+            <Separator className="my-4 dark:border-[#1F1F23]" />
             <form
-              className="space-y-2 text-xs"
+              className="space-y-4 text-sm"
               onSubmit={async (e) => {
                 e.preventDefault()
                 const startIso = new Date(`${createForm.date}T${createForm.startTime}`).toISOString()
@@ -473,60 +348,64 @@ export function FullScreenCalendar({ data }: FullScreenCalendarProps) {
                   }),
                 })
                 setOpenCreate(false)
-                setCreateForm({ title: "", description: "", date: format(today, "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00" })
-                ;(typeof window !== "undefined") && window.dispatchEvent(new CustomEvent("calendar-refresh"))
+                setCreateForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00" })
+                if (onRefresh) onRefresh();
               }}
             >
               <div className="grid gap-2">
-                <label className="text-[11px]">Title</label>
+                <label className="text-gray-700 dark:text-gray-300 font-medium">Title</label>
                 <input
-                  className="rounded-md border px-2 py-1"
+                  required
+                  className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
                   value={createForm.title}
                   onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
                   placeholder="Event title"
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-[11px]">Description</label>
+                <label className="text-gray-700 dark:text-gray-300 font-medium">Description</label>
                 <textarea
-                  className="min-h-[80px] rounded-md border px-2 py-1"
+                  className="min-h-[100px] rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   value={createForm.description}
                   onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
                   placeholder="Optional description"
                 />
               </div>
-              <div className="grid gap-2 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-1">
-                  <label className="text-[11px]">Date</label>
+                  <label className="text-gray-700 dark:text-gray-300 font-medium text-xs">Date</label>
                   <input
                     type="date"
-                    className="rounded-md border px-2 py-1"
+                    required
+                    className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                     value={createForm.date}
                     onChange={(e) => setCreateForm((f) => ({ ...f, date: e.target.value }))}
                   />
                 </div>
                 <div className="grid gap-1">
-                  <label className="text-[11px]">Start</label>
+                  <label className="text-gray-700 dark:text-gray-300 font-medium text-xs">Start Time</label>
                   <input
                     type="time"
-                    className="rounded-md border px-2 py-1"
+                    required
+                    className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                     value={createForm.startTime}
                     onChange={(e) => setCreateForm((f) => ({ ...f, startTime: e.target.value }))}
                   />
                 </div>
                 <div className="grid gap-1">
-                  <label className="text-[11px]">End</label>
+                  <label className="text-gray-700 dark:text-gray-300 font-medium text-xs">End Time</label>
                   <input
                     type="time"
-                    className="rounded-md border px-2 py-1"
+                    required
+                    className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                     value={createForm.endTime}
                     onChange={(e) => setCreateForm((f) => ({ ...f, endTime: e.target.value }))}
                   />
                 </div>
               </div>
-              <div className="pt-2 flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setOpenCreate(false)}>Cancel</Button>
-                <Button type="submit" size="sm">Add</Button>
+              <div className="pt-4 flex items-center justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setOpenCreate(false)}>Cancel</Button>
+                <Button type="submit">Add Event</Button>
               </div>
             </form>
           </div>

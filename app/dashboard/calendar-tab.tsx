@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { FullScreenCalendar } from "@/components/ui/fullscreen-calendar";
-import { format } from "date-fns";
-
-// removed react-big-calendar in favor of FullScreenCalendar
 
 interface CalendarEvent {
   id: string;
@@ -12,21 +9,7 @@ interface CalendarEvent {
   start: string;
   end: string;
   type: string;
-  meta?: Record<string, unknown>;
-}
-
-interface CalendarEventItem {
-  id: number;
-  name: string;
-  time: string;
-  datetime: string;
-  type?: string;
-  meta?: Record<string, unknown>;
-}
-
-interface DayData {
-  day: Date;
-  events: CalendarEventItem[];
+  meta?: any;
 }
 
 export default function CalendarTab() {
@@ -46,47 +29,33 @@ export default function CalendarTab() {
     void refresh();
   }, [refresh]);
 
-  const calendarData = useMemo(() => {
-    const byDay: Record<string, DayData> = {};
-    for (let i = 0; i < events.length; i++) {
-      const e = events[i];
-      const d = new Date(e.start);
-      const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
-      if (!byDay[key]) byDay[key] = { day: new Date(d.getFullYear(), d.getMonth(), d.getDate()), events: [] };
-      const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      byDay[key].events.push({ id: i + 1, name: e.title, time: timeStr, datetime: e.start, type: e.type, meta: e.meta });
-    }
-    return Object.values(byDay);
-  }, [events]);
-
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Calendar</h2>
-          <p className="text-xs text-muted-foreground">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Calendar</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Shows uni assignment due dates, note creation dates, work task deadlines, and Outlook/Canvas events.
           </p>
         </div>
         <div className="flex gap-2">
           <a
             href="/oauth-consent?provider=gmail"
-            className="rounded-full border px-3 py-1 text-[11px] hover:bg-muted"
+            className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-3 py-1 text-[11px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Connect Gmail
           </a>
           <a
             href="/oauth-consent?provider=outlook"
-            className="rounded-full border px-3 py-1 text-[11px] hover:bg-muted"
+            className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-3 py-1 text-[11px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Connect Outlook
           </a>
         </div>
       </div>
-      <div className="rounded-lg border p-3 bg-card">
-        <h3 className="mb-2 text-sm font-semibold text-foreground">Calendar</h3>
+      <div className="rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-4 text-gray-900 dark:text-white">
         <FullScreenCalendar
-          data={calendarData}
+          events={events}
           onRefresh={refresh}
         />
       </div>
