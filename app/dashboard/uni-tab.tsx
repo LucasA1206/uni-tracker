@@ -107,16 +107,17 @@ export default function UniTab() {
   };
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [sessionFilter, setSessionFilter] = useState<string>("all");
 
   useEffect(() => {
-    if (selectedNote) {
+    if (selectedNote || selectedAssignment) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
     return () => { document.body.style.overflow = ""; }
-  }, [selectedNote]);
+  }, [selectedNote, selectedAssignment]);
 
   useEffect(() => {
     const storedHidden = window.localStorage.getItem("uni_hidden_charts");
@@ -601,12 +602,14 @@ export default function UniTab() {
                                           <p className="text-[11px] text-gray-500 dark:text-gray-400">No items.</p>
                                         )}
                                         {list.map((a) => (
-                                          <div
+                                          <button
                                             key={a.id}
-                                            className="flex items-start justify-between gap-2 border-b border-gray-200 dark:border-[#1F1F23] pb-2 last:border-0 last:pb-0"
+                                            type="button"
+                                            className="w-full text-left flex items-start justify-between gap-2 border-b border-gray-200 dark:border-[#1F1F23] pb-2 last:border-0 last:pb-0 rounded-lg px-1 py-1 hover:bg-white/60 dark:hover:bg-[#1A1A1E] transition-colors group"
+                                            onClick={() => setSelectedAssignment(a)}
                                           >
                                             <div>
-                                              <div className="font-medium">{a.title}</div>
+                                              <div className="font-medium text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{a.title}</div>
                                               <div className="text-gray-500 dark:text-gray-400">
                                                 {(() => {
                                                   const d = new Date(a.dueDate);
@@ -622,7 +625,7 @@ export default function UniTab() {
                                                 Grade: {a.grade != null ? `${a.grade}` : "—"} / {a.maxGrade}
                                               </div>
                                             </div>
-                                            <div className="flex flex-col items-end gap-1">
+                                            <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
                                               <select
                                                 className="rounded-full border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-2 py-0.5 text-[10px] text-gray-900 dark:text-white"
                                                 value={a.status}
@@ -642,7 +645,7 @@ export default function UniTab() {
                                                 Delete
                                               </button>
                                             </div>
-                                          </div>
+                                          </button>
                                         ))}
                                       </div>
                                     );
@@ -658,96 +661,59 @@ export default function UniTab() {
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Notes</h2>
-          <form onSubmit={addNote} className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 text-xs">
-            <div className="grid gap-2 md:grid-cols-3">
-              <input
-                className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-2"
-                placeholder="Note title"
-                value={newNote.title}
-                onChange={(e) => setNewNote((n) => ({ ...n, title: e.target.value }))}
-              />
-              <select
-                className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1"
-                value={newNote.courseId}
-                onChange={(e) => setNewNote((n) => ({ ...n, courseId: e.target.value }))}
-              >
-                <option value="">No course</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} – {c.name.split("-")[0].trim()}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <MarkdownEditor
-              value={newNote.content}
-              onChange={(value) => setNewNote((n) => ({ ...n, content: value }))}
-            />
-            <button
-              type="submit"
-              className="rounded-md bg-indigo-500 px-3 py-1.5 text-[11px] font-semibold hover:bg-indigo-400 text-white"
+          {selectedAssignment && typeof document !== "undefined" && createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+              onClick={() => setSelectedAssignment(null)}
             >
-              Add note
-            </button>
-          </form>
-          <div className="space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 max-h-64 overflow-auto text-xs">
-            {notes.length === 0 && <p className="text-gray-500 dark:text-gray-400">No notes yet.</p>}
-            {Object.entries(notesByCourse).map(([code, courseNotes]) => (
-              <div key={code} className="space-y-1 border-b border-gray-200 dark:border-[#1F1F23] pb-2 last:border-0 last:pb-0">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-                  {code === "Unassigned" ? "No course" : code}
+              <div
+                className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight pr-4">{selectedAssignment.title}</h3>
                 </div>
-                {courseNotes.map((n) => (
-                  <button
-                    key={n.id}
-                    type="button"
-                    className="flex w-full items-center justify-between rounded-md px-1 py-0.5 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    onClick={() => setSelectedNote(n)}
-                  >
-                    <span className="font-medium text-left truncate pr-2">{n.title}</span>
-                    <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                      <span>{new Date(n.createdAt).toLocaleDateString()}</span>
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void deleteNote(n.id);
-                        }}
-                        className="cursor-pointer rounded-full border border-red-700 px-2 py-0.5 text-[10px] text-red-200 hover:bg-red-900/60"
-                      >
-                        Delete
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-
-          {selectedNote && typeof document !== "undefined" && createPortal(
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-              <div className="w-full max-w-xl rounded-xl bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] p-4 text-xs shadow-xl">
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-gray-900 dark:text-white">{selectedNote.title}</div>
-                    <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                      {selectedNote.course?.code && <span className="mr-2">{selectedNote.course.code}</span>}
-                      {new Date(selectedNote.createdAt).toLocaleString()}
-                    </div>
+                <div className="border-t border-gray-100 dark:border-[#1F1F23] my-4" />
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                    <span className="text-gray-500 dark:text-gray-400">Course</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{selectedAssignment.course.code}</span>
                   </div>
+                  {(() => {
+                    const d = new Date(selectedAssignment.dueDate);
+                    const hasDue = !Number.isNaN(d.getTime()) && d.getFullYear() !== 1970;
+                    return hasDue ? (
+                      <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                        <span className="text-gray-500 dark:text-gray-400">Due</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                    <span className="text-gray-500 dark:text-gray-400">Weight</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{(selectedAssignment.weight * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                    <span className="text-gray-500 dark:text-gray-400">Max Grade</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{selectedAssignment.maxGrade}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                    <span className="text-gray-500 dark:text-gray-400">Grade</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{selectedAssignment.grade != null ? selectedAssignment.grade : "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
+                    <span className="text-gray-500 dark:text-gray-400">Status</span>
+                    <span className="font-medium text-gray-900 dark:text-white uppercase text-[11px] tracking-wider">{selectedAssignment.status.replace("_", " ")}</span>
+                  </div>
+                </div>
+                <div className="pt-4 flex justify-end">
                   <button
                     type="button"
-                    className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-2 py-0.5 text-[10px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                    onClick={() => setSelectedNote(null)}
+                    className="rounded-lg border border-gray-200 dark:border-[#1F1F23] px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1E] transition-colors"
+                    onClick={() => setSelectedAssignment(null)}
                   >
                     Close
                   </button>
-                </div>
-                <div className="max-h-80 overflow-auto whitespace-pre-wrap text-gray-900 dark:text-white">
-                  {selectedNote.content}
                 </div>
               </div>
             </div>,
