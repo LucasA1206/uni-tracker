@@ -27,7 +27,11 @@ const outsideLabelPlugin = {
     const values = chart.data.datasets[0].data as number[];
     ctx.save();
     ctx.font = "16px system-ui";
-    ctx.fillStyle = "#e5e7eb"; // slate-200
+    
+    // Support light mode text visibility
+    const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+    ctx.fillStyle = isDark ? "#e5e7eb" : "#374151";
+
     meta.data.forEach((arc: any, index: number) => {
       const value = values[index] as number;
       if (!isFinite(value)) return;
