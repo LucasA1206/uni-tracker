@@ -32,6 +32,7 @@ export async function GET() {
       select: {
         id: true,
         title: true,
+        content: true,
         createdAt: true,
         course: { select: { id: true, code: true, name: true } },
       },
@@ -108,6 +109,7 @@ export async function GET() {
         courseCode: n.course?.code,
         courseName: n.course?.name ? n.course.name.split("-")[0].trim() : n.course?.code,
         noteUrl: `/dashboard/notes/${n.id}`,
+        description: n.content,
       },
     })),
     ...tasks

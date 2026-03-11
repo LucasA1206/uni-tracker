@@ -11,7 +11,7 @@ import FinanceTab from "./finance-tab";
 import NotesTab from "./notes-tab";
 import GettingStartedGuide from "@/components/GettingStartedGuide";
 
-const TABS = ["Uni", "Calendar", "Finance", "Notes"] as const;
+const TABS = ["Uni", "Calendar", "Finance", "Notes and Quizzes"] as const;
 type Tab = (typeof TABS)[number];
 
 interface AccountInfo {

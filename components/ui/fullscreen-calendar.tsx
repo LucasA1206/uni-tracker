@@ -3,6 +3,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
+import ReactMarkdown from "react-markdown"
 import { CheckSquare, FileText, Calendar as CalendarIcon, Briefcase } from "lucide-react"
 
 import FullCalendar from "@fullcalendar/react"
@@ -100,30 +101,30 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
 
       if (assignments.length > 0) {
         if (notes.length > 0) {
-           list.push({
-             id: `notes-summary-${day}`,
-             title: `+ ${notes.length} note${notes.length > 1 ? 's' : ''}`,
-             start: day,
-             allDay: true,
-             extendedProps: { type: 'summary', isSummary: true }
-           });
+          list.push({
+            id: `notes-summary-${day}`,
+            title: `+ ${notes.length} note${notes.length > 1 ? 's' : ''}`,
+            start: day,
+            allDay: true,
+            extendedProps: { type: 'summary', isSummary: true }
+          });
         }
       } else {
         if (notes.length > 0) {
-           const sortedNotes = [...notes].sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-           const firstNote = sortedNotes[0];
-           list.push({
-             id: firstNote.id, title: firstNote.title, start: firstNote.start, end: firstNote.end, extendedProps: { type: firstNote.type, ...firstNote.meta }
-           });
-           if (sortedNotes.length > 1) {
-             list.push({
-               id: `notes-summary-${day}`,
-               title: `+ ${sortedNotes.length - 1} note${sortedNotes.length - 1 > 1 ? 's' : ''}`,
-               start: day,
-               allDay: true,
-               extendedProps: { type: 'summary', isSummary: true }
-             });
-           }
+          const sortedNotes = [...notes].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+          const firstNote = sortedNotes[0];
+          list.push({
+            id: firstNote.id, title: firstNote.title, start: firstNote.start, end: firstNote.end, extendedProps: { type: firstNote.type, ...firstNote.meta }
+          });
+          if (sortedNotes.length > 1) {
+            list.push({
+              id: `notes-summary-${day}`,
+              title: `+ ${sortedNotes.length - 1} note${sortedNotes.length - 1 > 1 ? 's' : ''}`,
+              start: day,
+              allDay: true,
+              extendedProps: { type: 'summary', isSummary: true }
+            });
+          }
         }
       }
     }
@@ -133,7 +134,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
   const renderEventContent = (eventInfo: any) => {
     const { event } = eventInfo;
     const { type, courseId, weight, maxGrade, grade, isSummary } = event.extendedProps;
-    
+
     if (isSummary) {
       return (
         <div className="text-xs text-gray-400 dark:text-gray-500 font-medium pl-1 italic">
@@ -145,7 +146,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
     const isNote = type === 'note';
     const isAssignment = type === 'assignment';
     const isWork = type === 'work';
-    
+
     const colorClassRaw = courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400";
     const noteSolidClass = `${colorClassRaw} text-white shadow-sm border-transparent`;
 
@@ -157,16 +158,16 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
         {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} />}
         <div className={cn("w-full overflow-hidden", !isNote && "pl-1")}>
           <div className={cn("flex items-center gap-1.5 font-medium w-full truncate", isNote ? "text-white" : "text-gray-900 dark:text-gray-100")}>
-            {isNote ? <FileText size={11} className="text-white shrink-0 opacity-80" /> : 
-             isAssignment ? <CheckSquare size={11} className="text-blue-500 shrink-0" /> : 
-             isWork ? <Briefcase size={11} className="text-purple-500 shrink-0" /> :
-             <CalendarIcon size={11} className="text-gray-400 shrink-0" />}
-             
+            {isNote ? <FileText size={11} className="text-white shrink-0 opacity-80" /> :
+              isAssignment ? <CheckSquare size={11} className="text-blue-500 shrink-0" /> :
+                isWork ? <Briefcase size={11} className="text-purple-500 shrink-0" /> :
+                  <CalendarIcon size={11} className="text-gray-400 shrink-0" />}
+
             <span className="truncate">{event.title}</span>
           </div>
-          
+
           <p className={cn("leading-none mt-1.5 text-[10px]", isNote ? "text-white/80" : "text-gray-500 dark:text-gray-400")}>
-            {event.start && format(event.start, "h:mm a")} 
+            {event.start && format(event.start, "h:mm a")}
             {event.end && event.start.getTime() !== event.end.getTime() && ` - ${format(event.end, "h:mm a")}`}
           </p>
 
@@ -280,9 +281,9 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
           background: none;
         }
       `}</style>
-      
+
       <FullCalendar
-        plugins={ [dayGridPlugin, timeGridPlugin, interactionPlugin] }
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
         headerToolbar={{
           left: 'prev,next today',
@@ -302,7 +303,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
           meridiem: 'short'
         }}
       />
-      
+
       {openDay && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
@@ -383,7 +384,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
         </div>,
         document.body
       )}
-      
+
       {openEvent && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
@@ -404,52 +405,55 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
                 </span>
                 <span className="font-medium text-gray-900 dark:text-white">{format(new Date(openEvent.start), "MMM d, yyyy h:mm a")}</span>
               </div>
-              
+
               {openEvent.meta?.courseName && (
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
                   <span className="text-gray-500 dark:text-gray-400">Course</span>
                   <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.courseName}</span>
                 </div>
               )}
-              
+
               {typeof openEvent.meta?.weight === "number" && (
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
                   <span className="text-gray-500 dark:text-gray-400">Weight</span>
                   <span className="font-medium text-gray-900 dark:text-white">{Math.round((openEvent.meta.weight || 0) * 100)}%</span>
                 </div>
               )}
-              
+
               {typeof openEvent.meta?.maxGrade === "number" && (
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
                   <span className="text-gray-500 dark:text-gray-400">Max Grade</span>
                   <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.maxGrade}</span>
                 </div>
               )}
-              
+
               {typeof openEvent.meta?.grade === "number" && (
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
                   <span className="text-gray-500 dark:text-gray-400">Grade</span>
                   <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.grade}</span>
                 </div>
               )}
-              
+
               {openEvent.meta?.status && (
                 <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
                   <span className="text-gray-500 dark:text-gray-400">Status</span>
                   <span className="font-medium text-gray-900 dark:text-white uppercase text-[11px] tracking-wider">{openEvent.meta.status}</span>
                 </div>
               )}
-              
+
               {openEvent.meta?.description && (
-                <div className="mt-4 pt-2 flex flex-col flex-1">
+                <div className="mt-4 pt-2 flex flex-col flex-1 min-h-0">
                   <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider block mb-2">Description</span>
-                  <div
-                    className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: openEvent.meta.description }}
-                  />
+                  <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                    {openEvent.type === 'note' ? (
+                      <ReactMarkdown>{openEvent.meta.description}</ReactMarkdown>
+                    ) : (
+                      <div dangerouslySetInnerHTML={{ __html: openEvent.meta.description }} />
+                    )}
+                  </div>
                 </div>
               )}
-              
+
               <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-gray-100 dark:border-[#1F1F23]">
                 <Button variant="outline" onClick={() => setOpenEvent(null)}>Close</Button>
                 {openEvent.meta?.noteUrl && (
@@ -476,7 +480,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
         </div>,
         document.body
       )}
-      
+
       {openCreate && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
