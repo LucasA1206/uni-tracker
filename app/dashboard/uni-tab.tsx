@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { RefreshCw } from "lucide-react";
 import GradeCharts, { AssignmentForCharts } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import AssignmentsCardOverview from "@/components/AssignmentsCardOverview";
@@ -99,6 +100,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [hiddenSemesters, setHiddenSemesters] = useState<string[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
+  const [syncLoading, setSyncLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -382,14 +384,28 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Assignments Hub</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Manage tasksImported from Canvas or manually.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Manage tasks imported from Canvas or manually.</p>
                 </div>
                 <button
                   id="step-sync-button"
                   type="button"
-                  onClick={() => refresh()}
-                  className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-3 py-1 text-[11px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all font-medium"
+                  disabled={syncLoading}
+                  onClick={async () => {
+                    setSyncLoading(true);
+                    try {
+                      await fetch("/api/integrations/canvas/sync", { method: "POST" });
+                      await refresh();
+                    } finally {
+                      setSyncLoading(false);
+                    }
+                  }}
+                  className="group relative flex items-center gap-2 rounded-full border border-gray-200 dark:border-[#1F1F23] px-3 py-1 text-[11px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all font-medium disabled:opacity-50"
                 >
+                  {syncLoading ? (
+                    <RefreshCw className="w-3 h-3 animate-spin text-indigo-500" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-500" />
+                  )}
                   Sync Canvas
                 </button>
               </div>
