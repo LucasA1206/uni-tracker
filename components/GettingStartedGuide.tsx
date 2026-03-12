@@ -223,9 +223,6 @@ export default function GettingStartedGuide({ onClose, tab, onTabChange }: Props
   }
 
   function handleClose() {
-    try {
-      localStorage.setItem("has_seen_guide", "true");
-    } catch {}
     onClose();
   }
 

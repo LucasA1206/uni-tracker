@@ -24,6 +24,7 @@ export async function GET() {
       universityEmail: true,
       canvasApiToken: true,
       googleApiKey: true,
+      hasSeenGuide: true,
     },
   });
 
@@ -48,6 +49,7 @@ export async function PATCH(req: NextRequest) {
     confirmNewPassword,
     canvasApiToken,
     googleApiKey,
+    hasSeenGuide,
   } = body as {
     name?: string;
     username?: string;
@@ -57,6 +59,7 @@ export async function PATCH(req: NextRequest) {
     confirmNewPassword?: string;
     canvasApiToken?: string;
     googleApiKey?: string;
+    hasSeenGuide?: boolean;
   };
 
   const user = await prisma.user.findUnique({ where: { id: auth.userId } });
@@ -105,6 +108,10 @@ export async function PATCH(req: NextRequest) {
     data.googleApiKey = trimmed.length > 0 ? trimmed : null;
   }
 
+  if (typeof hasSeenGuide === "boolean") {
+    data.hasSeenGuide = hasSeenGuide;
+  }
+
   if (newPassword || confirmNewPassword) {
     if (!currentPassword) {
       return NextResponse.json(
@@ -147,6 +154,7 @@ export async function PATCH(req: NextRequest) {
       universityEmail: true,
       canvasApiToken: true,
       googleApiKey: true,
+      hasSeenGuide: true,
     },
   });
 
