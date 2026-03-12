@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video, X } from "lucide-react";
 import { useWhisper } from "@/hooks/useWhisper";
 import QuizModal from "@/components/quiz/QuizModal";
 
@@ -116,10 +117,18 @@ int main() {
 -   **unsigned int**: 4 bytes, range 0 to approx 4 billion.
 `;
 
-export default function NotesTab() {
+interface NotesTabProps {
+    showDemo?: boolean;
+    onDemoClosed?: () => void;
+}
+
+export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const [courses, setCourses] = useState<Course[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
     const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isExporting, setIsExporting] = useState(false);
+    const [selectedNote, setSelectedNote] = useState<Note | null>(null);
 
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [convertedMp3Blob, setConvertedMp3Blob] = useState<Blob | null>(null);
@@ -218,6 +227,12 @@ export default function NotesTab() {
     useEffect(() => {
         void refresh();
     }, [refresh]);
+
+    useEffect(() => {
+        if (showDemo && notes.length > 0 && !selectedNote) {
+            setSelectedNote(notes[0]);
+        }
+    }, [showDemo, notes, selectedNote]);
 
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -743,6 +758,7 @@ export default function NotesTab() {
                     Your Notes
                 </h2>
 
+                <div id="step-notes-list" className="space-y-6">
                 {Object.entries(notesByCourse).length === 0 ? (
                     <div className="text-center py-12 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
@@ -812,6 +828,7 @@ export default function NotesTab() {
                         </div>
                     ))
                 )}
+                </div>
             </div>
 
             {/* Quiz Modal */}
@@ -823,6 +840,60 @@ export default function NotesTab() {
                 title={quizConfig?.title || ""}
                 existingQuiz={quizConfig?.existingQuiz}
             />
+
+            {/* Note Preview Modal for Walkthrough */}
+            {selectedNote && typeof document !== "undefined" && createPortal(
+                <div 
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                    onClick={() => {
+                        setSelectedNote(null);
+                        onDemoClosed?.();
+                    }}
+                >
+                    <motion.div 
+                        id="step-note-modal"
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="w-full max-w-2xl max-h-[80vh] bg-white dark:bg-[#0F0F12] rounded-3xl border border-gray-200 dark:border-[#1F1F23] shadow-2xl flex flex-col overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20">
+                                    <FileText className="w-5 h-5 text-indigo-500" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1">
+                                    {selectedNote.title}
+                                </h3>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    setSelectedNote(null);
+                                    onDemoClosed?.();
+                                }}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 prose prose-xs dark:prose-invert">
+                            <ReactMarkdown>{selectedNote.content}</ReactMarkdown>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-[#1A1A1E] border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                                Sample AI Note
+                            </span>
+                            <button 
+                                onClick={() => router.push(`/dashboard/notes/${selectedNote.id}`)}
+                                className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+                            >
+                                Open Editor
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }

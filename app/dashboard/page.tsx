@@ -49,6 +49,9 @@ function DashboardContent() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
+  const [walkthroughOpenAssignment, setWalkthroughOpenAssignment] = useState(false);
+  const [walkthroughShowNoteDemo, setWalkthroughShowNoteDemo] = useState(false);
+
   async function loadAccount() {
     try {
       setAccountLoading(true);
@@ -205,16 +208,31 @@ function DashboardContent() {
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
-      {showGuide && <GettingStartedGuide tab={tab} onTabChange={setTab} onClose={markGuideAsSeen} />}
+      {showGuide && (
+        <GettingStartedGuide 
+          tab={tab} 
+          onTabChange={setTab} 
+          onClose={markGuideAsSeen} 
+          onOpenAccount={setAccountOpen}
+          onOpenAssignment={setWalkthroughOpenAssignment}
+          onShowNoteDemo={setWalkthroughShowNoteDemo}
+        />
+      )}
       <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)}>
         {tab === "Notes and Quizzes" && (
           <Card className="p-4">
-            <NotesTab />
+            <NotesTab 
+              showDemo={walkthroughShowNoteDemo}
+              onDemoClosed={() => setWalkthroughShowNoteDemo(false)}
+            />
           </Card>
         )}
         {tab === "Uni" && (
           <Card className="p-4">
-            <UniTab />
+            <UniTab 
+              openAssignmentDemo={walkthroughOpenAssignment}
+              onDemoClosed={() => setWalkthroughOpenAssignment(false)}
+            />
           </Card>
         )}
         {tab === "Calendar" && (
@@ -235,7 +253,7 @@ function DashboardContent() {
 
         {accountOpen && typeof document !== "undefined" && createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm">
-            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] p-6 text-sm shadow-xl">
+            <div id="step-account-modal" className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] p-6 text-sm shadow-xl">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Account details</h2>
                 <button
