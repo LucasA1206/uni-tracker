@@ -70,7 +70,12 @@ const ASSIGNMENT_STATUSES = [
   { value: "completed", label: "Completed" },
 ] as const;
 
-export default function UniTab() {
+interface UniTabProps {
+  openAssignmentDemo?: boolean;
+  onDemoClosed?: () => void;
+}
+
+export default function UniTab({ openAssignmentDemo, onDemoClosed }: UniTabProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -159,6 +164,14 @@ export default function UniTab() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (openAssignmentDemo && assignments.length > 0 && !selectedAssignment) {
+      setSelectedAssignment(assignments[0]);
+    } else if (!openAssignmentDemo && selectedAssignment && onDemoClosed) {
+      // Logic to auto-close if needed? Maybe better to let user close.
+    }
+  }, [openAssignmentDemo, assignments]);
 
   async function addCourse(e: React.FormEvent) {
     e.preventDefault();
@@ -673,6 +686,7 @@ export default function UniTab() {
               onClick={() => setSelectedAssignment(null)}
             >
               <div
+                id="step-assignment-modal"
                 className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >

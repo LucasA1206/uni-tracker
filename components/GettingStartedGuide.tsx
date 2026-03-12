@@ -150,14 +150,27 @@ function NotesSection1() {
 }
 
 const SLIDES: Slide[] = [
-  { section: 0, title: "Your Profile", content: <AccountSection0 />, selector: "#step-account-button" },
-  { section: 0, title: "Canvas API Key", content: <AccountSection1 />, selector: "#step-account-button" },
+  { section: 0, title: "Your Profile", content: <AccountSection0 />, selector: "#step-account-modal" },
+  { section: 0, title: "Canvas API Key", content: <AccountSection1 />, selector: "#step-account-modal" },
   { section: 1, title: "Syncing Data", content: <UniSection0 />, selector: "#step-sync-button", requiredTab: "Uni" },
-  { section: 1, title: "Assignments Overview", content: <UniSection1 />, selector: "#step-assignment-overview", requiredTab: "Uni" },
+  { section: 1, title: "Assignments Hub", content: <UniSection1 />, selector: "#step-assignment-modal", requiredTab: "Uni" },
   { section: 1, title: "GPA Overview", content: <UniSection2 />, selector: "#step-grade-overview", requiredTab: "Uni" },
   { section: 2, title: "Calendar Hub", content: <CalSection0 />, selector: ".fc", requiredTab: "Calendar" },
   { section: 3, title: "Uploading Lectures", content: <NotesSection0 />, selector: "#step-upload-zone", requiredTab: "Notes and Quizzes" },
   { section: 3, title: "Microphone Recording", content: <NotesSection1 />, selector: "#step-recorder-zone", requiredTab: "Notes and Quizzes" },
+  { section: 3, title: "Interactive Notes", content: 
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-1">
+        <BrainCircuit className="w-5 h-5 text-indigo-500" />
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Reviewing Your Notes</h3>
+      </div>
+      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+        AI-generated notes are structured with <strong>Markdown</strong>, key sections, and interactive components.
+      </p>
+    </div>, 
+    selector: "#step-note-modal", 
+    requiredTab: "Notes and Quizzes" 
+  },
 ];
 
 const SECTION_SLIDE_INDICES: number[][] = SECTION_LABELS.map((_, sectionIdx) =>
@@ -168,9 +181,19 @@ interface Props {
   onClose: () => void;
   tab: Tab;
   onTabChange: (tab: Tab) => void;
+  onOpenAccount?: (open: boolean) => void;
+  onOpenAssignment?: (open: boolean) => void;
+  onShowNoteDemo?: (show: boolean) => void;
 }
 
-export default function GettingStartedGuide({ onClose, tab, onTabChange }: Props) {
+export default function GettingStartedGuide({
+  onClose,
+  tab,
+  onTabChange,
+  onOpenAccount,
+  onOpenAssignment,
+  onShowNoteDemo,
+}: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -201,10 +224,31 @@ export default function GettingStartedGuide({ onClose, tab, onTabChange }: Props
     };
   }, [currentSlide, tab]);
 
-  // Tab switching logic
+  // Tab switching and Modal triggers
   useEffect(() => {
     if (slide.requiredTab && tab !== slide.requiredTab) {
-        onTabChange(slide.requiredTab);
+      onTabChange(slide.requiredTab);
+    }
+
+    // Auto-open Account Modal
+    if (currentSlide === 0 || currentSlide === 1) {
+      onOpenAccount?.(true);
+    } else {
+      onOpenAccount?.(false);
+    }
+
+    // Auto-open Assignment Modal
+    if (currentSlide === 3) {
+      onOpenAssignment?.(true);
+    } else {
+      onOpenAssignment?.(false);
+    }
+
+    // Auto-show Note Demo (if applicable)
+    if (currentSlide === 8) {
+      onShowNoteDemo?.(true);
+    } else {
+      onShowNoteDemo?.(false);
     }
   }, [currentSlide]);
 
@@ -253,27 +297,28 @@ export default function GettingStartedGuide({ onClose, tab, onTabChange }: Props
   return createPortal(
     <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
       {/* Blackout Overlay with Holes */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] pointer-events-auto transition-opacity duration-500">
-        <svg className="w-full h-full">
-          <defs>
-            <mask id="spotlight-mask">
-              <rect x="0" y="0" width="100%" height="100%" fill="white" />
-              {spotlightRect && (
-                <rect
-                  x={spotlightRect.x - 8}
-                  y={spotlightRect.y - 8}
-                  width={spotlightRect.width + 16}
-                  height={spotlightRect.height + 16}
-                  rx="12"
-                  fill="black"
-                  className="transition-all duration-300 ease-in-out"
-                />
-              )}
-            </mask>
-          </defs>
-          <rect x="0" y="0" width="100%" height="100%" fill="black" opacity="0.4" mask="url(#spotlight-mask)" />
-        </svg>
-      </div>
+      {/* Blur/Dim Overlay with Hole */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none">
+        <defs>
+          <mask id="spotlight-mask">
+            <rect x="0" y="0" width="100%" height="100%" fill="white" />
+            {spotlightRect && (
+              <rect
+                x={spotlightRect.x - 8}
+                y={spotlightRect.y - 8}
+                width={spotlightRect.width + 16}
+                height={spotlightRect.height + 16}
+                rx="12"
+                fill="black"
+                className="transition-all duration-300 ease-in-out"
+              />
+            )}
+          </mask>
+        </defs>
+        <foreignObject x="0" y="0" width="100%" height="100%" mask="url(#spotlight-mask)" className="pointer-events-auto">
+          <div className="w-full h-full backdrop-blur-[6px] bg-black/60 transition-opacity duration-500" />
+        </foreignObject>
+      </svg>
 
       {/* Pulse effect around spotlight */}
       {spotlightRect && (
