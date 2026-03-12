@@ -153,14 +153,14 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
   }
 
   const colors = [
-    "#6366f1",
-    "#22c55e",
-    "#f97316",
-    "#ec4899",
-    "#06b6d4",
-    "#eab308",
-    "#a770dbff",
-    "#d4a655ff",
+    "rgba(99, 102, 241, 0.8)",  // Indigo
+    "rgba(168, 85, 247, 0.8)",  // Purple
+    "rgba(244, 63, 94, 0.8)",   // Rose
+    "rgba(6, 182, 212, 0.8)",   // Cyan
+    "rgba(34, 197, 94, 0.8)",   // Green
+    "rgba(249, 115, 22, 0.8)",  // Orange
+    "rgba(236, 72, 153, 0.8)",  // Pink
+    "rgba(234, 179, 8, 0.8)",   // Yellow
   ];
 
   const backgroundColors = labels.map((_, idx) => colors[idx % colors.length]);
@@ -231,7 +231,10 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
                 {
                   label: "Grade %",
                   data: values,
-                  backgroundColor: "rgba(129, 140, 248, 0.7)",
+                  backgroundColor: "rgba(99, 102, 241, 0.5)",
+                  borderColor: "#6366f1",
+                  borderWidth: 2,
+                  borderRadius: 8,
                 },
               ],
             }}
@@ -259,9 +262,13 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
                 {
                   label: "Assignment grade (%)",
                   data: timeline,
-                  borderColor: "rgba(52, 211, 153, 0.9)",
-                  backgroundColor: "rgba(52, 211, 153, 0.4)",
-                  tension: 0.25,
+                  borderColor: "#10b981",
+                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                  tension: 0.4,
+                  fill: true,
+                  pointBackgroundColor: "#10b981",
+                  pointRadius: 4,
+                  pointHoverRadius: 6,
                 },
               ],
             }}
@@ -295,7 +302,10 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
                 {
                   label: "Assignments",
                   data: counts,
-                  backgroundColor: "rgba(248, 113, 113, 0.7)",
+                  backgroundColor: "rgba(244, 63, 94, 0.5)",
+                  borderColor: "#f43f5e",
+                  borderWidth: 2,
+                  borderRadius: 6,
                 },
               ],
             }}

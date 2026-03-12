@@ -51,6 +51,7 @@ interface Assignment {
 interface Props {
   assignments: Assignment[];
   courses: Course[];
+  activeTabOverride?: string;
 }
 
 function getSessionFromCourse(course: Course): string {
@@ -98,8 +99,14 @@ function getGrade7FromPercentage(pct: number | null): number | null {
 
 const CURRENT_SESSION = "Autumn 2026";
 
-export default function AssignmentsCardOverview({ assignments, courses }: Props) {
+export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Upcoming Assignments");
+
+  useEffect(() => {
+    if (activeTabOverride) {
+      setActiveTab(activeTabOverride);
+    }
+  }, [activeTabOverride]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [manualGpas, setManualGpas] = useState<Record<string, number>>({});
   const [manualWams, setManualWams] = useState<Record<string, number>>({});

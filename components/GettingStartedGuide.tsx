@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight, X, GraduationCap, CalendarDays, Notebook, UserCircle, Mic, Monitor, BrainCircuit, RefreshCw, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BorderBeam } from "@/components/magicui/border-beam";
 
 type Tab = "Uni" | "Calendar" | "Finance" | "Notes and Quizzes";
 
@@ -193,19 +194,6 @@ const SLIDES: Slide[] = [
   { section: 2, title: "Calendar Hub", content: <CalSection0 />, selector: ".fc", requiredTab: "Calendar" },
   { section: 3, title: "Uploading Lectures", content: <NotesSection0 />, selector: "#step-upload-zone", requiredTab: "Notes and Quizzes" },
   { section: 3, title: "Microphone Recording", content: <NotesSection1 />, selector: "#step-recorder-zone", requiredTab: "Notes and Quizzes" },
-  { section: 3, title: "Interactive Notes", content: 
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 mb-1">
-        <BrainCircuit className="w-5 h-5 text-indigo-500" />
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Reviewing Your Notes</h3>
-      </div>
-      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-        AI-generated notes are structured with <strong>Markdown</strong>, key sections, and interactive components.
-      </p>
-    </div>, 
-    selector: "#step-note-modal", 
-    requiredTab: "Notes and Quizzes" 
-  },
 ];
 
 const SECTION_SLIDE_INDICES: number[][] = SECTION_LABELS.map((_, sectionIdx) =>
@@ -220,6 +208,7 @@ interface Props {
   onOpenAssignment?: (open: boolean) => void;
   onShowNoteDemo?: (show: boolean) => void;
   onShowCalendarDemo?: (eventId: string | null) => void;
+  onSetAssignmentsTab?: (tab: string) => void;
 }
 
 export default function GettingStartedGuide({
@@ -230,6 +219,7 @@ export default function GettingStartedGuide({
   onOpenAssignment,
   onShowNoteDemo,
   onShowCalendarDemo,
+  onSetAssignmentsTab,
 }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
@@ -282,17 +272,20 @@ export default function GettingStartedGuide({
     }
 
     // Auto-show Note Demo (if applicable)
-    if (currentSlide === 9) {
-      onShowNoteDemo?.(true);
-    } else {
-      onShowNoteDemo?.(false);
-    }
+    onShowNoteDemo?.(false);
 
     // Auto-show Calendar Assignment Popup
     if (currentSlide === 6) {
       onShowCalendarDemo?.("mock-assignment-1");
     } else {
       onShowCalendarDemo?.(null);
+    }
+
+    // Auto-set Assignments Tab
+    if (currentSlide === 4) {
+      onSetAssignmentsTab?.("Upcoming Assignments");
+    } else if (currentSlide === 5) {
+      onSetAssignmentsTab?.("Grade Overview");
     }
   }, [currentSlide]);
 
@@ -423,49 +416,52 @@ export default function GettingStartedGuide({
           transition={{ duration: 0.3, ease: "easeOut" }}
           style={{
             ...tooltipPosition,
-            width: '320px',
+            width: '340px',
             position: 'absolute',
           }}
-          className="bg-white dark:bg-[#0F0F12] rounded-2xl shadow-2xl border border-indigo-500/30 dark:border-indigo-500/50 pointer-events-auto flex flex-col p-5 z-[101]"
+          className="bg-zinc-50 dark:bg-zinc-950 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 pointer-events-auto flex flex-col p-6 z-[101] overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-3">
-             <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">
-               Step {currentSlide + 1} of {SLIDES.length}
-             </span>
-             <button onClick={handleClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-               <X className="w-4 h-4 text-gray-400" />
-             </button>
-          </div>
-
-          <div className="mb-4">
-             {slide.content}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800">
-             <div className="flex gap-1.5">
-               {currentSlide > 0 && (
-                 <button
-                   onClick={prev}
-                   className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-500 transition-colors"
-                 >
-                   Back
-                 </button>
-               )}
-               <button
-                  onClick={handleClose}
-                  className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors"
-               >
-                 Skip
+          <BorderBeam size={150} duration={8} colorFrom="#6366f1" colorTo="#a855f7" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+               <span className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">
+                 Step {currentSlide + 1} of {SLIDES.length}
+               </span>
+               <button onClick={handleClose} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors group">
+                 <X className="w-4 h-4 text-gray-400 group-hover:text-red-500 transition-colors" />
                </button>
-             </div>
+            </div>
 
-             <button
-               onClick={next}
-               className="flex items-center gap-1.5 px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
-             >
-               {currentSlide === SLIDES.length - 1 ? "Start Using UniTracker ✓" : "Got it, next"}
-               {currentSlide < SLIDES.length - 1 && <ChevronRight className="w-3.5 h-3.5" />}
-             </button>
+            <div className="mb-6">
+               {slide.content}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-zinc-800/50">
+               <div className="flex gap-2">
+                 {currentSlide > 0 && (
+                   <button
+                     onClick={prev}
+                     className="px-4 py-2 text-[11px] font-bold text-gray-500 dark:text-zinc-500 hover:text-indigo-500 transition-colors"
+                   >
+                     Previous
+                   </button>
+                 )}
+                 <button
+                    onClick={handleClose}
+                    className="px-4 py-2 text-[11px] font-bold text-gray-500 dark:text-zinc-500 hover:text-red-500 transition-colors"
+                 >
+                   Skip
+                 </button>
+               </div>
+
+               <button
+                 onClick={next}
+                 className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-indigo-600 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
+               >
+                 {currentSlide === SLIDES.length - 1 ? "Get Started" : "Next Step"}
+                 {currentSlide < SLIDES.length - 1 && <ChevronRight className="w-4 h-4" />}
+               </button>
+            </div>
           </div>
         </motion.div>
       </AnimatePresence>
