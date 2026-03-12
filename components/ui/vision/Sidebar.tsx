@@ -39,6 +39,7 @@ export default function Sidebar({ active, onChange }: SidebarProps) {
           return (
             <button
               key={key}
+              id={`step-${key.toLowerCase()}-tab`}
               type="button"
               onClick={() => onChange(key)}
               className={`group relative flex w-full items-center gap-4 rounded-xl px-4 py-3 text-sm transition-all duration-300 ${selected
