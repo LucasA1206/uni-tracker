@@ -20,6 +20,7 @@ interface AccountInfo {
   universityEmail: string;
   canvasApiToken?: string | null;
   googleApiKey?: string | null;
+  hasSeenGuide: boolean;
 }
 
 function DashboardContent() {
@@ -69,7 +70,11 @@ function DashboardContent() {
         universityEmail: data.user.universityEmail,
         canvasApiToken: data.user.canvasApiToken ?? "",
         googleApiKey: data.user.googleApiKey ?? "",
+        hasSeenGuide: data.user.hasSeenGuide,
       });
+      if (!data.user.hasSeenGuide) {
+          setShowGuide(true);
+      }
     } catch (err) {
       console.error(err);
       // On error, try to redirect to login if it's an auth issue
@@ -90,10 +95,22 @@ function DashboardContent() {
       } else {
         document.documentElement.classList.remove("dark");
       }
-      const hasSeen = window.localStorage.getItem("has_seen_guide");
-      if (!hasSeen) setShowGuide(true);
     } catch { }
   }, []);
+
+  async function markGuideAsSeen() {
+    setShowGuide(false);
+    try {
+      await fetch("/api/account/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hasSeenGuide: true }),
+      });
+      setAccount(prev => prev ? { ...prev, hasSeenGuide: true } : prev);
+    } catch (err) {
+      console.error("Failed to mark guide as seen", err);
+    }
+  }
 
   useEffect(() => {
     if (accountOpen) {
@@ -137,6 +154,7 @@ function DashboardContent() {
         universityEmail: data.user.universityEmail,
         canvasApiToken: data.user.canvasApiToken ?? "",
         googleApiKey: data.user.googleApiKey ?? "",
+        hasSeenGuide: data.user.hasSeenGuide,
       });
       setCurrentPassword("");
       setNewPassword("");
@@ -187,7 +205,7 @@ function DashboardContent() {
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
-      {showGuide && <GettingStartedGuide tab={tab} onTabChange={setTab} onClose={() => setShowGuide(false)} />}
+      {showGuide && <GettingStartedGuide tab={tab} onTabChange={setTab} onClose={markGuideAsSeen} />}
       <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)}>
         {tab === "Notes and Quizzes" && (
           <Card className="p-4">
