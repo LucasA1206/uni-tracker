@@ -189,6 +189,11 @@ function DashboardContent() {
     <div className={theme === "dark" ? "dark" : ""}>
       {showGuide && <GettingStartedGuide tab={tab} onTabChange={setTab} onClose={() => setShowGuide(false)} />}
       <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)}>
+        {tab === "Notes and Quizzes" && (
+          <Card className="p-4">
+            <NotesTab />
+          </Card>
+        )}
         {tab === "Uni" && (
           <Card className="p-4">
             <UniTab />
@@ -204,7 +209,7 @@ function DashboardContent() {
             <FinanceTab />
           </Card>
         )}
-        {tab === "Notes" && (
+        {tab === "Notes and Quizzes" && (
           <Card className="p-4">
             <NotesTab />
           </Card>
