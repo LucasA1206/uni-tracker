@@ -3,6 +3,8 @@
 import React from "react";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
+import { cn } from "@/lib/utils";
+import { AnimatedGridPattern } from "@/components/magicui/animated-grid-pattern";
 
 type Tab = "Uni" | "Calendar" | "Finance" | "Notes and Quizzes";
 
@@ -16,10 +18,19 @@ interface ShellProps {
 export default function Shell({ tab, onTabChange, onOpenAccount, children }: ShellProps) {
   return (
     <div className="relative min-h-screen text-gray-900 dark:text-zinc-100 selection:bg-indigo-500/30">
-      {/* Background layer: Radial gradient + Grid pattern for a 'technical' look */}
-      <div className="fixed inset-0 z-[-1] bg-white dark:bg-[#030303]">
+      {/* Background layer: Animated Grid + Radial gradient */}
+      <div className="fixed inset-0 z-[-1] bg-white dark:bg-[#030303] overflow-hidden">
+        <AnimatedGridPattern
+          numSquares={30}
+          maxOpacity={0.1}
+          duration={3}
+          repeatDelay={1}
+          className={cn(
+            "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]",
+            "inset-y-[-30%] h-[200%] skew-y-12",
+          )}
+        />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.2),rgba(255,255,255,0))] dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))]"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] dark:bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)]"></div>
       </div>
 
       <div className="flex min-h-screen">

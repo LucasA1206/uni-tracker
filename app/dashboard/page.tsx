@@ -52,6 +52,7 @@ function DashboardContent() {
   const [walkthroughOpenAssignment, setWalkthroughOpenAssignment] = useState(false);
   const [walkthroughShowNoteDemo, setWalkthroughShowNoteDemo] = useState(false);
   const [walkthroughCalendarEventId, setWalkthroughCalendarEventId] = useState<string | null>(null);
+  const [walkthroughAssignmentsTab, setWalkthroughAssignmentsTab] = useState<string | undefined>(undefined);
 
   async function loadAccount() {
     try {
@@ -218,6 +219,7 @@ function DashboardContent() {
           onOpenAssignment={setWalkthroughOpenAssignment}
           onShowNoteDemo={setWalkthroughShowNoteDemo}
           onShowCalendarDemo={setWalkthroughCalendarEventId}
+          onSetAssignmentsTab={setWalkthroughAssignmentsTab}
         />
       )}
       <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)}>
@@ -234,6 +236,7 @@ function DashboardContent() {
             <UniTab 
               openAssignmentDemo={walkthroughOpenAssignment}
               onDemoClosed={() => setWalkthroughOpenAssignment(false)}
+              assignmentsTabOverride={walkthroughAssignmentsTab}
             />
           </Card>
         )}
