@@ -8,6 +8,9 @@ type Tab = "Uni" | "Calendar" | "Finance" | "Notes and Quizzes";
 interface SidebarProps {
   active: Tab;
   onChange: (t: Tab) => void;
+  isNative?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 const items: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -17,12 +20,19 @@ const items: { key: Tab; label: string; icon: React.ComponentType<{ className?: 
   { key: "Notes and Quizzes", label: "Notes and Quizzes", icon: Notebook },
 ];
 
-export default function Sidebar({ active, onChange }: SidebarProps) {
+export default function Sidebar({ active, onChange, isNative, isOpen, onClose }: SidebarProps) {
+  const visibleItems = items.filter(i => isNative ? i.key !== "Finance" : true);
+
+  if (isNative && !isOpen) return null;
+
   return (
-    <aside className="w-64 xl:w-72 shrink-0 border-r border-black/5 dark:border-white/[0.08] bg-white/40 dark:bg-[#030303]/60 backdrop-blur-3xl flex flex-col relative z-20">
+    <aside className={isNative 
+      ? "fixed inset-0 z-50 bg-white dark:bg-[#030303] flex flex-col" 
+      : "w-64 xl:w-72 shrink-0 border-r border-black/5 dark:border-white/[0.08] bg-white/40 dark:bg-[#030303]/60 backdrop-blur-3xl flex flex-col relative z-20"
+    }>
       <div className="absolute top-0 w-full h-32 bg-gradient-to-b from-indigo-500/10 to-transparent dark:from-indigo-500/5 pointer-events-none"></div>
 
-      <div className="h-24 flex items-center px-8 relative z-10 pt-4">
+      <div className="h-24 flex items-center justify-between px-8 relative z-10 pt-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 shadow-lg shadow-indigo-500/20">
             <Orbit className="h-5 w-5 text-white" />
@@ -31,10 +41,15 @@ export default function Sidebar({ active, onChange }: SidebarProps) {
             UniTracker
           </div>
         </div>
+        {isNative && (
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white">
+             <span className="sr-only">Close</span>✕
+          </button>
+        )}
       </div>
 
       <nav className="p-4 space-y-2 flex-1 relative z-10 mt-4">
-        {items.map(({ key, label, icon: Icon }) => {
+        {visibleItems.map(({ key, label, icon: Icon }) => {
           const selected = key === active;
           return (
             <button

@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Capacitor } from '@capacitor/core';
 import Shell from "@/components/ui/vision/Shell";
 import Card from "@/components/ui/vision/Card";
 import UniTab from "./uni-tab";
@@ -28,8 +29,18 @@ function DashboardContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [isNative, setIsNative] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsNative(Capacitor.isNativePlatform());
+    }
+  }, []);
+
+  const availableTabs = TABS.filter(t => isNative ? t !== "Finance" : true);
+
   const tabParam = searchParams.get("tab");
-  const tab = (TABS.includes(tabParam as any) ? tabParam : "Uni") as Tab;
+  const tab = (availableTabs.includes(tabParam as any) ? tabParam : "Uni") as Tab;
 
   const setTab = (t: Tab) => {
     const params = new URLSearchParams(searchParams);
@@ -222,7 +233,7 @@ function DashboardContent() {
           onSetAssignmentsTab={setWalkthroughAssignmentsTab}
         />
       )}
-      <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)}>
+      <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)} isNative={isNative}>
         {tab === "Notes and Quizzes" && (
           <Card className="p-4">
             <NotesTab 
