@@ -3,7 +3,7 @@
 import React from "react";
 import { GraduationCap, CalendarDays, Wallet, Notebook, Orbit } from "lucide-react";
 
-type Tab = "Uni" | "Calendar" | "Finance" | "Notes";
+type Tab = "Uni" | "Calendar" | "Finance" | "Notes and Quizzes";
 
 interface SidebarProps {
   active: Tab;
@@ -14,7 +14,7 @@ const items: { key: Tab; label: string; icon: React.ComponentType<{ className?: 
   { key: "Uni", label: "Uni", icon: GraduationCap },
   { key: "Calendar", label: "Calendar", icon: CalendarDays },
   { key: "Finance", label: "Finance", icon: Wallet },
-  { key: "Notes", label: "Notes", icon: Notebook },
+  { key: "Notes and Quizzes", label: "Notes and Quizzes", icon: Notebook },
 ];
 
 export default function Sidebar({ active, onChange }: SidebarProps) {

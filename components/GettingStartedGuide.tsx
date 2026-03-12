@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { ChevronRight, X, GraduationCap, CalendarDays, Notebook, UserCircle, Mic, Monitor, BrainCircuit, RefreshCw, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Tab = "Uni" | "Calendar" | "Finance" | "Notes" | "Notes and Quizzes";
+type Tab = "Uni" | "Calendar" | "Finance" | "Notes and Quizzes";
 
 interface Slide {
   section: number;
@@ -156,8 +156,8 @@ const SLIDES: Slide[] = [
   { section: 1, title: "Assignments Overview", content: <UniSection1 />, selector: "#step-assignment-overview", requiredTab: "Uni" },
   { section: 1, title: "GPA Overview", content: <UniSection2 />, selector: "#step-grade-overview", requiredTab: "Uni" },
   { section: 2, title: "Calendar Hub", content: <CalSection0 />, selector: ".fc", requiredTab: "Calendar" },
-  { section: 3, title: "Uploading Lectures", content: <NotesSection0 />, selector: "#step-upload-zone", requiredTab: "Notes" },
-  { section: 3, title: "Microphone Recording", content: <NotesSection1 />, selector: "#step-recorder-zone", requiredTab: "Notes" },
+  { section: 3, title: "Uploading Lectures", content: <NotesSection0 />, selector: "#step-upload-zone", requiredTab: "Notes and Quizzes" },
+  { section: 3, title: "Microphone Recording", content: <NotesSection1 />, selector: "#step-recorder-zone", requiredTab: "Notes and Quizzes" },
 ];
 
 const SECTION_SLIDE_INDICES: number[][] = SECTION_LABELS.map((_, sectionIdx) =>
@@ -203,11 +203,8 @@ export default function GettingStartedGuide({ onClose, tab, onTabChange }: Props
 
   // Tab switching logic
   useEffect(() => {
-    if (slide.requiredTab) {
-        const currentTabKey = tab === "Notes and Quizzes" ? "Notes" : tab;
-        if (currentTabKey !== slide.requiredTab) {
-            onTabChange(slide.requiredTab === "Notes" ? "Notes and Quizzes" : slide.requiredTab as any);
-        }
+    if (slide.requiredTab && tab !== slide.requiredTab) {
+        onTabChange(slide.requiredTab);
     }
   }, [currentSlide]);
 
