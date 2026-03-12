@@ -253,11 +253,6 @@ function DashboardContent() {
             <FinanceTab />
           </Card>
         )}
-        {tab === "Notes and Quizzes" && (
-          <Card className="p-4">
-            <NotesTab />
-          </Card>
-        )}
 
         {accountOpen && typeof document !== "undefined" && createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity backdrop-blur-sm">
