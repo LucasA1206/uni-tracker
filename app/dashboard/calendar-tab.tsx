@@ -14,9 +14,10 @@ interface CalendarEvent {
 
 interface CalendarTabProps {
   showMock?: boolean;
+  autoOpenEventId?: string | null;
 }
 
-export default function CalendarTab({ showMock }: CalendarTabProps) {
+export default function CalendarTab({ showMock, autoOpenEventId }: CalendarTabProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   const refresh = useCallback(async () => {
@@ -80,6 +81,7 @@ export default function CalendarTab({ showMock }: CalendarTabProps) {
         <FullScreenCalendar
           events={events}
           onRefresh={refresh}
+          autoOpenEventId={autoOpenEventId}
         />
       </div>
     </div>

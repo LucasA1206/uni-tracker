@@ -51,9 +51,10 @@ interface ApiEvent {
 interface FullScreenCalendarProps {
   events: ApiEvent[]
   onRefresh?: () => void
+  autoOpenEventId?: string | null
 }
 
-export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProps) {
+export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullScreenCalendarProps) {
   const [openEvent, setOpenEvent] = React.useState<ApiEvent | null>(null)
   const [openDay, setOpenDay] = React.useState<{ dateStr: string; dayEvents: ApiEvent[] } | null>(null)
   const [openCreate, setOpenCreate] = React.useState(false)
@@ -75,6 +76,13 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
       document.body.style.overflow = ""
     }
   }, [openEvent, openCreate, openDay])
+
+  React.useEffect(() => {
+    if (autoOpenEventId && events.length > 0) {
+      const ev = events.find(e => e.id === autoOpenEventId);
+      if (ev) setOpenEvent(ev);
+    }
+  }, [autoOpenEventId, events]);
 
   // Map our API events into FullCalendar events
   const fcEvents = React.useMemo(() => {
@@ -391,6 +399,7 @@ export function FullScreenCalendar({ events, onRefresh }: FullScreenCalendarProp
           onClick={() => setOpenEvent(null)}
         >
           <div
+            id="step-assignment-modal"
             className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >

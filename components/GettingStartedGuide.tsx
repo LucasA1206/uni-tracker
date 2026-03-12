@@ -46,8 +46,36 @@ function AccountSection1() {
         <h3 className="text-lg font-bold text-gray-900 dark:text-white">Canvas API Key</h3>
       </div>
       <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-        UniTracker connects to <strong>Canvas</strong> to automatically sync your courses and assignments. Generate an API key from Settings.
+        UniTracker connects to <strong>Canvas</strong> to sync your courses. 
       </p>
+      <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30">
+        <ol className="list-decimal list-inside text-[10px] space-y-1.5 text-amber-800 dark:text-amber-200">
+          <li>Visit <a href="https://canvas.uts.edu.au/profile/settings" target="_blank" rel="noopener noreferrer" className="underline font-bold">UTS Canvas Settings</a></li>
+          <li>Click <span className="font-bold">+ New Access Token</span></li>
+          <li>Copy the token and paste it in the field below</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+function AccountSection2() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-1">
+        <BrainCircuit className="w-5 h-5 text-indigo-500" />
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Google API Key</h3>
+      </div>
+      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+        Required for generating AI notes and quizzes using Gemini.
+      </p>
+      <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30">
+        <ol className="list-decimal list-inside text-[10px] space-y-1.5 text-indigo-800 dark:text-indigo-200">
+          <li>Visit <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline font-bold">Google AI Studio</a></li>
+          <li>Click <span className="font-bold">Create API Key</span></li>
+          <li>Copy the key and paste it in the field below</li>
+        </ol>
+      </div>
     </div>
   );
 }
@@ -76,6 +104,9 @@ function UniSection1() {
       <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
         Stay on top of your work with Past, Upcoming, and Grade Overviews.
       </p>
+      <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 text-[10px] text-blue-700 dark:text-blue-300">
+        💡 We&apos;ve opened an <strong>example assignment</strong> for you to see how it looks!
+      </div>
     </div>
   );
 }
@@ -90,6 +121,9 @@ function UniSection2() {
       <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
         View your academic performance across all sessions with dynamic charts.
       </p>
+      <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 text-[10px] text-purple-700 dark:text-purple-300">
+        📊 Showing an <strong>example GPA graph</strong> below.
+      </div>
     </div>
   );
 }
@@ -115,7 +149,7 @@ function CalSection0() {
         </div>
       </div>
       <div className="rounded-lg border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/50 dark:bg-indigo-900/10 p-2 text-[10px] text-indigo-700 dark:text-indigo-300">
-        💡 Note: While in the guide, look at the example data in the calendar!
+        💡 We&apos;ve added an <strong>example note</strong> and <strong>assignment</strong> to the calendar, and opened the <strong>assignment detail popup</strong> for you!
       </div>
     </div>
   );
@@ -151,7 +185,8 @@ function NotesSection1() {
 
 const SLIDES: Slide[] = [
   { section: 0, title: "Your Profile", content: <AccountSection0 />, selector: "#step-account-modal" },
-  { section: 0, title: "Canvas API Key", content: <AccountSection1 />, selector: "#step-account-modal" },
+  { section: 0, title: "Canvas API", content: <AccountSection1 />, selector: "#step-account-modal" },
+  { section: 0, title: "Google API", content: <AccountSection2 />, selector: "#step-account-modal" },
   { section: 1, title: "Syncing Data", content: <UniSection0 />, selector: "#step-sync-button", requiredTab: "Uni" },
   { section: 1, title: "Assignments Hub", content: <UniSection1 />, selector: "#step-assignment-modal", requiredTab: "Uni" },
   { section: 1, title: "GPA Overview", content: <UniSection2 />, selector: "#step-grade-overview", requiredTab: "Uni" },
@@ -184,6 +219,7 @@ interface Props {
   onOpenAccount?: (open: boolean) => void;
   onOpenAssignment?: (open: boolean) => void;
   onShowNoteDemo?: (show: boolean) => void;
+  onShowCalendarDemo?: (eventId: string | null) => void;
 }
 
 export default function GettingStartedGuide({
@@ -193,6 +229,7 @@ export default function GettingStartedGuide({
   onOpenAccount,
   onOpenAssignment,
   onShowNoteDemo,
+  onShowCalendarDemo,
 }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
@@ -231,24 +268,31 @@ export default function GettingStartedGuide({
     }
 
     // Auto-open Account Modal
-    if (currentSlide === 0 || currentSlide === 1) {
+    if (currentSlide === 0 || currentSlide === 1 || currentSlide === 2) {
       onOpenAccount?.(true);
     } else {
       onOpenAccount?.(false);
     }
 
     // Auto-open Assignment Modal
-    if (currentSlide === 3) {
+    if (currentSlide === 4) {
       onOpenAssignment?.(true);
     } else {
       onOpenAssignment?.(false);
     }
 
     // Auto-show Note Demo (if applicable)
-    if (currentSlide === 8) {
+    if (currentSlide === 9) {
       onShowNoteDemo?.(true);
     } else {
       onShowNoteDemo?.(false);
+    }
+
+    // Auto-show Calendar Assignment Popup
+    if (currentSlide === 6) {
+      onShowCalendarDemo?.("mock-assignment-1");
+    } else {
+      onShowCalendarDemo?.(null);
     }
   }, [currentSlide]);
 

@@ -165,14 +165,6 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed }: UniTabProps
     void refresh();
   }, [refresh]);
 
-  useEffect(() => {
-    if (openAssignmentDemo && assignments.length > 0 && !selectedAssignment) {
-      setSelectedAssignment(assignments[0]);
-    } else if (!openAssignmentDemo && selectedAssignment && onDemoClosed) {
-      // Logic to auto-close if needed? Maybe better to let user close.
-    }
-  }, [openAssignmentDemo, assignments]);
-
   async function addCourse(e: React.FormEvent) {
     e.preventDefault();
     if (!newCourse.name || !newCourse.code) return;
@@ -286,15 +278,46 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed }: UniTabProps
     return year > 0 ? year * 10 + termVal : -1;
   }
 
+  const displayCourses = useMemo(() => {
+    if (openAssignmentDemo && courses.length === 0) {
+      return [{ id: -1, name: "Artificial Intelligence", code: "41091", term: "Autumn", year: 2026 }];
+    }
+    return courses;
+  }, [courses, openAssignmentDemo]);
+
+  const displayAssignments = useMemo(() => {
+    if (openAssignmentDemo && assignments.length === 0) {
+      return [{
+        id: -1,
+        title: "AI Project: Medical Diagnosis Assistant",
+        dueDate: new Date(Date.now() + 86400000 * 7).toISOString(),
+        course: { id: -1, code: "41091" },
+        grade: 85,
+        weight: 0.45,
+        maxGrade: 100,
+        status: "in_progress",
+        canvasUrl: "https://canvas.uts.edu.au",
+        description: "<p>Build a production-ready AI system. <strong>Required</strong>: Antigravity integration.</p>"
+      }];
+    }
+    return assignments;
+  }, [assignments, openAssignmentDemo]);
+
+  useEffect(() => {
+    if (openAssignmentDemo && displayAssignments.length > 0 && !selectedAssignment) {
+      setSelectedAssignment(displayAssignments[0]);
+    }
+  }, [openAssignmentDemo, displayAssignments, selectedAssignment]);
+
   const assignmentsByCourse = useMemo(() => {
-    const sortedCourses = [...courses].sort((a, b) => {
+    const sortedCourses = [...displayCourses].sort((a, b) => {
       const valA = getSessionValue(a);
       const valB = getSessionValue(b);
       return valB - valA; // Descending
     });
 
     return sortedCourses.map((course) => {
-      const courseAssignments = assignments.filter((a) => a.course.id === course.id);
+      const courseAssignments = displayAssignments.filter((a) => a.course.id === course.id);
       return {
         course,
         byStatus: {
@@ -304,7 +327,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed }: UniTabProps
         },
       };
     });
-  }, [courses, assignments]);
+  }, [displayCourses, displayAssignments]);
 
   const notesByCourse = useMemo<Record<string, Note[]>>(() => {
     const result: Record<string, Note[]> = {};
@@ -445,7 +468,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed }: UniTabProps
           </div>
 
           <div id="step-assignment-overview">
-            <AssignmentsCardOverview assignments={assignments} courses={courses} />
+            <AssignmentsCardOverview assignments={displayAssignments} courses={displayCourses} />
           </div>
 
           <form onSubmit={addAssignment} className="grid gap-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 md:grid-cols-5 text-xs">
@@ -526,7 +549,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed }: UniTabProps
           </form>
 
           <div className="space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 min-h-[20rem] max-h-[50rem] overflow-auto">
-            {assignments.length === 0 && (
+            {displayAssignments.length === 0 && (
               <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet.</p>
             )}
             <div className="space-y-4 text-xs">
