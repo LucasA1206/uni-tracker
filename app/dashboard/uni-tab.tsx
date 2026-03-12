@@ -216,7 +216,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const deleteCourse = async (id: number) => {
     if (!confirm("Are you sure? This will delete all course data.")) return;
     try {
-      const res = await fetch(`/api/uni/courses/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/uni/courses?id=${id}`, { method: "DELETE" });
       if (res.ok) refresh();
     } catch (err) { console.error("Delete course failed", err); }
   };
@@ -244,18 +244,22 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
 
   const deleteAssignment = async (id: number) => {
     try {
-      const res = await fetch(`/api/uni/assignments/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/uni/assignments?id=${id}`, { method: "DELETE" });
       if (res.ok) refresh();
     } catch (err) { console.error("Delete assignment failed", err); }
   };
 
   const updateAssignmentStatus = async (id: number, status: string) => {
     try {
-      const res = await fetch(`/api/uni/assignments/${id}`, {
+      const res = await fetch(`/api/uni/assignments`, {
         method: "PATCH",
-        body: JSON.stringify({ status })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status })
       });
-      if (res.ok) refresh();
+      if (res.ok) {
+        setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+        refresh();
+      }
     } catch (err) { console.error("Update status failed", err); }
   };
 
@@ -363,7 +367,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   </div>
                   <button
                     type="button"
-                    className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-2 py-0.5 text-[10px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="rounded-full border border-red-200 dark:border-red-900/30 px-2 py-0.5 text-[10px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     onClick={() => void deleteCourse(c.id)}
                   >
                     Delete
@@ -496,14 +500,20 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                           {items.map(a => (
                             <div key={a.id} className="group relative rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-white dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
                               <div className="flex items-center justify-between gap-4">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${a.status === 'completed' ? 'bg-green-500' : a.status === 'in_progress' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
-                                    <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{a.course.code}</div>
-                                  </div>
-                                  <div className="font-bold text-gray-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-500 transition-colors">{a.title}</div>
-                                  <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                                    {new Date(a.dueDate).toLocaleDateString()} · {(a.weight * 100).toFixed(0)}% weight
+                                <div className="min-w-0 flex-1 flex items-center gap-3">
+                                  <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{a.course.code}</div>
+                                    </div>
+                                    <div className="font-bold text-gray-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-500 transition-colors">{a.title}</div>
+                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                      {(() => {
+                                        const d = new Date(a.dueDate);
+                                        const isOld = d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
+                                        return isOld ? "No due date" : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                                      })()} · {(a.weight * 100).toFixed(0)}% weight
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-2" onClick={e => e.stopPropagation()}>
@@ -548,41 +558,92 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedAssignment(null)}>
           <div 
             id="step-assignment-modal"
-            className="relative w-full max-w-2xl rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] p-8 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <BorderBeam size={500} duration={10} colorFrom="#6366f1" colorTo="#ec4899" />
-            <div className="relative">
+            
+            {/* Header */}
+            <div className="p-8 pb-4">
               <div className="flex items-center justify-between mb-6">
                 <div className="space-y-1">
                   <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{selectedAssignment.course.code}</div>
                   <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedAssignment.title}</h3>
                 </div>
-                <button onClick={() => setSelectedAssignment(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+                <button onClick={() => setSelectedAssignment(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0">
                   <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { label: 'STATUS', value: selectedAssignment.status.replace('_', ' '), color: 'text-blue-500' },
-                  { label: 'DUE DATE', value: new Date(selectedAssignment.dueDate).toLocaleDateString(), color: 'text-indigo-500' },
+                  { 
+                    label: 'STATUS', 
+                    value: selectedAssignment.status.replace('_', ' '), 
+                    color: selectedAssignment.status === 'completed' ? 'text-green-500' : selectedAssignment.status === 'in_progress' ? 'text-blue-500' : 'text-yellow-500' 
+                  },
+                  { 
+                    label: 'DUE DATE', 
+                    value: (() => {
+                      const d = new Date(selectedAssignment.dueDate);
+                      const isOld = d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
+                      return isOld ? "No due date" : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                    })(),
+                    color: 'text-indigo-500' 
+                  },
                   { label: 'WEIGHT', value: `${(selectedAssignment.weight * 100).toFixed(0)}%`, color: 'text-purple-500' },
-                  { label: 'GRADE', value: selectedAssignment.grade != null ? `${selectedAssignment.grade}/${selectedAssignment.maxGrade}` : 'TBD', color: 'text-pink-500' },
+                  { label: 'GRADE', value: selectedAssignment.grade != null ? `${selectedAssignment.grade}/${selectedAssignment.maxGrade}` : 'PENDING', color: 'text-pink-500' },
                 ].map(stat => (
-                  <div key={stat.label} className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800">
+                  <div key={stat.label} className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
                     <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">{stat.label}</div>
-                    <div className={cn("text-xs font-bold mt-1 uppercase", stat.color)}>{stat.value}</div>
+                    <div className={cn("text-[11px] font-bold mt-1 uppercase", stat.color)}>{stat.value}</div>
                   </div>
                 ))}
               </div>
+            </div>
 
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 scrollbar-hide">
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Description</h4>
-                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
-                  {selectedAssignment.description || 'No description provided.'}
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px] whitespace-pre-wrap">
+                  {selectedAssignment.description ? (
+                    <div dangerouslySetInnerHTML={{ __html: selectedAssignment.description }} />
+                  ) : (
+                    'No description provided.'
+                  )}
                 </div>
               </div>
+
+              {selectedAssignment.canvasUrl && (
+                <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                  <a
+                    href={selectedAssignment.canvasUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider"
+                  >
+                    View on Canvas
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/20 flex justify-end gap-3">
+              <button 
+                onClick={() => setSelectedAssignment(null)}
+                className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => void deleteAssignment(selectedAssignment.id)}
+                className="px-6 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                Delete Task
+              </button>
             </div>
           </div>
         </div>,

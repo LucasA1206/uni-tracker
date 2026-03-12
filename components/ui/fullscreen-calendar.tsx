@@ -4,7 +4,7 @@ import * as React from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
 import ReactMarkdown from "react-markdown"
-import { CheckSquare, FileText, Calendar as CalendarIcon, Briefcase } from "lucide-react"
+import { CheckSquare, FileText, Calendar as CalendarIcon, Briefcase, X, ExternalLink } from "lucide-react"
 
 import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
@@ -96,43 +96,57 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     }
 
     for (const [day, dayEvents] of Object.entries(byDay)) {
-      const notes = dayEvents.filter(e => e.type === 'note');
-      const assignments = dayEvents.filter(e => e.type === 'assignment');
-      const others = dayEvents.filter(e => e.type !== 'note' && e.type !== 'assignment');
-
-      assignments.forEach(a => list.push({
-        id: a.id, title: a.title, start: a.start, end: a.end, extendedProps: { type: a.type, ...a.meta }
-      }));
-      others.forEach(o => list.push({
-        id: o.id, title: o.title, start: o.start, end: o.end, extendedProps: { type: o.type, ...o.meta }
-      }));
+      const assignments = dayEvents.filter(e => e.type === 'assignment').sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      const notes = dayEvents.filter(e => e.type === 'note').sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      const others = dayEvents.filter(e => e.type !== 'note' && e.type !== 'assignment').sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
       if (assignments.length > 0) {
-        if (notes.length > 0) {
+        // Show the first assignment
+        const first = assignments[0];
+        list.push({
+          id: first.id, title: first.title, start: first.start, end: first.end, extendedProps: { ...first.meta, type: first.type }
+        });
+        const remainingCount = assignments.length - 1 + notes.length + others.length;
+        if (remainingCount > 0) {
           list.push({
-            id: `notes-summary-${day}`,
-            title: `+ ${notes.length} note${notes.length > 1 ? 's' : ''}`,
+            id: `summary-${day}`,
+            title: `+ ${remainingCount} more`,
             start: day,
             allDay: true,
             extendedProps: { type: 'summary', isSummary: true }
           });
         }
-      } else {
-        if (notes.length > 0) {
-          const sortedNotes = [...notes].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-          const firstNote = sortedNotes[0];
+      } else if (notes.length > 0) {
+        // Show the first note
+        const first = notes[0];
+        list.push({
+          id: first.id, title: first.title, start: first.start, end: first.end, extendedProps: { ...first.meta, type: first.type }
+        });
+        const remainingCount = notes.length - 1 + others.length;
+        if (remainingCount > 0) {
           list.push({
-            id: firstNote.id, title: firstNote.title, start: firstNote.start, end: firstNote.end, extendedProps: { type: firstNote.type, ...firstNote.meta }
+            id: `summary-${day}`,
+            title: `+ ${remainingCount} more`,
+            start: day,
+            allDay: true,
+            extendedProps: { type: 'summary', isSummary: true }
           });
-          if (sortedNotes.length > 1) {
-            list.push({
-              id: `notes-summary-${day}`,
-              title: `+ ${sortedNotes.length - 1} note${sortedNotes.length - 1 > 1 ? 's' : ''}`,
-              start: day,
-              allDay: true,
-              extendedProps: { type: 'summary', isSummary: true }
-            });
-          }
+        }
+      } else if (others.length > 0) {
+        // Show the first other
+        const first = others[0];
+        list.push({
+          id: first.id, title: first.title, start: first.start, end: first.end, extendedProps: { ...first.meta, type: first.type }
+        });
+        const remainingCount = others.length - 1;
+        if (remainingCount > 0) {
+          list.push({
+            id: `summary-${day}`,
+            title: `+ ${remainingCount} more`,
+            start: day,
+            allDay: true,
+            extendedProps: { type: 'summary', isSummary: true }
+          });
         }
       }
     }
@@ -313,24 +327,23 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       />
 
       {openDay && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
-          onClick={() => setOpenDay(null)}
-        >
-          <div
-            className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setOpenDay(null)}>
+          <div 
+            className="relative w-full max-w-xl max-h-[70vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                {format(new Date(openDay.dateStr + "T00:00:00"), "MMMM d, yyyy")}
-              </h3>
-              <button
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-[#1F1F23] rounded-md px-2 py-1"
-                onClick={() => setOpenDay(null)}
-              >
-                Close
-              </button>
+            <div className="p-8 pb-4 text-left">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                  {format(new Date(openDay.dateStr + "T00:00:00"), "MMMM d, yyyy")}
+                </h3>
+                <button
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0"
+                  onClick={() => setOpenDay(null)}
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
             {openDay.dayEvents.length === 0 ? (
               <div className="flex-1 flex flex-col justify-center items-center py-8 text-center text-sm text-gray-400 dark:text-gray-500">
@@ -394,96 +407,119 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       )}
 
       {openEvent && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
-          onClick={() => setOpenEvent(null)}
-        >
-          <div
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setOpenEvent(null)}>
+          <div 
             id="step-assignment-modal"
-            className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight pr-4">{openEvent.title}</h3>
+            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+              <div className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_120deg,#6366f1_180deg,transparent_240deg,transparent_360deg)] animate-[spin_8s_linear_infinite] opacity-30" />
             </div>
-            <Separator className="my-4 dark:border-[#1F1F23]" />
-            <div className="space-y-3 text-sm flex-1 overflow-y-auto pr-1">
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                <span className="text-gray-500 dark:text-gray-400">
-                  {openEvent.type === 'note' ? 'Date Created' : (openEvent.type === 'assignment' ? 'Due' : 'Due / Start')}
-                </span>
-                <span className="font-medium text-gray-900 dark:text-white">{format(new Date(openEvent.start), "MMM d, yyyy h:mm a")}</span>
+
+            {/* Header */}
+            <div className="p-8 pb-4 relative z-10 text-left">
+              <div className="flex items-center justify-between mb-6">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">
+                    {openEvent.meta?.courseCode || (openEvent.type === 'note' ? 'NOTES' : 'EVENT')}
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{openEvent.title}</h3>
+                </div>
+                <Button variant="ghost" className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0" onClick={() => setOpenEvent(null)}>
+                  <X className="w-5 h-5 text-gray-500" />
+                </Button>
               </div>
 
-              {openEvent.meta?.courseName && (
-                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                  <span className="text-gray-500 dark:text-gray-400">Course</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.courseName}</span>
-                </div>
-              )}
-
-              {typeof openEvent.meta?.weight === "number" && (
-                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                  <span className="text-gray-500 dark:text-gray-400">Weight</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{Math.round((openEvent.meta.weight || 0) * 100)}%</span>
-                </div>
-              )}
-
-              {typeof openEvent.meta?.maxGrade === "number" && (
-                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                  <span className="text-gray-500 dark:text-gray-400">Max Grade</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.maxGrade}</span>
-                </div>
-              )}
-
-              {typeof openEvent.meta?.grade === "number" && (
-                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                  <span className="text-gray-500 dark:text-gray-400">Grade</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{openEvent.meta.grade}</span>
-                </div>
-              )}
-
-              {openEvent.meta?.status && (
-                <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                  <span className="text-gray-500 dark:text-gray-400">Status</span>
-                  <span className="font-medium text-gray-900 dark:text-white uppercase text-[11px] tracking-wider">{openEvent.meta.status}</span>
-                </div>
-              )}
-
-              {openEvent.meta?.description && (
-                <div className="mt-4 pt-2 flex flex-col flex-1 min-h-0">
-                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider block mb-2">Description</span>
-                  <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-                    {openEvent.type === 'note' ? (
-                      <ReactMarkdown>{openEvent.meta.description}</ReactMarkdown>
-                    ) : (
-                      <div dangerouslySetInnerHTML={{ __html: openEvent.meta.description }} />
-                    )}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                  <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">
+                    {openEvent.type === 'note' ? 'Date Created' : (openEvent.type === 'assignment' ? 'Due' : 'Due / Start')}
+                  </div>
+                  <div className="text-[11px] font-bold mt-1 uppercase text-indigo-500">
+                    {(() => {
+                      const d = new Date(openEvent.start);
+                      const isOld = isNaN(d.getTime()) || (d.getFullYear() < (new Date().getFullYear() - 5) && d.getFullYear() !== 1970);
+                      return isOld ? "No due date" : format(d, "MMM d, yyyy");
+                    })()}
                   </div>
                 </div>
-              )}
-
-              <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-gray-100 dark:border-[#1F1F23]">
-                <Button variant="outline" onClick={() => setOpenEvent(null)}>Close</Button>
-                {openEvent.meta?.noteUrl && (
-                  <button
-                    onClick={() => window.location.href = openEvent.meta!.noteUrl!}
-                    className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white px-4 py-2 text-sm hover:bg-indigo-700 transition"
-                  >
-                    Open Note
-                  </button>
+                {openEvent.meta?.weight != null && (
+                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Weight</div>
+                    <div className="text-[11px] font-bold mt-1 uppercase text-purple-500">{Math.round((openEvent.meta.weight || 0) * 100)}%</div>
+                  </div>
                 )}
-                {openEvent.meta?.canvasUrl && (
-                  <a
-                    href={openEvent.meta.canvasUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white px-4 py-2 text-sm hover:bg-indigo-700 transition"
-                  >
-                    Open in Canvas
-                  </a>
+                {openEvent.meta?.status && (
+                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Status</div>
+                    <div className="text-[11px] font-bold mt-1 uppercase text-blue-500">{openEvent.meta.status.replace('_', ' ')}</div>
+                  </div>
+                )}
+                {(openEvent.meta?.grade != null || openEvent.meta?.maxGrade != null) && (
+                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Grade</div>
+                    <div className="text-[11px] font-bold mt-1 uppercase text-pink-500">
+                      {openEvent.meta.grade != null ? `${openEvent.meta.grade}/${openEvent.meta.maxGrade}` : `PENDING/${openEvent.meta.maxGrade || '--'}`}
+                    </div>
+                  </div>
                 )}
               </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 relative z-10 scrollbar-hide text-left">
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest text-left">Description</h4>
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
+                  {openEvent.meta?.description ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                      {openEvent.type === 'note' ? (
+                        <ReactMarkdown>{openEvent.meta.description}</ReactMarkdown>
+                      ) : (
+                        <div dangerouslySetInnerHTML={{ __html: openEvent.meta.description }} />
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-left block italic">No description provided.</span>
+                  )}
+                </div>
+              </div>
+
+              {(openEvent.meta?.canvasUrl || openEvent.meta?.noteUrl) && (
+                <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex gap-4">
+                  {openEvent.meta.noteUrl && (
+                    <button
+                      onClick={() => window.location.href = openEvent.meta!.noteUrl!}
+                      className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider"
+                    >
+                      Open Note
+                      <FileText className="w-3 h-3" />
+                    </button>
+                  )}
+                  {openEvent.meta.canvasUrl && (
+                    <a
+                      href={openEvent.meta.canvasUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider"
+                    >
+                      View on Canvas
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/20 flex justify-end gap-3 relative z-10">
+              <button 
+                onClick={() => setOpenEvent(null)}
+                className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>,
@@ -491,14 +527,19 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       )}
 
       {openCreate && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
-          onClick={() => setOpenCreate(false)}
-        >
-          <div
-            className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setOpenCreate(false)}>
+          <div 
+            className="relative w-full max-w-xl max-h-[80vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            onClick={e => e.stopPropagation()}
           >
+            <div className="p-8 pb-4 text-left">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Add Event</h3>
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors" onClick={() => setOpenCreate(false)}>
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Event</h3>
             </div>

@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MenuBar } from "@/components/ui/glow-menu";
 import { History, CalendarClock, LineChart, Settings, X, ExternalLink } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Line } from "react-chartjs-2";
 
 import {
@@ -500,84 +501,90 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
 
       {/* Assignment detail popup */}
       {selectedAssignment && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-50 bg-black/60 transition-opacity backdrop-blur-sm"
-          onClick={() => setSelectedAssignment(null)}
-        >
-          <div
-            className="fixed top-[150px] bottom-[150px] left-[200px] right-[200px] rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 shadow-xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedAssignment(null)}>
+          <div 
+            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight pr-4">{selectedAssignment.title}</h3>
+            <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+              <div className="absolute -top-[25%] -left-[25%] w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_120deg,#6366f1_180deg,transparent_240deg,transparent_360deg)] animate-[spin_8s_linear_infinite] opacity-30" />
             </div>
-            <div className="border-t border-gray-100 dark:border-[#1F1F23] my-4" />
-            <div className="space-y-3 text-sm flex-1 overflow-y-auto pr-1">
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                <span className="text-gray-500 dark:text-gray-400">Course</span>
-                <span className="font-medium text-gray-900 dark:text-white">{selectedAssignment.course.code}</span>
-              </div>
-              {(() => {
-                const d = new Date(selectedAssignment.dueDate);
-                const hasDue = !isNaN(d.getTime()) && d.getFullYear() !== 1970;
-                return hasDue ? (
-                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                    <span className="text-gray-500 dark:text-gray-400">Due</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {d.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })}
-                    </span>
-                  </div>
-                ) : null;
-              })()}
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                <span className="text-gray-500 dark:text-gray-400">Weight</span>
-                <span className="font-medium text-gray-900 dark:text-white">{(selectedAssignment.weight * 100).toFixed(0)}%</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                <span className="text-gray-500 dark:text-gray-400">Max Grade</span>
-                <span className="font-medium text-gray-900 dark:text-white">{selectedAssignment.maxGrade}</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                <span className="text-gray-500 dark:text-gray-400">Grade</span>
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {selectedAssignment.grade != null
-                    ? `${selectedAssignment.grade} / ${selectedAssignment.maxGrade} (${((selectedAssignment.grade / selectedAssignment.maxGrade) * 100).toFixed(1)}%)`
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-[#1F1F23] pb-2">
-                <span className="text-gray-500 dark:text-gray-400">Status</span>
-                <span className="font-medium text-gray-900 dark:text-white uppercase text-[11px] tracking-wider">{selectedAssignment.status.replace("_", " ")}</span>
+
+            {/* Header */}
+            <div className="p-8 pb-4 relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{selectedAssignment.course.code}</div>
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedAssignment.title}</h3>
+                </div>
+                <button onClick={() => setSelectedAssignment(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
               </div>
 
-              {selectedAssignment.description && (
-                <div className="mt-4 pt-2 flex flex-col flex-1">
-                  <span className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider block mb-2">Description</span>
-                  <div
-                    className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] p-3 text-sm text-gray-800 dark:text-gray-200 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedAssignment.description }}
-                  />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { 
+                    label: 'STATUS', 
+                    value: selectedAssignment.status.replace('_', ' '), 
+                    color: selectedAssignment.status === 'completed' ? 'text-green-500' : selectedAssignment.status === 'in_progress' ? 'text-blue-500' : 'text-yellow-500' 
+                  },
+                  { 
+                    label: 'DUE DATE', 
+                    value: (() => {
+                      const d = new Date(selectedAssignment.dueDate);
+                      const isOld = isNaN(d.getTime()) || d.getFullYear() < (new Date().getFullYear() - 5);
+                      return isOld ? "No due date" : d.toLocaleDateString();
+                    })(),
+                    color: 'text-indigo-500' 
+                  },
+                  { label: 'WEIGHT', value: `${(selectedAssignment.weight * 100).toFixed(0)}%`, color: 'text-purple-500' },
+                  { label: 'GRADE', value: selectedAssignment.grade != null ? `${selectedAssignment.grade}/${selectedAssignment.maxGrade}` : 'PENDING', color: 'text-pink-500' },
+                ].map(stat => (
+                  <div key={stat.label} className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">{stat.label}</div>
+                    <div className={cn("text-[11px] font-bold mt-1 uppercase", stat.color)}>{stat.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 relative z-10 scrollbar-hide">
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Description</h4>
+                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
+                  {selectedAssignment.description ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: selectedAssignment.description }} />
+                  ) : (
+                    'No description provided.'
+                  )}
+                </div>
+              </div>
+
+              {selectedAssignment.canvasUrl && (
+                <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                  <a
+                    href={selectedAssignment.canvasUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider"
+                  >
+                    View on Canvas
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               )}
             </div>
-            <div className="pt-4 flex items-center justify-end gap-3 mt-auto shrink-0 border-t border-gray-100 dark:border-[#1F1F23]">
-              <button
-                type="button"
-                className="rounded-lg border border-gray-200 dark:border-[#1F1F23] px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1E] transition-colors"
+
+            {/* Footer Actions */}
+            <div className="p-6 pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/20 flex justify-end gap-3 relative z-10">
+              <button 
                 onClick={() => setSelectedAssignment(null)}
+                className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 Close
               </button>
-              {selectedAssignment.canvasUrl && (
-                <a
-                  href={selectedAssignment.canvasUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white px-4 py-2 text-sm hover:bg-indigo-700 transition"
-                >
-                  Open in Canvas
-                </a>
-              )}
             </div>
           </div>
         </div>,
