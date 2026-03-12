@@ -420,6 +420,7 @@ export default function NotesTab() {
 
                 {/* Left: Upload Section */}
                 <motion.div
+                    id="step-upload-zone"
                     layout
                     className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200 
             ${dragActive ? "border-indigo-500 bg-indigo-50/10" : "border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12]"}
@@ -572,7 +573,7 @@ export default function NotesTab() {
 
 
                 {/* Right: Audio Recorder */}
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
+                <div id="step-recorder-zone" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">

@@ -15,6 +15,7 @@ export default function Navbar({ onOpenAccount }: NavbarProps) {
           Dashboard
         </div>
         <button
+          id="step-account-button"
           type="button"
           onClick={onOpenAccount}
           className="group relative flex items-center gap-2 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent dark:border-white/[0.05] hover:border-black/10 dark:hover:border-white/[0.1] px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 transition-all overflow-hidden"

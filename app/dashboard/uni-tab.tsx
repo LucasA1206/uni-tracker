@@ -422,6 +422,7 @@ export default function UniTab() {
               </p>
             </div>
             <button
+              id="step-sync-button"
               type="button"
               onClick={() => void fetch("/api/integrations/canvas/sync", { method: "POST" }).then(() => refresh())}
               className="rounded-full border border-gray-200 dark:border-[#1F1F23] px-3 py-1 text-[11px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -430,7 +431,9 @@ export default function UniTab() {
             </button>
           </div>
 
-          <AssignmentsCardOverview assignments={assignments} courses={courses} />
+          <div id="step-assignment-overview">
+            <AssignmentsCardOverview assignments={assignments} courses={courses} />
+          </div>
 
           <form onSubmit={addAssignment} className="grid gap-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-6 md:grid-cols-5 text-xs">
             <select
@@ -772,26 +775,28 @@ export default function UniTab() {
             </div>
           )}
         </div>
-        <GradeCharts
-          assignments={useMemo(() =>
-            assignments
-              .filter((a) => !hiddenForCharts.includes(a.course.id))
-              .filter((a) => {
-                if (sessionFilter === "all") return true;
-                const course = courses.find((c) => c.id === a.course.id);
-                const session = course ? getSessionFromCourse(course) : "Unknown";
-                return session === sessionFilter;
-              })
-              .map<AssignmentForCharts>((a) => ({
-                courseCode: a.course.code,
-                weight: a.weight,
-                maxGrade: a.maxGrade,
-                grade: a.grade,
-                dueDate: a.dueDate,
-              })),
-            [assignments, hiddenForCharts, sessionFilter, courses]
-          )}
-        />
+        <div id="step-grade-overview">
+          <GradeCharts
+            assignments={useMemo(() =>
+              assignments
+                .filter((a) => !hiddenForCharts.includes(a.course.id))
+                .filter((a) => {
+                  if (sessionFilter === "all") return true;
+                  const course = courses.find((c) => c.id === a.course.id);
+                  const session = course ? getSessionFromCourse(course) : "Unknown";
+                  return session === sessionFilter;
+                })
+                .map<AssignmentForCharts>((a) => ({
+                  courseCode: a.course.code,
+                  weight: a.weight,
+                  maxGrade: a.maxGrade,
+                  grade: a.grade,
+                  dueDate: a.dueDate,
+                })),
+              [assignments, hiddenForCharts, sessionFilter, courses]
+            )}
+          />
+        </div>
       </div>
     </div>
   );

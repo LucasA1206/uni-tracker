@@ -187,7 +187,7 @@ function DashboardContent() {
 
   return (
     <div className={theme === "dark" ? "dark" : ""}>
-      {showGuide && <GettingStartedGuide onClose={() => setShowGuide(false)} />}
+      {showGuide && <GettingStartedGuide tab={tab} onTabChange={setTab} onClose={() => setShowGuide(false)} />}
       <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)}>
         {tab === "Uni" && (
           <Card className="p-4">
@@ -195,8 +195,8 @@ function DashboardContent() {
           </Card>
         )}
         {tab === "Calendar" && (
-          <Card className="p-4">
-            <CalendarTab />
+          <Card className="min-h-[800px] p-6">
+            <CalendarTab showMock={showGuide} />
           </Card>
         )}
         {tab === "Finance" && (
