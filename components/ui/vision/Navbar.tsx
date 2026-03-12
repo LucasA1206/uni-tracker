@@ -1,18 +1,30 @@
 "use client";
 
 import React from "react";
-import { User } from "lucide-react";
+import { User, Menu } from "lucide-react";
 
 interface NavbarProps {
   onOpenAccount: () => void;
+  isNative?: boolean;
+  onToggleMenu?: () => void;
 }
 
-export default function Navbar({ onOpenAccount }: NavbarProps) {
+export default function Navbar({ onOpenAccount, isNative, onToggleMenu }: NavbarProps) {
   return (
     <header className="sticky top-0 z-30 pt-4 px-4 md:px-8 xl:px-10 pb-2">
       <div className="flex items-center justify-between h-16 px-6 rounded-2xl border border-black/5 dark:border-white/[0.08] bg-white/60 dark:bg-[#09090b]/60 backdrop-blur-2xl shadow-sm transition-all duration-300">
-        <div className="text-gray-900 dark:text-white text-lg font-semibold tracking-tight">
-          Dashboard
+        <div className="flex items-center gap-3">
+          {isNative && (
+            <button
+              onClick={onToggleMenu}
+              className="p-2 -ml-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-gray-200"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          <div className="text-gray-900 dark:text-white text-lg font-semibold tracking-tight">
+            Dashboard
+          </div>
         </div>
         <button
           id="step-account-button"

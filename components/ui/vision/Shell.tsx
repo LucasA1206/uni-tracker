@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 import { cn } from "@/lib/utils";
@@ -12,10 +12,12 @@ interface ShellProps {
   tab: Tab;
   onTabChange: (t: Tab) => void;
   onOpenAccount: () => void;
+  isNative?: boolean;
   children: React.ReactNode;
 }
 
-export default function Shell({ tab, onTabChange, onOpenAccount, children }: ShellProps) {
+export default function Shell({ tab, onTabChange, onOpenAccount, isNative, children }: ShellProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="relative min-h-screen text-gray-900 dark:text-zinc-100 selection:bg-indigo-500/30">
       {/* Background layer: Animated Grid + Radial gradient */}
@@ -34,9 +36,22 @@ export default function Shell({ tab, onTabChange, onOpenAccount, children }: She
       </div>
 
       <div className="flex min-h-screen">
-        <Sidebar active={tab} onChange={onTabChange} />
+        <Sidebar 
+          active={tab} 
+          onChange={(t) => {
+            onTabChange(t);
+            setMenuOpen(false);
+          }} 
+          isNative={isNative}
+          isOpen={menuOpen}
+          onClose={() => setMenuOpen(false)}
+        />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <Navbar onOpenAccount={onOpenAccount} />
+          <Navbar 
+            onOpenAccount={onOpenAccount} 
+            isNative={isNative}
+            onToggleMenu={() => setMenuOpen(!menuOpen)}
+          />
           <main className="flex-1 p-4 md:p-8 xl:p-10 overflow-y-auto">
             <div className="grid gap-6 mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-700">
               {children}
