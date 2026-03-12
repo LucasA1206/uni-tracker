@@ -22,6 +22,7 @@ model User {
 
   canvasApiToken  String?
   googleApiKey    String?
+  hasSeenGuide    Boolean          @default(false)
 
   uniCourses      UniCourse[]
   workTasks       WorkTask[]
