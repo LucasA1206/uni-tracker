@@ -274,20 +274,49 @@ export default function GettingStartedGuide({
     if (!spotlightRect) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
 
     const padding = 20;
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
+    const tooltipWidth = 320;
+    const tooltipHeight = 280; // Estimated max height
+    const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const windowHeight = typeof window !== "undefined" ? window.innerHeight : 800;
 
-    // Default to below the spotlight
-    let top = spotlightRect.bottom + padding;
-    let left = spotlightRect.left + (spotlightRect.width / 2) - 160;
+    // Check for side space first (favors side placement for large elements like modals)
+    const spaceRight = windowWidth - spotlightRect.right;
+    const spaceLeft = spotlightRect.left;
+    const isLarge = spotlightRect.width > windowWidth * 0.5 || spotlightRect.height > windowHeight * 0.5;
 
-    // If too close to bottom, show above
-    if (top + 250 > windowHeight) {
-      top = spotlightRect.top - 250 - padding;
+    let top = 0;
+    let left = 0;
+
+    if (isLarge || (spaceRight < tooltipWidth + padding && spaceLeft < tooltipWidth + padding)) {
+      // For large modals or tight spaces, try to force it to a side or overlap safely
+      if (spaceRight > spaceLeft && spaceRight > tooltipWidth + padding) {
+        // Place to the right
+        left = spotlightRect.right + padding;
+        top = Math.max(padding, Math.min(spotlightRect.top + 20, windowHeight - tooltipHeight - padding));
+      } else if (spaceLeft > tooltipWidth + padding) {
+        // Place to the left
+        left = spotlightRect.left - tooltipWidth - padding;
+        top = Math.max(padding, Math.min(spotlightRect.top + 20, windowHeight - tooltipHeight - padding));
+      } else {
+        // Final fallback: center-bottom overlapping or bottom
+        top = Math.min(spotlightRect.bottom + padding, windowHeight - tooltipHeight - padding);
+        left = (windowWidth - tooltipWidth) / 2;
+      }
+    } else {
+      // Default to below the spotlight
+      top = spotlightRect.bottom + padding;
+      left = spotlightRect.left + (spotlightRect.width / 2) - (tooltipWidth / 2);
+
+      // If too close to bottom, show above
+      if (top + tooltipHeight > windowHeight) {
+        top = spotlightRect.top - tooltipHeight - padding;
+      }
+
+      // Clamp to vertical bounds
+      top = Math.max(padding, Math.min(top, windowHeight - tooltipHeight - padding));
+      // Clamp to horizontal bounds
+      left = Math.max(padding, Math.min(left, windowWidth - tooltipWidth - padding));
     }
-
-    // Keep within horizontal bounds
-    left = Math.max(padding, Math.min(left, windowWidth - 320 - padding));
 
     return { top: `${top}px`, left: `${left}px` };
   }, [spotlightRect]);
