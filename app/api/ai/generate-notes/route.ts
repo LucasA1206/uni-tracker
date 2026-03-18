@@ -47,6 +47,26 @@ export async function POST(req: NextRequest) {
     let tempFilePath = "";
 
     try {
+        const authUser = await getAuthUser(req);
+        if (!authUser) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: authUser.userId }
+        });
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
+
+        const apiKey = user.googleApiKey || process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return NextResponse.json(
+                { error: "No Google API Key configured. Please add one in settings or configure the server." },
+                { status: 400 }
+            );
+        }
+
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
         const courseId = formData.get("courseId") as string | null;
@@ -104,23 +124,6 @@ export async function POST(req: NextRequest) {
         });
 
         console.log("File assembled. Processing file with Gemini:", tempFilePath);
-
-        const authUser = await getAuthUser();
-        if (!authUser) {
-            throw new Error("Unauthorized");
-        }
-
-        const user = await prisma.user.findUnique({
-            where: { id: authUser.userId }
-        });
-        if (!user) {
-            throw new Error("No user found in database.");
-        }
-
-        const apiKey = user.googleApiKey || process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            throw new Error("No Google API Key configured. Please add one in settings or configure the server.");
-        }
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });

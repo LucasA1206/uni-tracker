@@ -362,6 +362,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
 
                 const res = await fetch("/api/ai/generate-notes", {
                     method: "POST",
+                    credentials: "include",
                     body: formData,
                 });
 
