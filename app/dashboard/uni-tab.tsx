@@ -263,6 +263,13 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     } catch (err) { console.error("Update status failed", err); }
   };
 
+  const handleSelectedAssignmentStatusChange = async (status: string) => {
+    if (!selectedAssignment) return;
+    const assignmentId = selectedAssignment.id;
+    setSelectedAssignment((prev) => (prev ? { ...prev, status } : prev));
+    await updateAssignmentStatus(assignmentId, status);
+  };
+
   const toggleSemesterHidden = (session: string) => {
     setHiddenSemesters(prev => {
       const next = prev.includes(session) ? prev.filter(s => s !== session) : [...prev, session];
@@ -419,6 +426,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   assignments={displayAssignments} 
                   courses={displayCourses} 
                   activeTabOverride={assignmentsTabOverride}
+                  onUpdateStatus={updateAssignmentStatus}
                 />
                 <BorderBeam size={200} duration={12} colorFrom="#6366f1" colorTo="#3b82f6" />
               </div>
@@ -558,7 +566,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedAssignment(null)}>
           <div 
             id="step-assignment-modal"
-            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-[772px] max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <BorderBeam size={500} duration={10} colorFrom="#6366f1" colorTo="#ec4899" />
@@ -578,11 +586,6 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { 
-                    label: 'STATUS', 
-                    value: selectedAssignment.status.replace('_', ' '), 
-                    color: selectedAssignment.status === 'completed' ? 'text-green-500' : selectedAssignment.status === 'in_progress' ? 'text-blue-500' : 'text-yellow-500' 
-                  },
-                  { 
                     label: 'DUE DATE', 
                     value: (() => {
                       const d = new Date(selectedAssignment.dueDate);
@@ -599,6 +602,18 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                     <div className={cn("text-[11px] font-bold mt-1 uppercase", stat.color)}>{stat.value}</div>
                   </div>
                 ))}
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                  <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
+                  <select
+                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
+                    value={selectedAssignment.status}
+                    onChange={(e) => void handleSelectedAssignmentStatusChange(e.target.value)}
+                  >
+                    {ASSIGNMENT_STATUSES.map((status) => (
+                      <option key={status.value} value={status.value}>{status.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 

@@ -53,7 +53,14 @@ interface Props {
   assignments: Assignment[];
   courses: Course[];
   activeTabOverride?: string;
+  onUpdateStatus?: (id: number, status: string) => Promise<void> | void;
 }
+
+const ASSIGNMENT_STATUSES = [
+  { value: "pending", label: "To-Do" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+] as const;
 
 function getSessionFromCourse(course: Course): string {
   if (course.name && course.name.includes("- ")) {
@@ -100,7 +107,7 @@ function getGrade7FromPercentage(pct: number | null): number | null {
 
 const CURRENT_SESSION = "Autumn 2026";
 
-export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride }: Props) {
+export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride, onUpdateStatus }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Upcoming Assignments");
 
   useEffect(() => {
@@ -112,6 +119,14 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
   const [manualGpas, setManualGpas] = useState<Record<string, number>>({});
   const [manualWams, setManualWams] = useState<Record<string, number>>({});
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+
+  useEffect(() => {
+    if (!selectedAssignment) return;
+    const latest = assignments.find((a) => a.id === selectedAssignment.id);
+    if (latest && latest.status !== selectedAssignment.status) {
+      setSelectedAssignment(latest);
+    }
+  }, [assignments, selectedAssignment]);
 
   useEffect(() => {
     try {
@@ -139,6 +154,27 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
   const saveManualWams = (newWams: Record<string, number>) => {
     setManualWams(newWams);
     window.localStorage.setItem("manual_session_wams", JSON.stringify(newWams));
+  };
+
+  const handleModalStatusChange = async (status: string) => {
+    if (!selectedAssignment) return;
+
+    const assignmentId = selectedAssignment.id;
+    setSelectedAssignment((prev) => (prev ? { ...prev, status } : prev));
+
+    try {
+      if (onUpdateStatus) {
+        await onUpdateStatus(assignmentId, status);
+        return;
+      }
+      await fetch("/api/uni/assignments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: assignmentId, status })
+      });
+    } catch (err) {
+      console.error("Update status failed", err);
+    }
   };
 
   const menuItems = [
@@ -503,7 +539,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
       {selectedAssignment && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedAssignment(null)}>
           <div 
-            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-[772px] max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -525,11 +561,6 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { 
-                    label: 'STATUS', 
-                    value: selectedAssignment.status.replace('_', ' '), 
-                    color: selectedAssignment.status === 'completed' ? 'text-green-500' : selectedAssignment.status === 'in_progress' ? 'text-blue-500' : 'text-yellow-500' 
-                  },
-                  { 
                     label: 'DUE DATE', 
                     value: (() => {
                       const d = new Date(selectedAssignment.dueDate);
@@ -546,6 +577,18 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
                     <div className={cn("text-[11px] font-bold mt-1 uppercase", stat.color)}>{stat.value}</div>
                   </div>
                 ))}
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                  <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
+                  <select
+                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
+                    value={selectedAssignment.status}
+                    onChange={(e) => void handleModalStatusChange(e.target.value)}
+                  >
+                    {ASSIGNMENT_STATUSES.map((status) => (
+                      <option key={status.value} value={status.value}>{status.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
