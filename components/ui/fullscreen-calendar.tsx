@@ -175,7 +175,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     return (
       <div className={cn(
         "relative overflow-hidden w-full text-left flex flex-col items-start gap-1 rounded-md p-1.5 text-xs leading-tight transition-colors",
-        isNote ? noteSolidClass : "bg-white dark:bg-[#1A1A1E] border border-gray-200 dark:border-[#2A2A2E] shadow-sm"
+        isNote ? noteSolidClass : "bg-gray-50 dark:bg-[#1A1A1E] border border-gray-200 dark:border-[#2A2A2E] shadow-sm"
       )}>
         {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} />}
         <div className={cn("w-full overflow-hidden", !isNote && "pl-1")}>
@@ -224,7 +224,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
             setCreateForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00" })
             setOpenCreate(true)
           }}
-          className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1E] transition-colors"
+          className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1E] transition-colors"
         >
           <span className="text-lg leading-none">+</span> New Event
         </button>
@@ -243,7 +243,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
           --fc-event-bg-color: transparent;
           --fc-event-border-color: transparent;
           --fc-today-bg-color: #f3f4f6;
-          --fc-page-bg-color: #ffffff;
+          --fc-page-bg-color: #f5f5f5;
           --fc-neutral-bg-color: #f9fafb;
           font-family: inherit;
         }
@@ -329,7 +329,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       {openDay && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setOpenDay(null)}>
           <div 
-            className="relative w-full max-w-xl max-h-[70vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-xl max-h-[70vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <div className="p-8 pb-4 text-left">
@@ -362,7 +362,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                       className={cn(
                         "w-full text-left rounded-lg border p-3 text-xs hover:bg-gray-50 dark:hover:bg-[#1A1A1E] relative overflow-hidden transition-colors",
                         isNote
-                          ? "border-dashed border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12]"
+                          ? "border-dashed border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12]"
                           : "border-solid border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12]"
                       )}
                       onClick={() => {
@@ -410,7 +410,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setOpenEvent(null)}>
           <div 
             id="step-assignment-modal"
-            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -529,7 +529,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       {openCreate && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setOpenCreate(false)}>
           <div 
-            className="relative w-full max-w-xl max-h-[80vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-xl max-h-[80vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <div className="p-8 pb-4 text-left">
@@ -570,7 +570,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                 <label className="text-gray-700 dark:text-gray-300 font-medium">Title</label>
                 <input
                   required
-                  className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
                   value={createForm.title}
                   onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
                   placeholder="Event title"

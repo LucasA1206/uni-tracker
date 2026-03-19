@@ -439,7 +439,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                     id="step-upload-zone"
                     layout
                     className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200 
-            ${dragActive ? "border-indigo-500 bg-indigo-50/10" : "border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12]"}
+            ${dragActive ? "border-indigo-500 bg-indigo-50/10" : "border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12]"}
             ${isProcessing ? "pointer-events-none opacity-80" : ""}
             `}
                     onDragEnter={handleDrag}
@@ -452,9 +452,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                             <div className="flex flex-col items-center gap-4">
                                 <div className="relative">
                                     <div className="absolute inset-0 rounded-full animate-ping bg-indigo-500/20"></div>
-                                    <div className="relative bg-white dark:bg-[#1A1A1A] p-4 rounded-full shadow-xl">
-                                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                                    </div>
+                                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
                                 </div>
                                 <div className="space-y-1">
                                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Processing your lecture</h3>
@@ -479,10 +477,10 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                         <span className="w-full border-t border-gray-200 dark:border-gray-800" />
                                     </div>
                                     <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-white dark:bg-[#0F0F12] px-2 text-gray-500">Or</span>
+                                        <span className="bg-gray-50 dark:bg-[#0F0F12] px-2 text-gray-500">Or</span>
                                     </div>
                                 </div>
-                                <label className="cursor-pointer rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                <label className="cursor-pointer rounded-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                                     Browse Files
                                     <input type="file" className="hidden" accept=".mp3,audio/mpeg,.webm,audio/webm,video/webm,.mp4,video/mp4" onChange={handleFileChange} />
                                 </label>
@@ -563,7 +561,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                                             document.body.removeChild(a);
                                                             URL.revokeObjectURL(url);
                                                         }}
-                                                        className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors bg-white dark:bg-[#0F0F12]"
+                                                        className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors bg-gray-50 dark:bg-[#0F0F12]"
                                                     >
                                                         <Download className="w-4 h-4" /> Save MP3
                                                     </button>
@@ -589,7 +587,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
 
 
                 {/* Right: Audio Recorder */}
-                <div id="step-recorder-zone" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
+                <div id="step-recorder-zone" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -710,7 +708,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                     title: quiz.title,
                                     existingQuiz: quiz
                                 })}
-                                className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                                className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                             >
                                 <div className="space-y-2 pointer-events-none">
                                     <div className="flex items-start justify-between">
@@ -796,7 +794,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         onClick={() => router.push(`/dashboard/notes/${note.id}`)}
-                                        className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow h-64 overflow-hidden cursor-pointer"
+                                        className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow h-64 overflow-hidden cursor-pointer"
                                     >
                                         <div className="space-y-2 pointer-events-none">
                                             <div className="flex items-start justify-between">
@@ -855,7 +853,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                         id="step-note-modal"
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="w-full max-w-2xl max-h-[80vh] bg-white dark:bg-[#0F0F12] rounded-3xl border border-gray-200 dark:border-[#1F1F23] shadow-2xl flex flex-col overflow-hidden"
+                        className="w-full max-w-2xl max-h-[80vh] bg-gray-50 dark:bg-[#0F0F12] rounded-3xl border border-gray-200 dark:border-[#1F1F23] shadow-2xl flex flex-col overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">

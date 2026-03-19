@@ -16,7 +16,7 @@ export function MinimalAuthPage({
 	return (
 		<div className="relative md:h-screen md:overflow-hidden w-full bg-black">
 			<Particles
-				color="#ffffff"
+				color="#f5f5f5"
 				quantity={180}
 				ease={20}
 				className="absolute inset-0"

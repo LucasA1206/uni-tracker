@@ -341,7 +341,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
       <button
         key={a.id}
         type="button"
-        className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0A0A0B] p-4 shadow-sm flex items-stretch text-left w-full hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all group"
+        className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0A0A0B] p-4 shadow-sm flex items-stretch text-left w-full hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all group"
         onClick={() => setSelectedAssignment(a)}
       >
         <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${colorClass}`} />
@@ -370,7 +370,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
     <div className="space-y-4 mb-8">
       <MenuBar items={menuItems} activeItem={activeTab} onItemClick={setActiveTab} />
 
-      <div className="mt-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-[#030303]/50 backdrop-blur-xl p-4 min-h-[300px]">
+      <div className="mt-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#030303]/50 backdrop-blur-xl p-4 min-h-[300px]">
         {activeTab === "Past Assignments" && (
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Past Assignments ({CURRENT_SESSION})</h3>
@@ -539,7 +539,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
       {selectedAssignment && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedAssignment(null)}>
           <div 
-            className="relative w-full max-w-[772px] max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-[772px] max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -580,7 +580,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
                 <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
                   <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
                   <select
-                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
+                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
                     value={selectedAssignment.status}
                     onChange={(e) => void handleModalStatusChange(e.target.value)}
                   >
@@ -641,7 +641,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
           onClick={() => setSettingsOpen(false)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] p-6 shadow-xl relative max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-lg rounded-2xl bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2E] p-6 shadow-xl relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button

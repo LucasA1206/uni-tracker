@@ -80,7 +80,7 @@ export default function CalendarTab({ showMock, autoOpenEventId }: CalendarTabPr
             </p>
           </div>
         </div>
-        <div className="relative flex-1 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white/50 dark:bg-[#0F0F12]/50 backdrop-blur-md p-4 bg-zinc-50 dark:bg-[#0A0A0C] overflow-hidden">
+        <div className="relative flex-1 rounded-2xl border border-gray-200 dark:border-zinc-800 bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-md p-4 bg-gray-50 dark:bg-[#0A0A0C] overflow-hidden">
           <BorderBeam size={400} duration={15} colorFrom="#06b6d4" colorTo="#3b82f6" />
           <FullScreenCalendar
             events={events}

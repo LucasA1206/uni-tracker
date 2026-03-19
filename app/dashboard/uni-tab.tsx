@@ -133,6 +133,13 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     }
   }, [refresh]);
 
+  const displayCourses = useMemo(() => {
+    if (openAssignmentDemo && courses.length === 0) {
+      return [{ id: 999, name: "Intro to AI - Autumn 2026", code: "AI101", term: "Autumn", year: 2026 }];
+    }
+    return courses;
+  }, [courses, openAssignmentDemo]);
+
   // Initialize selected semesters to current semester on first load
   useEffect(() => {
     if (displayCourses.length > 0 && selectedSemesters.length === 0) {
@@ -162,13 +169,6 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       }
     }
   }, [displayCourses, selectedSemesters.length]);
-
-  const displayCourses = useMemo(() => {
-    if (openAssignmentDemo && courses.length === 0) {
-      return [{ id: 999, name: "Intro to AI - Autumn 2026", code: "AI101", term: "Autumn", year: 2026 }];
-    }
-    return courses;
-  }, [courses, openAssignmentDemo]);
 
   const displayAssignments = useMemo(() => {
     if (openAssignmentDemo && assignments.length === 0) {
@@ -387,23 +387,23 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         <section className="md:col-span-1 space-y-4">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Courses</h2>
           <BlurFade delay={0.1}>
-            <form onSubmit={addCourse} className="relative space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 overflow-hidden">
+            <form onSubmit={addCourse} className="relative space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 overflow-hidden">
               <BorderBeam size={100} duration={12} delay={2} />
               <input
-                className="w-full rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all"
+                className="w-full rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all"
                 placeholder="Course name"
                 value={newCourse.name}
                 onChange={(e) => setNewCourse((c) => ({ ...c, name: e.target.value }))}
               />
               <input
-                className="w-full rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all"
+                className="w-full rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all"
                 placeholder="Course code"
                 value={newCourse.code}
                 onChange={(e) => setNewCourse((c) => ({ ...c, code: e.target.value }))}
               />
               <div className="grid grid-cols-2 gap-2">
                 <select
-                  className="w-full rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden transition-all"
+                  className="w-full rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden transition-all"
                   value={newCourse.term}
                   onChange={(e) => setNewCourse((c) => ({ ...c, term: e.target.value }))}
                 >
@@ -414,7 +414,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 </select>
                 <input
                   type="number"
-                  className="w-full rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden transition-all"
+                  className="w-full rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-sm outline-hidden transition-all"
                   placeholder="Year"
                   value={newCourse.year}
                   onChange={(e) => setNewCourse((c) => ({ ...c, year: e.target.value }))}
@@ -432,7 +432,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
           <BlurFade delay={0.2}>
             <ul className="space-y-1 text-sm">
               {courses.map((c) => (
-                <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#0F0F12] px-3 py-2">
+                <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2">
                   <div className={`absolute top-0 bottom-0 left-0 w-1 ${COURSE_COLORS[c.id % COURSE_COLORS.length]}`} />
                   <div className="pl-2">
                     <div className="font-medium">{c.name.split("-")[0].trim()}</div>
@@ -497,10 +497,10 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 <BorderBeam size={200} duration={12} colorFrom="#6366f1" colorTo="#3b82f6" />
               </div>
 
-              <form onSubmit={addAssignment} className="relative group grid gap-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 md:grid-cols-5 text-xs overflow-hidden">
+              <form onSubmit={addAssignment} className="relative group grid gap-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 md:grid-cols-5 text-xs overflow-hidden">
                 <BorderBeam size={100} duration={10} delay={5} colorFrom="#a855f7" colorTo="#6366f1" />
                 <select
-                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-2 outline-hidden"
+                  className="rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-2 outline-hidden"
                   value={newAssignment.courseId}
                   onChange={(e) => setNewAssignment((a) => ({ ...a, courseId: e.target.value }))}
                 >
@@ -512,7 +512,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   ))}
                 </select>
                 <input
-                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-3 outline-hidden"
+                  className="rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-3 outline-hidden"
                   placeholder="Task title"
                   value={newAssignment.title}
                   onChange={(e) => setNewAssignment((a) => ({ ...a, title: e.target.value }))}
@@ -525,14 +525,14 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 />
                 <input
                   type="number"
-                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 outline-hidden"
+                  className="rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 outline-hidden"
                   placeholder="Weight %"
                   value={newAssignment.weightPercent}
                   onChange={(e) => setNewAssignment((a) => ({ ...a, weightPercent: e.target.value }))}
                 />
                 <input
                   type="number"
-                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 outline-hidden"
+                  className="rounded-md bg-gray-50 dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 outline-hidden"
                   placeholder="Max pts"
                   value={newAssignment.maxGrade}
                   onChange={(e) => setNewAssignment((a) => ({ ...a, maxGrade: e.target.value }))}
@@ -558,7 +558,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                         "px-3 py-1 rounded-full text-xs font-semibold transition-all border",
                         selectedSemesters.includes(semester)
                           ? "bg-indigo-500 text-white border-indigo-500 shadow-md shadow-indigo-500/20"
-                          : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500"
+                          : "bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500"
                       )}
                     >
                       {semester}
@@ -569,7 +569,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 )}
               </div>
 
-              <div className="relative space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 min-h-[30rem] max-h-[50rem] overflow-auto scrollbar-hide">
+              <div className="relative space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 min-h-[30rem] max-h-[50rem] overflow-auto scrollbar-hide">
                 <BorderBeam size={300} duration={20} colorFrom="#a855f7" colorTo="#3b82f6" initialOffset={25} />
                 {filteredAssignmentsBySelectedSemesters.length === 0 && (
                   <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet. Import from Canvas or add manually.</p>
@@ -621,7 +621,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                 })
                                 .map(([courseId, assignments]) =>
                                   assignments.map(a => (
-                                    <div key={a.id} className="group relative rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-white dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
+                                    <div key={a.id} className="group relative rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
                                       <div className="flex items-center justify-between gap-4">
                                         <div className="min-w-0 flex-1 flex items-center gap-3">
                                           <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
@@ -672,7 +672,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
             <div className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold uppercase tracking-wider">Analytics</div>
           </div>
           
-          <div id="step-grade-overview" className="relative rounded-2xl border border-gray-200 dark:border-[#1F1F23] bg-white/40 dark:bg-[#0F0F12]/40 backdrop-blur-md p-6 overflow-hidden">
+          <div id="step-grade-overview" className="relative rounded-2xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/40 dark:bg-[#0F0F12]/40 backdrop-blur-md p-6 overflow-hidden">
             <BorderBeam size={400} duration={15} colorFrom="#f43f5e" colorTo="#fb923c" initialOffset={50} />
             <GradeCharts assignments={displayAssignmentsForCharts} />
           </div>
@@ -683,7 +683,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedAssignment(null)}>
           <div 
             id="step-assignment-modal"
-            className="relative w-full max-w-[772px] max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-white dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-[772px] max-h-[90vh] flex flex-col rounded-3xl border border-gray-50/80 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <BorderBeam size={500} duration={10} colorFrom="#6366f1" colorTo="#ec4899" />
@@ -722,7 +722,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
                   <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
                   <select
-                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
+                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
                     value={selectedAssignment.status}
                     onChange={(e) => void handleSelectedAssignmentStatusChange(e.target.value)}
                   >
