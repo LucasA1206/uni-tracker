@@ -145,7 +145,7 @@ export default function QuizModal({ isOpen, onClose, noteId, courseId, title, ex
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-[#1A1A1A] text-left align-middle shadow-xl transition-all border border-gray-200 dark:border-[#2A2A2E]">
+                            <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gray-50 dark:bg-[#1A1A1A] text-left align-middle shadow-xl transition-all border border-gray-200 dark:border-[#2A2A2E]">
 
                                 <div className="p-6 md:p-8">
                                     {step === "config" && (

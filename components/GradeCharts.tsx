@@ -146,7 +146,7 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
 
   if (!hasCourseData) {
     return (
-      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3 text-xs text-gray-500 dark:text-slate-400">
+      <div className="rounded-lg bg-gray-50 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3 text-xs text-gray-500 dark:text-slate-400">
         No graded assignments yet. Charts will appear once you start entering grades.
       </div>
     );
@@ -168,7 +168,7 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {/* Pie chart: each slice sized by weighted percentage, labels outside */}
-      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-4">
+      <div className="rounded-lg bg-gray-50 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-4">
         <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Weighted grade per course (pie)</h3>
         <div className="h-80 pt-4 pb-6">
           <Pie
@@ -221,7 +221,7 @@ export default function GradeCharts({ assignments }: { assignments: AssignmentFo
       </div>
 
       {/* Bar chart: same data, easier to compare courses */}
-      <div className="rounded-lg bg-white dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3">
+      <div className="rounded-lg bg-gray-50 dark:bg-slate-900/60 border border-gray-200 dark:border-slate-800 p-3">
         <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-slate-100">Weighted grade per course (bar)</h3>
         <div className="h-100">
           <Bar

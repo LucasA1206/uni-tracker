@@ -504,7 +504,7 @@ export default function FinanceTab() {
             step="0.01"
             min="0"
             max="100"
-            className="w-20 rounded border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-2 py-1 text-sm"
+            className="w-20 rounded border border-gray-200 dark:border-[#2A2A2E] bg-gray-50 dark:bg-[#1A1A1A] px-2 py-1 text-sm"
             value={p.savingsInterestRatePA}
             onChange={(e) =>
               setProfile((prev) =>

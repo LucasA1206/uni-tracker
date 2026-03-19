@@ -32,13 +32,13 @@ const Container = styled.div`
   }
   
   #header-bar {
-    background-color: #ffffff !important;
+    background-color: #f5f5f5 !important;
     border-bottom: 1px solid rgba(0,0,0,0.1);
   }
 
   /* Style the navigation buttons */
   #header-bar button {
-    background-color: white !important;
+    background-color: #f5f5f5 !important;
     color: #4f46e5 !important; /* Indigo-600 - Matches app theme */
     border: 1px solid #e5e7eb !important;
     border-radius: 6px !important;
@@ -86,7 +86,7 @@ export default function CustomDocViewer({ docs }: DocViewerProps) {
                         },
                     }}
                     theme={{
-                        primary: "#ffffff", // White background for header/controls
+                        primary: "#f5f5f5", // Soft white background for header/controls
                         secondary: "#4f46e5", // Indigo accent
                         tertiary: "#e0e7ff", // Light indigo hover
                         textPrimary: "#1f2937", // Gray-800

@@ -219,9 +219,9 @@ export default function NoteDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white dark:bg-[#0E1020]">
+        <div className="min-h-screen bg-gray-50 dark:bg-[#0E1020]">
             {/* Top Navigation Bar */}
-            <header className="sticky top-0 z-10 border-b border-gray-200 dark:border-[#1F1F23] bg-white/80 dark:bg-[#0E1020]/80 backdrop-blur-md">
+            <header className="sticky top-0 z-10 border-b border-gray-200 dark:border-[#1F1F23] bg-gray-50/80 dark:bg-[#0E1020]/80 backdrop-blur-md">
                 <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-4">
                         <Link
@@ -337,7 +337,7 @@ export default function NoteDetailPage() {
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-3 flex-1 min-w-0" // min-w-0 for truncation
                                         >
-                                            <div className="p-2 rounded bg-white dark:bg-gray-800 text-indigo-500 shadow-sm group-hover:scale-105 transition-transform">
+                                            <div className="p-2 rounded bg-gray-50 dark:bg-gray-800 text-indigo-500 shadow-sm group-hover:scale-105 transition-transform">
                                                 <FileIcon className="w-4 h-4" />
                                             </div>
                                             <div className="overflow-hidden">
@@ -415,7 +415,7 @@ export default function NoteDetailPage() {
                         <textarea
                             value={editContent}
                             onChange={(e) => setEditContent(e.target.value)}
-                            className="w-full min-h-[500px] p-4 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0F0F12] text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-y"
+                            className="w-full min-h-[500px] p-4 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#0F0F12] text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-y"
                             placeholder="Type your markdown notes here..."
                         />
                         <div className="absolute right-2 bottom-2 text-xs text-gray-400 pointer-events-none">
@@ -453,7 +453,7 @@ export default function NoteDetailPage() {
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800" {...props} />
                                 ),
                                 tr: ({ node, ...props }) => (
-                                    <tr className="bg-white dark:bg-[#0E1020] hover:bg-gray-50 dark:hover:bg-[#1F1F23]/50 transition-colors" {...props} />
+                                    <tr className="bg-gray-50 dark:bg-[#0E1020] hover:bg-gray-100 dark:hover:bg-[#1F1F23]/50 transition-colors" {...props} />
                                 ),
                                 th: ({ node, ...props }) => (
                                     <th className="px-6 py-3 whitespace-nowrap" {...props} />
