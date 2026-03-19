@@ -98,6 +98,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [newNote, setNewNote] = useState({ title: "", content: "", courseId: "" });
   const [hiddenCourses, setHiddenCourses] = useState<number[]>([]);
   const [hiddenSemesters, setHiddenSemesters] = useState<string[]>([]);
+  const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
@@ -126,7 +127,41 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     if (storedCharts) {
       try { setHiddenForCharts(JSON.parse(storedCharts)); } catch {}
     }
+    const storedSelectedSemesters = window.localStorage.getItem("selected_semesters");
+    if (storedSelectedSemesters) {
+      try { setSelectedSemesters(JSON.parse(storedSelectedSemesters)); } catch {}
+    }
   }, [refresh]);
+
+  // Initialize selected semesters to current semester on first load
+  useEffect(() => {
+    if (displayCourses.length > 0 && selectedSemesters.length === 0) {
+      const allSemesters = Array.from(new Set(displayCourses.map(c => getSessionFromCourse(c)).filter(s => s !== "Unknown"))).sort();
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth();
+      
+      // Determine current semester based on month
+      let currentSemester: string;
+      if (currentMonth >= 8) { // September onwards = Autumn
+        currentSemester = `Autumn ${currentYear}`;
+      } else if (currentMonth >= 5) { // June onwards = Winter
+        currentSemester = `Winter ${currentYear}`;
+      } else if (currentMonth >= 2) { // March onwards = Spring
+        currentSemester = `Spring ${currentYear}`;
+      } else { // January-February = Summer (previous year)
+        currentSemester = `Summer ${currentYear - 1}`;
+      }
+      
+      // Set current semester as selected if it exists in the list, otherwise select the latest semester
+      const defaultSemester = allSemesters.includes(currentSemester) ? currentSemester : allSemesters[allSemesters.length - 1] || "";
+      if (defaultSemester) {
+        const newSelected = [defaultSemester];
+        setSelectedSemesters(newSelected);
+        window.localStorage.setItem("selected_semesters", JSON.stringify(newSelected));
+      }
+    }
+  }, [displayCourses, selectedSemesters.length]);
 
   const displayCourses = useMemo(() => {
     if (openAssignmentDemo && courses.length === 0) {
@@ -278,9 +313,29 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     });
   };
 
+  const toggleSelectedSemester = (semester: string) => {
+    setSelectedSemesters(prev => {
+      const next = prev.includes(semester) 
+        ? prev.filter(s => s !== semester) 
+        : [...prev, semester];
+      window.localStorage.setItem("selected_semesters", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const toggleCourseHidden = (id: number) => {
     setHiddenCourses(prev => (prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]));
   };
+
+  const filteredAssignmentsBySelectedSemesters = useMemo(() => {
+    if (selectedSemesters.length === 0) return displayAssignments;
+    return displayAssignments.filter(a => {
+      const course = displayCourses.find(c => c.id === a.course.id);
+      if (!course) return false;
+      const semester = getSessionFromCourse(course);
+      return selectedSemesters.includes(semester);
+    });
+  }, [displayAssignments, displayCourses, selectedSemesters]);
 
   const assignmentsByCourse = useMemo(() => {
     const grouped: Record<number, { byStatus: Record<string, Assignment[]> }> = {};
@@ -312,6 +367,17 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
 
   const sessionOptions = useMemo(() => {
     return Array.from(new Set(displayCourses.map(c => getSessionFromCourse(c)).filter(s => s !== "Unknown"))).sort();
+  }, [displayCourses]);
+
+  const availableSemesters = useMemo(() => {
+    const semesters = Array.from(new Set(displayCourses.map(c => getSessionFromCourse(c)).filter(s => s !== "Unknown"))).sort((a, b) => {
+      const [termA, yearA] = a.split(" ");
+      const [termB, yearB] = b.split(" ");
+      if (yearA !== yearB) return parseInt(yearB) - parseInt(yearA);
+      const terms: Record<string, number> = { "Summer": 0, "Autumn": 1, "Winter": 2, "Spring": 3 };
+      return (terms[termB] || 0) - (terms[termA] || 0);
+    });
+    return semesters;
   }, [displayCourses]);
 
   return (
@@ -423,7 +489,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
 
               <div id="step-assignment-overview" className="relative group overflow-hidden rounded-2xl">
                 <AssignmentsCardOverview 
-                  assignments={displayAssignments} 
+                  assignments={filteredAssignmentsBySelectedSemesters} 
                   courses={displayCourses} 
                   activeTabOverride={assignmentsTabOverride}
                   onUpdateStatus={updateAssignmentStatus}
@@ -479,9 +545,33 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 </button>
               </form>
 
+              {/* Semester Filter Bar */}
+              <div className="flex items-center gap-2 flex-wrap bg-gray-50 dark:bg-zinc-900/30 rounded-lg p-3 border border-gray-200 dark:border-[#1F1F23]">
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Filter by semester:</span>
+                {availableSemesters.length > 0 ? (
+                  availableSemesters.map((semester) => (
+                    <button
+                      key={semester}
+                      type="button"
+                      onClick={() => toggleSelectedSemester(semester)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-semibold transition-all border",
+                        selectedSemesters.includes(semester)
+                          ? "bg-indigo-500 text-white border-indigo-500 shadow-md shadow-indigo-500/20"
+                          : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500"
+                      )}
+                    >
+                      {semester}
+                    </button>
+                  ))
+                ) : (
+                  <span className="text-xs text-gray-500 dark:text-gray-400">No semesters available</span>
+                )}
+              </div>
+
               <div className="relative space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-white/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 min-h-[30rem] max-h-[50rem] overflow-auto scrollbar-hide">
                 <BorderBeam size={300} duration={20} colorFrom="#a855f7" colorTo="#3b82f6" initialOffset={25} />
-                {displayAssignments.length === 0 && (
+                {filteredAssignmentsBySelectedSemesters.length === 0 && (
                   <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet. Import from Canvas or add manually.</p>
                 )}
                 
@@ -493,7 +583,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   // Create a map of status -> course -> assignments
                   const grouped: Record<string, Record<number, Assignment[]>> = {};
                   
-                  displayAssignments.forEach((a) => {
+                  filteredAssignmentsBySelectedSemesters.forEach((a) => {
                     const status = a.status;
                     if (!grouped[status]) grouped[status] = {};
                     if (!grouped[status][a.course.id]) grouped[status][a.course.id] = [];
