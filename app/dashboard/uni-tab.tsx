@@ -487,7 +487,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 
                 {(() => {
                   // Group by status first, then by course, sorted by due date
-                  const statusOrder = { in_progress: 0, pending: 1, completed: 2 };
+                  const statusOrder: Record<string, number> = { in_progress: 0, pending: 1, completed: 2 };
                   const statusLabels: Record<string, string> = { pending: "To-Do", in_progress: "In Progress", completed: "Completed" };
                   
                   // Create a map of status -> course -> assignments
@@ -509,7 +509,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   
                   // Render in status order
                   return Object.entries(grouped)
-                    .sort(([statusA], [statusB]) => (statusOrder[statusA] ?? 3) - (statusOrder[statusB] ?? 3))
+                    .sort(([statusA], [statusB]) => ((statusOrder[statusA] as number) ?? 3) - ((statusOrder[statusB] as number) ?? 3))
                     .map(([status, courseGroups]) => {
                       const statusKey = `status-${status}`;
                       const isHidden = hiddenSemesters.includes(statusKey);
