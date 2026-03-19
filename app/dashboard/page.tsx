@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Capacitor } from '@capacitor/core';
 import Shell from "@/components/ui/vision/Shell";
 import Card from "@/components/ui/vision/Card";
 import UniTab from "./uni-tab";
@@ -33,7 +32,17 @@ function DashboardContent() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setIsNative(Capacitor.isNativePlatform());
+      try {
+        // Dynamically import Capacitor for native platform detection
+        import('@capacitor/core').then(({ Capacitor }) => {
+          setIsNative(Capacitor.isNativePlatform());
+        }).catch(() => {
+          // If Capacitor is not available (web build), default to false
+          setIsNative(false);
+        });
+      } catch {
+        setIsNative(false);
+      }
     }
   }, []);
 
