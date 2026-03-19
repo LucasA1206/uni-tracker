@@ -485,63 +485,90 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet. Import from Canvas or add manually.</p>
                 )}
                 
-                {Object.entries(
-                  displayAssignments.reduce((acc, a) => {
-                    const course = displayCourses.find(c => c.id === a.course.id);
-                    const session = course ? getSessionFromCourse(course) : "Unknown";
-                    if (!acc[session]) acc[session] = [];
-                    acc[session].push(a);
-                    return acc;
-                  }, {} as Record<string, Assignment[]>)
-                ).sort(([sa], [sb]) => sb.localeCompare(sa)).map(([session, items]) => {
-                  const isHidden = hiddenSemesters.includes(session);
-                  return (
-                    <div key={session} className="space-y-4">
-                      <div className="flex items-center justify-between border-b border-gray-200 dark:border-[#1F1F23] pb-2">
-                        <h3 className="text-sm font-bold text-gray-800 dark:text-zinc-200">{session}</h3>
-                        <button onClick={() => toggleSemesterHidden(session)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors uppercase tracking-wider">
-                          {isHidden ? "Reveal" : "Collapse"}
-                        </button>
-                      </div>
-                      {!isHidden && (
-                        <div className="grid gap-3">
-                          {items.map(a => (
-                            <div key={a.id} className="group relative rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-white dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="min-w-0 flex-1 flex items-center gap-3">
-                                  <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                      <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{a.course.code}</div>
+                {(() => {
+                  // Group by status first, then by course, sorted by due date
+                  const statusOrder = { in_progress: 0, pending: 1, completed: 2 };
+                  const statusLabels: Record<string, string> = { pending: "To-Do", in_progress: "In Progress", completed: "Completed" };
+                  
+                  // Create a map of status -> course -> assignments
+                  const grouped: Record<string, Record<number, Assignment[]>> = {};
+                  
+                  displayAssignments.forEach((a) => {
+                    const status = a.status;
+                    if (!grouped[status]) grouped[status] = {};
+                    if (!grouped[status][a.course.id]) grouped[status][a.course.id] = [];
+                    grouped[status][a.course.id].push(a);
+                  });
+                  
+                  // Sort assignments by due date within each course
+                  Object.values(grouped).forEach(statusGroup => {
+                    Object.values(statusGroup).forEach(courseAssignments => {
+                      courseAssignments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+                    });
+                  });
+                  
+                  // Render in status order
+                  return Object.entries(grouped)
+                    .sort(([statusA], [statusB]) => (statusOrder[statusA] ?? 3) - (statusOrder[statusB] ?? 3))
+                    .map(([status, courseGroups]) => {
+                      const statusKey = `status-${status}`;
+                      const isHidden = hiddenSemesters.includes(statusKey);
+                      return (
+                        <div key={statusKey} className="space-y-4">
+                          <div className="flex items-center justify-between border-b border-gray-200 dark:border-[#1F1F23] pb-2">
+                            <h3 className="text-sm font-bold text-gray-800 dark:text-zinc-200">{statusLabels[status] || status}</h3>
+                            <button onClick={() => toggleSemesterHidden(statusKey)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors uppercase tracking-wider">
+                              {isHidden ? "Reveal" : "Collapse"}
+                            </button>
+                          </div>
+                          {!isHidden && (
+                            <div className="grid gap-3">
+                              {Object.entries(courseGroups)
+                                .sort(([courseIdA], [courseIdB]) => {
+                                  const courseA = displayCourses.find(c => c.id === parseInt(courseIdA));
+                                  const courseB = displayCourses.find(c => c.id === parseInt(courseIdB));
+                                  return (courseA?.name || "").localeCompare(courseB?.name || "");
+                                })
+                                .map(([courseId, assignments]) =>
+                                  assignments.map(a => (
+                                    <div key={a.id} className="group relative rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-white dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
+                                      <div className="flex items-center justify-between gap-4">
+                                        <div className="min-w-0 flex-1 flex items-center gap-3">
+                                          <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                              <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{a.course.code}</div>
+                                            </div>
+                                            <div className="font-bold text-gray-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-500 transition-colors">{a.title}</div>
+                                            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                              {(() => {
+                                                const d = new Date(a.dueDate);
+                                                const isOld = d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
+                                                return isOld ? "No due date" : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                                              })()} · {(a.weight * 100).toFixed(0)}% weight
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2" onClick={e => e.stopPropagation()}>
+                                          <select
+                                            className="rounded-full border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-zinc-900 px-2 py-0.5 text-[10px] font-bold text-gray-700 dark:text-zinc-300 outline-hidden"
+                                            value={a.status}
+                                            onChange={(e) => updateAssignmentStatus(a.id, e.target.value)}
+                                          >
+                                            {ASSIGNMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                          </select>
+                                          <div className="text-xs font-black text-indigo-500">{a.grade != null ? `${a.grade}/${a.maxGrade}` : 'PENDING'}</div>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="font-bold text-gray-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-500 transition-colors">{a.title}</div>
-                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                      {(() => {
-                                        const d = new Date(a.dueDate);
-                                        const isOld = d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
-                                        return isOld ? "No due date" : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-                                      })()} · {(a.weight * 100).toFixed(0)}% weight
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-2" onClick={e => e.stopPropagation()}>
-                                  <select
-                                    className="rounded-full border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-zinc-900 px-2 py-0.5 text-[10px] font-bold text-gray-700 dark:text-zinc-300 outline-hidden"
-                                    value={a.status}
-                                    onChange={(e) => updateAssignmentStatus(a.id, e.target.value)}
-                                  >
-                                    {ASSIGNMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                  </select>
-                                  <div className="text-xs font-black text-indigo-500">{a.grade != null ? `${a.grade}/${a.maxGrade}` : 'PENDING'}</div>
-                                </div>
-                              </div>
+                                  ))
+                                )}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    });
+                })()}
               </div>
             </div>
           </BlurFade>
