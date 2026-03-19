@@ -765,7 +765,7 @@ export default function FinanceTab() {
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Avg buy price</label>
               <input
                 type="number"
-                step="0.01"
+                step="0.0001"
                 min="0"
                 required
                 className="rounded border border-gray-200 dark:border-[#2A2A2E] bg-white dark:bg-[#1A1A1A] px-3 py-1.5 text-sm w-24"
