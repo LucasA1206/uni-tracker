@@ -84,12 +84,20 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     }
   }, [autoOpenEventId, events]);
 
+  const getLocalDayKey = React.useCallback((dateValue: string) => {
+    const parsed = new Date(dateValue)
+    if (isNaN(parsed.getTime())) {
+      return dateValue.split("T")[0]
+    }
+    return format(parsed, "yyyy-MM-dd")
+  }, [])
+
   const getEventsForDay = React.useCallback((dateStr: string) => {
-    const targetDay = dateStr.split("T")[0]
+    const targetDay = getLocalDayKey(dateStr)
     return events
-      .filter(e => e.start?.split("T")[0] === targetDay)
+      .filter(e => getLocalDayKey(e.start) === targetDay)
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-  }, [events])
+  }, [events, getLocalDayKey])
 
   // Map our API events into FullCalendar events
   const fcEvents = React.useMemo(() => {
@@ -97,7 +105,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     const byDay: Record<string, ApiEvent[]> = {};
     for (const e of events) {
       if (!e.start) continue;
-      const day = e.start.split('T')[0];
+      const day = getLocalDayKey(e.start)
       if (!byDay[day]) byDay[day] = [];
       byDay[day].push(e);
     }
@@ -115,12 +123,10 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
         title: firstVisible.title,
         start: firstVisible.start,
         end: firstVisible.end,
-        extendedProps: { ...firstVisible.meta, type: firstVisible.type }
+        extendedProps: { ...firstVisible.meta, type: firstVisible.type, sortKey: 0 }
       })
 
-      const totalNotesAndAssignments = assignments.length + notes.length
-      const shownItemIsNoteOrAssignment = firstVisible.type === "assignment" || firstVisible.type === "note"
-      const remainingCount = totalNotesAndAssignments - (shownItemIsNoteOrAssignment ? 1 : 0)
+      const remainingCount = dayEvents.length - 1
 
       if (remainingCount > 0) {
         list.push({
@@ -128,12 +134,12 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
           title: `+ ${remainingCount} more`,
           start: day,
           allDay: true,
-          extendedProps: { type: "summary", isSummary: true, dayKey: day }
+          extendedProps: { type: "summary", isSummary: true, dayKey: day, sortKey: 1 }
         })
       }
     }
     return list;
-  }, [events]);
+  }, [events, getLocalDayKey]);
 
   const renderEventContent = (eventInfo: any) => {
     const { event } = eventInfo;
@@ -201,7 +207,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
 
   const handleDateClick = (info: any) => {
     // Show events for clicked day instead of opening create form
-    const clickedDate = info.dateStr.split('T')[0]
+    const clickedDate = getLocalDayKey(info.dateStr)
     const dayEvents = getEventsForDay(clickedDate)
     setOpenDay({ dateStr: clickedDate, dayEvents })
   }
@@ -309,6 +315,8 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
         dateClick={handleDateClick}
         height="100%"
         dayMaxEvents={true}
+        eventOrder="sortKey,start,title"
+        eventOrderStrict={true}
         eventTimeFormat={{
           hour: 'numeric',
           minute: '2-digit',
@@ -565,7 +573,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                   placeholder="Event title"
                 />
               </div>
-              <div className="grid gap-2 flex-1 flex flex-col">
+              <div className="flex flex-col gap-2 flex-1">
                 <label className="text-gray-700 dark:text-gray-300 font-medium w-full">Description</label>
                 <textarea
                   className="min-h-[100px] flex-1 w-full rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
