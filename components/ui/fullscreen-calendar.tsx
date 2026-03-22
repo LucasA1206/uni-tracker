@@ -314,7 +314,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
         eventClick={handleEventClick}
         dateClick={handleDateClick}
         height="100%"
-        dayMaxEvents={true}
+        dayMaxEvents={false}
         eventOrder="sortKey,start,title"
         eventOrderStrict={true}
         eventTimeFormat={{
@@ -348,7 +348,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                 No events on this day.
               </div>
             ) : (
-              <div className="space-y-2 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-2 flex-1 overflow-y-auto px-6 pb-2">
                 {openDay.dayEvents.map((ev) => {
                   const isNote = ev.type === 'note'
                   const colorClass = ev.meta?.courseId != null
@@ -386,7 +386,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                 })}
               </div>
             )}
-            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-[#1F1F23]">
+            <div className="mt-4 pt-3 px-6 pb-5 border-t border-gray-100 dark:border-[#1F1F23]">
               <button
                 className="text-xs text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium"
                 onClick={() => {
