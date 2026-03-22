@@ -85,6 +85,9 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
   }, [autoOpenEventId, events]);
 
   const getLocalDayKey = React.useCallback((dateValue: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return dateValue
+    }
     const parsed = new Date(dateValue)
     if (isNaN(parsed.getTime())) {
       return dateValue.split("T")[0]
@@ -121,9 +124,15 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       list.push({
         id: firstVisible.id,
         title: firstVisible.title,
-        start: firstVisible.start,
-        end: firstVisible.end,
-        extendedProps: { ...firstVisible.meta, type: firstVisible.type, sortKey: 0 }
+        start: day,
+        allDay: true,
+        extendedProps: {
+          ...firstVisible.meta,
+          type: firstVisible.type,
+          sortKey: 0,
+          originalStart: firstVisible.start,
+          originalEnd: firstVisible.end,
+        }
       })
 
       const remainingCount = dayEvents.length - 1
@@ -143,7 +152,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
 
   const renderEventContent = (eventInfo: any) => {
     const { event } = eventInfo;
-    const { type, courseId, weight, maxGrade, grade, isSummary } = event.extendedProps;
+    const { type, courseId, weight, maxGrade, grade, isSummary, originalStart, originalEnd } = event.extendedProps;
 
     if (isSummary) {
       return (
@@ -159,6 +168,11 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
 
     const colorClassRaw = courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400";
     const noteSolidClass = `${colorClassRaw} text-white shadow-sm border-transparent`;
+    const displayStart = originalStart ? new Date(originalStart) : event.start
+    const displayEnd = originalEnd ? new Date(originalEnd) : event.end
+    const hasDisplayStart = displayStart && !isNaN(displayStart.getTime())
+    const hasDisplayEnd = displayEnd && !isNaN(displayEnd.getTime())
+    const showTimeRange = hasDisplayStart && hasDisplayEnd && displayStart.getTime() !== displayEnd.getTime()
 
     return (
       <div className={cn(
@@ -177,8 +191,8 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
           </div>
 
           <p className={cn("leading-none mt-1.5 text-[10px]", isNote ? "text-white/80" : "text-gray-500 dark:text-gray-400")}>
-            {event.start && format(event.start, "h:mm a")}
-            {event.end && event.start.getTime() !== event.end.getTime() && ` - ${format(event.end, "h:mm a")}`}
+            {hasDisplayStart && format(displayStart, "h:mm a")}
+            {showTimeRange && ` - ${format(displayEnd, "h:mm a")}`}
           </p>
 
           {isAssignment && weight != null && maxGrade != null && (
