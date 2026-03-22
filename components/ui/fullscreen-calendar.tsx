@@ -84,6 +84,13 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     }
   }, [autoOpenEventId, events]);
 
+  const getEventsForDay = React.useCallback((dateStr: string) => {
+    const targetDay = dateStr.split("T")[0]
+    return events
+      .filter(e => e.start?.split("T")[0] === targetDay)
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+  }, [events])
+
   // Map our API events into FullCalendar events
   const fcEvents = React.useMemo(() => {
     const list: any[] = [];
@@ -96,58 +103,33 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     }
 
     for (const [day, dayEvents] of Object.entries(byDay)) {
-      const assignments = dayEvents.filter(e => e.type === 'assignment').sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-      const notes = dayEvents.filter(e => e.type === 'note').sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-      const others = dayEvents.filter(e => e.type !== 'note' && e.type !== 'assignment').sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      const assignments = dayEvents.filter(e => e.type === "assignment").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      const notes = dayEvents.filter(e => e.type === "note").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      const others = dayEvents.filter(e => e.type !== "note" && e.type !== "assignment").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
 
-      if (assignments.length > 0) {
-        // Show the first assignment
-        const first = assignments[0];
+      const firstVisible = assignments[0] ?? notes[0] ?? others[0]
+      if (!firstVisible) continue
+
+      list.push({
+        id: firstVisible.id,
+        title: firstVisible.title,
+        start: firstVisible.start,
+        end: firstVisible.end,
+        extendedProps: { ...firstVisible.meta, type: firstVisible.type }
+      })
+
+      const totalNotesAndAssignments = assignments.length + notes.length
+      const shownItemIsNoteOrAssignment = firstVisible.type === "assignment" || firstVisible.type === "note"
+      const remainingCount = totalNotesAndAssignments - (shownItemIsNoteOrAssignment ? 1 : 0)
+
+      if (remainingCount > 0) {
         list.push({
-          id: first.id, title: first.title, start: first.start, end: first.end, extendedProps: { ...first.meta, type: first.type }
-        });
-        const remainingCount = assignments.length - 1 + notes.length + others.length;
-        if (remainingCount > 0) {
-          list.push({
-            id: `summary-${day}`,
-            title: `+ ${remainingCount} more`,
-            start: day,
-            allDay: true,
-            extendedProps: { type: 'summary', isSummary: true }
-          });
-        }
-      } else if (notes.length > 0) {
-        // Show the first note
-        const first = notes[0];
-        list.push({
-          id: first.id, title: first.title, start: first.start, end: first.end, extendedProps: { ...first.meta, type: first.type }
-        });
-        const remainingCount = notes.length - 1 + others.length;
-        if (remainingCount > 0) {
-          list.push({
-            id: `summary-${day}`,
-            title: `+ ${remainingCount} more`,
-            start: day,
-            allDay: true,
-            extendedProps: { type: 'summary', isSummary: true }
-          });
-        }
-      } else if (others.length > 0) {
-        // Show the first other
-        const first = others[0];
-        list.push({
-          id: first.id, title: first.title, start: first.start, end: first.end, extendedProps: { ...first.meta, type: first.type }
-        });
-        const remainingCount = others.length - 1;
-        if (remainingCount > 0) {
-          list.push({
-            id: `summary-${day}`,
-            title: `+ ${remainingCount} more`,
-            start: day,
-            allDay: true,
-            extendedProps: { type: 'summary', isSummary: true }
-          });
-        }
+          id: `summary-${day}`,
+          title: `+ ${remainingCount} more`,
+          start: day,
+          allDay: true,
+          extendedProps: { type: "summary", isSummary: true, dayKey: day }
+        })
       }
     }
     return list;
@@ -204,6 +186,14 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
   };
 
   const handleEventClick = (clickInfo: any) => {
+    if (clickInfo.event.extendedProps?.isSummary) {
+      const summaryDay = clickInfo.event.extendedProps?.dayKey || clickInfo.event.startStr?.split("T")[0]
+      if (!summaryDay) return
+      const dayEvents = getEventsForDay(summaryDay)
+      setOpenDay({ dateStr: summaryDay, dayEvents })
+      return
+    }
+
     // Find back original event to pass to modal
     const originalEvent = events.find(e => e.id === clickInfo.event.id)
     if (originalEvent) setOpenEvent(originalEvent)
@@ -212,7 +202,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
   const handleDateClick = (info: any) => {
     // Show events for clicked day instead of opening create form
     const clickedDate = info.dateStr.split('T')[0]
-    const dayEvents = events.filter(e => e.start.startsWith(clickedDate))
+    const dayEvents = getEventsForDay(clickedDate)
     setOpenDay({ dateStr: clickedDate, dayEvents })
   }
 
@@ -326,10 +316,10 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
         }}
       />
 
-      {openDay && typeof document !== "undefined" && createPortal(
+      {openDay && !openEvent && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setOpenDay(null)}>
           <div 
-            className="relative w-full max-w-xl max-h-[70vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-3xl max-h-[88vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <div className="p-8 pb-4 text-left">
@@ -366,7 +356,6 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                           : "border-solid border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12]"
                       )}
                       onClick={() => {
-                        setOpenDay(null)
                         setOpenEvent(ev)
                       }}
                     >
