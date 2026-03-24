@@ -21,16 +21,21 @@ function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function getCourseNameParts(rawName: string): string[] {
+    return rawName
+        .split("-")
+        .map((part) => part.trim())
+        .filter(Boolean);
+}
+
 function getCourseSession(course: Course): string {
-    if (course.term && course.year) {
-        return `${course.term} ${course.year}`;
+    const parts = getCourseNameParts(course.name || "");
+    if (parts.length >= 2) {
+        return parts[1];
     }
 
-    const fromName = course.name.match(/(Autumn|Spring|Summer|Winter)\s+\d{4}/i);
-    if (fromName) {
-        const [termRaw, year] = fromName[0].split(/\s+/);
-        const term = termRaw[0].toUpperCase() + termRaw.slice(1).toLowerCase();
-        return `${term} ${year}`;
+    if (course.term && course.year) {
+        return `${course.term} ${course.year}`;
     }
 
     return "Other";
@@ -40,12 +45,36 @@ function getCourseDisplayName(course: Course): string {
     const name = course.name?.trim() || "";
     if (!name) return course.code;
 
+    const parts = getCourseNameParts(name);
+    const firstSegment = parts[0] || name;
+
+    // Avoid duplicated code/name labels when the first segment already includes the course code.
+    const firstWithoutCode = firstSegment
+        .replace(new RegExp(`^${escapeRegExp(course.code)}\\s*`, "i"), "")
+        .trim();
+
+    if (firstWithoutCode) {
+        return firstWithoutCode;
+    }
+
+    if (firstSegment) {
+        return firstSegment;
+    }
+
     if (course.term && course.year) {
         const term = escapeRegExp(course.term);
         return name.replace(new RegExp(`\\s*-\\s*${term}\\s+${course.year}\\s*$`, "i"), "").trim();
     }
 
     return name.replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "").trim();
+}
+
+function getCourseOptionLabel(course: Course): string {
+    const displayName = getCourseDisplayName(course).trim();
+    if (!displayName || displayName.toLowerCase() === course.code.toLowerCase()) {
+        return course.code;
+    }
+    return `${course.code} - ${displayName}`;
 }
 
 function sortSessions(a: string, b: string): number {
@@ -586,7 +615,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                                 <optgroup key={group.session} label={group.session}>
                                                     {group.courses.map((course) => (
                                                         <option key={course.id} value={course.id}>
-                                                            {course.code} - {getCourseDisplayName(course)}
+                                                            {getCourseOptionLabel(course)}
                                                         </option>
                                                     ))}
                                                 </optgroup>
