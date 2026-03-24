@@ -13,6 +13,57 @@ interface Course {
     id: number;
     name: string;
     code: string;
+    term?: string;
+    year?: number;
+}
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getCourseSession(course: Course): string {
+    if (course.term && course.year) {
+        return `${course.term} ${course.year}`;
+    }
+
+    const fromName = course.name.match(/(Autumn|Spring|Summer|Winter)\s+\d{4}/i);
+    if (fromName) {
+        const [termRaw, year] = fromName[0].split(/\s+/);
+        const term = termRaw[0].toUpperCase() + termRaw.slice(1).toLowerCase();
+        return `${term} ${year}`;
+    }
+
+    return "Other";
+}
+
+function getCourseDisplayName(course: Course): string {
+    const name = course.name?.trim() || "";
+    if (!name) return course.code;
+
+    if (course.term && course.year) {
+        const term = escapeRegExp(course.term);
+        return name.replace(new RegExp(`\\s*-\\s*${term}\\s+${course.year}\\s*$`, "i"), "").trim();
+    }
+
+    return name.replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "").trim();
+}
+
+function sortSessions(a: string, b: string): number {
+    const parseSession = (label: string): { year: number; order: number } => {
+        const match = label.match(/(Autumn|Spring|Summer|Winter)\s+(\d{4})/i);
+        if (!match) return { year: 0, order: 99 };
+        const term = match[1].toLowerCase();
+        const year = Number(match[2]);
+        const termOrder: Record<string, number> = { summer: 0, autumn: 1, winter: 2, spring: 3 };
+        return { year, order: termOrder[term] ?? 99 };
+    };
+
+    const pa = parseSession(a);
+    const pb = parseSession(b);
+
+    if (pa.year !== pb.year) return pb.year - pa.year;
+    if (pa.order !== pb.order) return pa.order - pb.order;
+    return a.localeCompare(b);
 }
 
 interface Note {
@@ -420,6 +471,22 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         return grouped;
     }, [notes]);
 
+    const coursesBySession = useMemo(() => {
+        const grouped: Record<string, Course[]> = {};
+
+        courses.forEach(course => {
+            const session = getCourseSession(course);
+            if (!grouped[session]) grouped[session] = [];
+            grouped[session].push(course);
+        });
+
+        const sortedSessions = Object.keys(grouped).sort(sortSessions);
+        return sortedSessions.map((session) => ({
+            session,
+            courses: grouped[session].sort((a, b) => a.code.localeCompare(b.code)),
+        }));
+    }, [courses]);
+
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">
             <div className="flex flex-col gap-2">
@@ -515,10 +582,14 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                             className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         >
                                             <option value="">Select a course...</option>
-                                            {courses.map(course => (
-                                                <option key={course.id} value={course.id}>
-                                                    {course.code} - {course.name.split("-")[0].trim()}
-                                                </option>
+                                            {coursesBySession.map((group) => (
+                                                <optgroup key={group.session} label={group.session}>
+                                                    {group.courses.map((course) => (
+                                                        <option key={course.id} value={course.id}>
+                                                            {course.code} - {getCourseDisplayName(course)}
+                                                        </option>
+                                                    ))}
+                                                </optgroup>
                                             ))}
                                         </select>
                                     </div>
