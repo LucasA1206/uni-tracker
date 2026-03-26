@@ -7,8 +7,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '100mb',
     },
-    serverComponentsExternalPackages: ['sharp', 'onnxruntime-node', 'ffmpeg-static', 'fluent-ffmpeg'],
   },
+  serverExternalPackages: ['sharp', 'onnxruntime-node', 'ffmpeg-static', 'fluent-ffmpeg'],
   async headers() {
     return [
       {
