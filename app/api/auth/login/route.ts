@@ -20,7 +20,14 @@ export async function POST(req: NextRequest) {
 
   const { username, password } = body;
 
-  const user = await prisma.user.findUnique({ where: { username } });
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { username },
+        { universityEmail: username },
+      ],
+    },
+  });
   if (!user) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
