@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import GradeCharts, { AssignmentForCharts } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import AssignmentsCardOverview from "@/components/AssignmentsCardOverview";
+import AnimatedDropdown from "@/components/ui/animated-dropdown";
 import { createPortal } from "react-dom";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { BlurFade } from "@/components/magicui/blur-fade";
@@ -19,6 +20,12 @@ const COURSE_COLORS = [
   "bg-pink-500",
   "bg-indigo-500",
   "bg-teal-500"
+];
+
+const ASSIGNMENT_STATUS_OPTIONS = [
+  { value: "pending", label: "To-Do" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
 ];
 
 interface Course {
@@ -569,7 +576,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 )}
               </div>
 
-              <div className="relative space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 min-h-[30rem] max-h-[50rem] overflow-auto scrollbar-hide">
+              <div className="relative space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 min-h-[30rem] max-h-[50rem] overflow-y-auto overflow-x-hidden scrollbar-theme max-w-full">
                 <BorderBeam size={300} duration={20} colorFrom="#a855f7" colorTo="#3b82f6" initialOffset={25} />
                 {filteredAssignmentsBySelectedSemesters.length === 0 && (
                   <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet. Import from Canvas or add manually.</p>
@@ -621,7 +628,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                 })
                                 .map(([courseId, assignments]) =>
                                   assignments.map(a => (
-                                    <div key={a.id} className="group relative rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
+                                    <div key={a.id} className="group relative w-full min-w-0 rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
                                       <div className="flex items-center justify-between gap-4">
                                         <div className="min-w-0 flex-1 flex items-center gap-3">
                                           <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
@@ -640,13 +647,12 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                           </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-2" onClick={e => e.stopPropagation()}>
-                                          <select
-                                            className="rounded-full border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-zinc-900 px-2 py-0.5 text-[10px] font-bold text-gray-700 dark:text-zinc-300 outline-hidden"
+                                          <AnimatedDropdown
+                                            items={ASSIGNMENT_STATUS_OPTIONS}
                                             value={a.status}
-                                            onChange={(e) => updateAssignmentStatus(a.id, e.target.value)}
-                                          >
-                                            {ASSIGNMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                          </select>
+                                            onChange={(newStatus) => updateAssignmentStatus(a.id, newStatus)}
+                                            className="w-32"
+                                          />
                                           <div className="text-xs font-black text-indigo-500">{a.grade != null ? `${a.grade}/${a.maxGrade}` : 'PENDING'}</div>
                                         </div>
                                       </div>
@@ -721,15 +727,12 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 ))}
                 <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
                   <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
-                  <select
-                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
+                  <AnimatedDropdown
+                    items={ASSIGNMENT_STATUS_OPTIONS}
                     value={selectedAssignment.status}
-                    onChange={(e) => void handleSelectedAssignmentStatusChange(e.target.value)}
-                  >
-                    {ASSIGNMENT_STATUSES.map((status) => (
-                      <option key={status.value} value={status.value}>{status.label}</option>
-                    ))}
-                  </select>
+                    onChange={(nextStatus) => void handleSelectedAssignmentStatusChange(nextStatus)}
+                    className="mt-1 w-full"
+                  />
                 </div>
               </div>
             </div>
