@@ -111,31 +111,21 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const refresh = useCallback(async () => {
-    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
-
-    try {
-      setIsRefreshing(true);
-      const res = await fetch("/api/uni/dashboard");
-      const data = await res.json();
-      if (res.ok) {
-        setCourses(data.courses || []);
-        setAssignments(data.assignments || []);
-        setNotes(data.notes || []);
-      } else {
-        console.error("Refresh failed with status:", res.status, data);
-      }
-    } catch (err) {
-      console.error("Refresh failed", err);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [isRefreshing]);
-
   useEffect(() => {
-    refresh();
+    const loadData = async () => {
+      try {
+        const res = await fetch("/api/uni/dashboard");
+        const data = await res.json();
+        if (res.ok) {
+          setCourses(data.courses || []);
+          setAssignments(data.assignments || []);
+          setNotes(data.notes || []);
+        }
+      } catch (err) {
+        console.error("Failed to load data", err);
+      }
+    };
+    loadData();
     const stored = window.localStorage.getItem("active_hidden_semesters");
     if (stored) {
       try { setHiddenSemesters(JSON.parse(stored)); } catch {}
@@ -148,7 +138,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     if (storedSelectedSemesters) {
       try { setSelectedSemesters(JSON.parse(storedSelectedSemesters)); } catch {}
     }
-  }, [refresh]);
+  }, []);
 
   const displayCourses = useMemo(() => {
     if (openAssignmentDemo && courses.length === 0) {
@@ -295,7 +285,9 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     if (!confirm("Are you sure? This will delete all course data.")) return;
     try {
       const res = await fetch(`/api/uni/courses?id=${id}`, { method: "DELETE" });
-      if (res.ok) refresh();
+      if (res.ok) {
+        setCourses(prev => prev.filter(c => c.id !== id));
+      }
     } catch (err) { console.error("Delete course failed", err); }
   };
 
@@ -368,7 +360,9 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const deleteAssignment = async (id: number) => {
     try {
       const res = await fetch(`/api/uni/assignments?id=${id}`, { method: "DELETE" });
-      if (res.ok) refresh();
+      if (res.ok) {
+        setAssignments(prev => prev.filter(a => a.id !== id));
+      }
     } catch (err) { console.error("Delete assignment failed", err); }
   };
 
@@ -473,21 +467,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       <div className="grid gap-6 md:grid-cols-3">
         {/* Left Column: Courses */}
         <section className="md:col-span-1 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Courses</h2>
-            <button
-              onClick={() => void refresh()}
-              disabled={isRefreshing}
-              className="flex items-center gap-1 rounded-md border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1A1A1E] transition-colors disabled:opacity-50"
-            >
-              {isRefreshing ? (
-                <RefreshCw className="w-3 h-3 animate-spin" />
-              ) : (
-                <RefreshCw className="w-3 h-3" />
-              )}
-              Refresh
-            </button>
-          </div>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Courses</h2>
           <BlurFade delay={0.1}>
             <form onSubmit={addCourse} className="relative space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 overflow-hidden">
               <BorderBeam size={100} duration={12} delay={2} />
@@ -573,7 +553,14 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                     setSyncLoading(true);
                     try {
                       await fetch("/api/integrations/canvas/sync", { method: "POST" });
-                      await refresh();
+                      // Reload data after sync
+                      const res = await fetch("/api/uni/dashboard");
+                      const data = await res.json();
+                      if (res.ok) {
+                        setCourses(data.courses || []);
+                        setAssignments(data.assignments || []);
+                        setNotes(data.notes || []);
+                      }
                     } finally {
                       setSyncLoading(false);
                     }
