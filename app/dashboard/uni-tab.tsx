@@ -101,6 +101,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     status: "pending",
     weightPercent: "",
     followupPeople: [] as string[],
+    description: "",
   });
   const [newNote, setNewNote] = useState({ title: "", content: "", courseId: "" });
   const [hiddenCourses, setHiddenCourses] = useState<number[]>([]);
@@ -279,13 +280,13 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       } else {
         // Revert optimistic update on failure
         setCourses(prev => prev.filter(c => c.id !== tempId));
-        setNewCourse(courseData);
+        setNewCourse({ ...courseData, year: courseData.year.toString() });
         console.error("Add course failed");
       }
     } catch (err) {
       // Revert optimistic update on error
       setCourses(prev => prev.filter(c => c.id !== tempId));
-      setNewCourse(courseData);
+      setNewCourse({ ...courseData, year: courseData.year.toString() });
       console.error("Add course failed", err);
     }
   };
@@ -325,7 +326,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       followupPeople: assignmentData.followupPeople,
     };
     setAssignments(prev => [...prev, optimisticAssignment]);
-    setNewAssignment({ courseId: "", title: "", dueDate: "", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [] });
+    setNewAssignment({ courseId: "", title: "", dueDate: "", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [], description: "" });
 
     try {
       const res = await fetch("/api/uni/assignments", {
@@ -339,13 +340,27 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       } else {
         // Revert optimistic update on failure
         setAssignments(prev => prev.filter(a => a.id !== tempId));
-        setNewAssignment(assignmentData);
+        setNewAssignment({
+          ...assignmentData,
+          courseId: assignmentData.courseId,
+          maxGrade: assignmentData.maxGrade.toString(),
+          grade: assignmentData.grade?.toString() || "",
+          weightPercent: (assignmentData.weight * 100).toString(),
+          description: assignmentData.description || "",
+        });
         console.error("Add assignment failed");
       }
     } catch (err) {
       // Revert optimistic update on error
       setAssignments(prev => prev.filter(a => a.id !== tempId));
-      setNewAssignment(assignmentData);
+      setNewAssignment({
+        ...assignmentData,
+        courseId: assignmentData.courseId,
+        maxGrade: assignmentData.maxGrade.toString(),
+        grade: assignmentData.grade?.toString() || "",
+        weightPercent: (assignmentData.weight * 100).toString(),
+        description: assignmentData.description || "",
+      });
       console.error("Add assignment failed", err);
     }
   };
