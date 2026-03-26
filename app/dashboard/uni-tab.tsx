@@ -110,19 +110,28 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const refresh = useCallback(async () => {
+    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
+
     try {
+      setIsRefreshing(true);
       const res = await fetch("/api/uni/dashboard");
       const data = await res.json();
       if (res.ok) {
         setCourses(data.courses || []);
         setAssignments(data.assignments || []);
         setNotes(data.notes || []);
+      } else {
+        console.error("Refresh failed with status:", res.status, data);
       }
     } catch (err) {
       console.error("Refresh failed", err);
+    } finally {
+      setIsRefreshing(false);
     }
-  }, []);
+  }, [isRefreshing]);
 
   useEffect(() => {
     refresh();
@@ -243,16 +252,42 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const addCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCourse.name || !newCourse.code) return;
+
+    const courseData = { ...newCourse, year: parseInt(newCourse.year, 10) };
+    const tempId = Date.now(); // Temporary ID for optimistic update
+
+    // Optimistic update
+    const optimisticCourse = {
+      id: tempId,
+      name: courseData.name,
+      code: courseData.code,
+      term: courseData.term,
+      year: courseData.year
+    };
+    setCourses(prev => [...prev, optimisticCourse]);
+    setNewCourse({ name: "", code: "", term: "Autumn", year: new Date().getFullYear().toString() });
+
     try {
       const res = await fetch("/api/uni/courses", {
         method: "POST",
-        body: JSON.stringify({ ...newCourse, year: parseInt(newCourse.year, 10) })
+        body: JSON.stringify(courseData)
       });
       if (res.ok) {
-        setNewCourse({ name: "", code: "", term: "Autumn", year: new Date().getFullYear().toString() });
-        refresh();
+        const data = await res.json();
+        // Replace optimistic course with real data
+        setCourses(prev => prev.map(c => c.id === tempId ? data.course : c));
+      } else {
+        // Revert optimistic update on failure
+        setCourses(prev => prev.filter(c => c.id !== tempId));
+        setNewCourse(courseData);
+        console.error("Add course failed");
       }
-    } catch (err) { console.error("Add course failed", err); }
+    } catch (err) {
+      // Revert optimistic update on error
+      setCourses(prev => prev.filter(c => c.id !== tempId));
+      setNewCourse(courseData);
+      console.error("Add course failed", err);
+    }
   };
 
   const deleteCourse = async (id: number) => {
@@ -266,22 +301,53 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const addAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAssignment.courseId || !newAssignment.title) return;
+
+    const assignmentData = {
+      ...newAssignment,
+      courseId: parseInt(newAssignment.courseId, 10).toString(),
+      maxGrade: parseFloat(newAssignment.maxGrade) || 100,
+      grade: newAssignment.grade ? parseFloat(newAssignment.grade) : null,
+      weight: (parseFloat(newAssignment.weightPercent) || 0) / 100,
+    };
+    const tempId = Date.now(); // Temporary ID for optimistic update
+
+    // Optimistic update
+    const optimisticAssignment = {
+      id: tempId,
+      title: assignmentData.title,
+      dueDate: assignmentData.dueDate,
+      course: { id: parseInt(assignmentData.courseId), code: displayCourses.find(c => c.id === parseInt(assignmentData.courseId))?.code || "" },
+      grade: assignmentData.grade,
+      weight: assignmentData.weight,
+      maxGrade: assignmentData.maxGrade,
+      status: assignmentData.status,
+      description: assignmentData.description,
+      followupPeople: assignmentData.followupPeople,
+    };
+    setAssignments(prev => [...prev, optimisticAssignment]);
+    setNewAssignment({ courseId: "", title: "", dueDate: "", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [] });
+
     try {
       const res = await fetch("/api/uni/assignments", {
         method: "POST",
-        body: JSON.stringify({
-          ...newAssignment,
-          courseId: parseInt(newAssignment.courseId, 10).toString(),
-          maxGrade: parseFloat(newAssignment.maxGrade) || 100,
-          grade: newAssignment.grade ? parseFloat(newAssignment.grade) : null,
-          weight: (parseFloat(newAssignment.weightPercent) || 0) / 100,
-        })
+        body: JSON.stringify(assignmentData)
       });
       if (res.ok) {
-        setNewAssignment({ courseId: "", title: "", dueDate: "", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [] });
-        refresh();
+        const data = await res.json();
+        // Replace optimistic assignment with real data
+        setAssignments(prev => prev.map(a => a.id === tempId ? data.assignment : a));
+      } else {
+        // Revert optimistic update on failure
+        setAssignments(prev => prev.filter(a => a.id !== tempId));
+        setNewAssignment(assignmentData);
+        console.error("Add assignment failed");
       }
-    } catch (err) { console.error("Add assignment failed", err); }
+    } catch (err) {
+      // Revert optimistic update on error
+      setAssignments(prev => prev.filter(a => a.id !== tempId));
+      setNewAssignment(assignmentData);
+      console.error("Add assignment failed", err);
+    }
   };
 
   const deleteAssignment = async (id: number) => {
@@ -300,7 +366,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       });
       if (res.ok) {
         setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-        refresh();
+        // Removed refresh() call for instant updates
       }
     } catch (err) { console.error("Update status failed", err); }
   };
@@ -392,7 +458,21 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       <div className="grid gap-6 md:grid-cols-3">
         {/* Left Column: Courses */}
         <section className="md:col-span-1 space-y-4">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Courses</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Courses</h2>
+            <button
+              onClick={() => void refresh()}
+              disabled={isRefreshing}
+              className="flex items-center gap-1 rounded-md border border-gray-200 dark:border-[#1F1F23] px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1A1A1E] transition-colors disabled:opacity-50"
+            >
+              {isRefreshing ? (
+                <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3 h-3" />
+              )}
+              Refresh
+            </button>
+          </div>
           <BlurFade delay={0.1}>
             <form onSubmit={addCourse} className="relative space-y-2 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 overflow-hidden">
               <BorderBeam size={100} duration={12} delay={2} />
