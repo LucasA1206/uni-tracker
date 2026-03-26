@@ -37,6 +37,7 @@ interface ApiEvent {
     assignmentId?: number
     courseCode?: string
     courseName?: string
+    courseColor?: string
     description?: string
     weight?: number
     maxGrade?: number
@@ -152,7 +153,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
 
   const renderEventContent = (eventInfo: any) => {
     const { event } = eventInfo;
-    const { type, courseId, weight, maxGrade, grade, isSummary, originalStart, originalEnd } = event.extendedProps;
+    const { type, courseId, weight, maxGrade, grade, isSummary, originalStart, originalEnd, courseColor } = event.extendedProps;
 
     if (isSummary) {
       return (
@@ -166,8 +167,8 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     const isAssignment = type === 'assignment';
     const isWork = type === 'work';
 
-    const colorClassRaw = courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400";
-    const noteSolidClass = `${colorClassRaw} text-white shadow-sm border-transparent`;
+    const colorClassRaw = courseColor ? "" : (courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400");
+    const noteSolidClass = courseColor ? "text-white shadow-sm border-transparent" : `${colorClassRaw} text-white shadow-sm border-transparent`;
     const displayStart = originalStart ? new Date(originalStart) : event.start
     const displayEnd = originalEnd ? new Date(originalEnd) : event.end
     const hasDisplayStart = displayStart && !isNaN(displayStart.getTime())
@@ -175,11 +176,14 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     const showTimeRange = hasDisplayStart && hasDisplayEnd && displayStart.getTime() !== displayEnd.getTime()
 
     return (
-      <div className={cn(
-        "relative overflow-hidden w-full text-left flex flex-col items-start gap-1 rounded-md p-1.5 text-xs leading-tight transition-colors",
-        isNote ? noteSolidClass : "bg-gray-50 dark:bg-[#1A1A1E] border border-gray-200 dark:border-[#2A2A2E] shadow-sm"
-      )}>
-        {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} />}
+      <div 
+        className={cn(
+          "relative overflow-hidden w-full text-left flex flex-col items-start gap-1 rounded-md p-1.5 text-xs leading-tight transition-colors",
+          isNote ? noteSolidClass : "bg-gray-50 dark:bg-[#1A1A1E] border border-gray-200 dark:border-[#2A2A2E] shadow-sm"
+        )}
+        style={isNote && courseColor ? { backgroundColor: courseColor } : {}}
+      >
+        {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} style={courseColor ? { backgroundColor: courseColor } : {}} />}
         <div className={cn("w-full overflow-hidden", !isNote && "pl-1")}>
           <div className={cn("flex items-center gap-1.5 font-medium w-full truncate", isNote ? "text-white" : "text-gray-900 dark:text-gray-100")}>
             {isNote ? <FileText size={11} className="text-white shrink-0 opacity-80" /> :
@@ -366,8 +370,8 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                 {openDay.dayEvents.map((ev) => {
                   const isNote = ev.type === 'note'
                   const isAssignment = ev.type === 'assignment'
-                  const colorClassRaw = ev.meta?.courseId != null ? COURSE_COLORS[ev.meta.courseId % COURSE_COLORS.length] : "bg-gray-400";
-                  const noteSolidClass = `${colorClassRaw} text-white border-transparent`;
+                  const colorClassRaw = ev.meta?.courseColor ? "" : (ev.meta?.courseId != null ? COURSE_COLORS[ev.meta.courseId % COURSE_COLORS.length] : "bg-gray-400");
+                  const noteSolidClass = ev.meta?.courseColor ? "text-white border-transparent" : `${colorClassRaw} text-white border-transparent`;
                   return (
                     <button
                       key={ev.id}
@@ -377,11 +381,12 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                           ? noteSolidClass
                           : "border-solid border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] hover:bg-gray-50 dark:hover:bg-[#1A1A1E]"
                       )}
+                      style={isNote && ev.meta?.courseColor ? { backgroundColor: ev.meta.courseColor } : {}}
                       onClick={() => {
                         setOpenEvent(ev)
                       }}
                     >
-                      {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} />}
+                      {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} style={ev.meta?.courseColor ? { backgroundColor: ev.meta.courseColor } : {}} />}
                       <div className={cn("relative", !isNote && "pl-2")}>
                         <div className="flex items-center gap-1.5">
                           {isNote

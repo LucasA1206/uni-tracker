@@ -12,6 +12,7 @@
     "prisma:studio:prod": "npx prisma studio --schema prisma/schema.postgres.prisma",
     "db:push:prod": "npx prisma db push --schema prisma/schema.postgres.prisma",
     "check:prod-user": "node scripts/check-prod-user.js",
+    "restore:prod-user": "node scripts/restore-prod-user.js",
     "seed": "node prisma/seed.mjs"
   },
   "dependencies": {

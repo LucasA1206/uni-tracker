@@ -43,6 +43,7 @@ model UniCourse {
   userId      Int
   name        String
   code        String
+  color       String?       // HEX or CSS color string
   term        String   @default("Autumn")
   year        Int      @default(2026)
   canvasId    String?
@@ -81,7 +82,7 @@ model Note {
   courseId    Int?
   title       String
   content     String
-  createdAt   DateTime   @default(now())
+  createdAt   DateTime   @default(now()) // Default to now, but can be set manually
   attachments NoteAttachment[]
 
   @@index([userId])

@@ -34,6 +34,7 @@ interface Course {
   code: string;
   term: string;
   year: number;
+  color?: string | null;
 }
 
 interface Assignment {
@@ -291,6 +292,19 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     } catch (err) { console.error("Delete course failed", err); }
   };
 
+  const updateCourseColor = async (id: number, color: string) => {
+    try {
+      const res = await fetch(`/api/uni/courses`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, color })
+      });
+      if (res.ok) {
+        setCourses(prev => prev.map(c => c.id === id ? { ...c, color } : c));
+      }
+    } catch (err) { console.error("Update course color failed", err); }
+  };
+
   const addAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAssignment.courseId || !newAssignment.title) return;
@@ -515,10 +529,18 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
             <ul className="space-y-1 text-sm">
               {courses.map((c) => (
                 <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2">
-                  <div className={`absolute top-0 bottom-0 left-0 w-1 ${COURSE_COLORS[c.id % COURSE_COLORS.length]}`} />
-                  <div className="pl-2">
-                    <div className="font-medium">{c.name.split("-")[0].trim()}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
+                  <div className={`absolute top-0 bottom-0 left-0 w-1 ${c.color ? "" : COURSE_COLORS[c.id % COURSE_COLORS.length]}`} style={c.color ? { backgroundColor: c.color } : {}} />
+                  <div className="pl-2 flex-grow flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={c.color || "#6366f1"} 
+                      className="w-5 h-5 rounded cursor-pointer shrink-0 border-0 p-0 bg-transparent" 
+                      onChange={(e) => updateCourseColor(c.id, e.target.value)}
+                    />
+                    <div>
+                      <div className="font-medium">{c.name.split("-")[0].trim()}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
+                    </div>
                   </div>
                   <button
                     type="button"
