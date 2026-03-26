@@ -365,34 +365,34 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
               <div className="space-y-2 flex-1 overflow-y-auto px-6 pb-2">
                 {openDay.dayEvents.map((ev) => {
                   const isNote = ev.type === 'note'
-                  const colorClass = ev.meta?.courseId != null
-                    ? COURSE_COLORS[ev.meta.courseId % COURSE_COLORS.length].replace('bg-', 'border-l-').replace('-500', '-500')
-                    : 'border-l-gray-300'
+                  const isAssignment = ev.type === 'assignment'
+                  const colorClassRaw = ev.meta?.courseId != null ? COURSE_COLORS[ev.meta.courseId % COURSE_COLORS.length] : "bg-gray-400";
+                  const noteSolidClass = `${colorClassRaw} text-white border-transparent`;
                   return (
                     <button
                       key={ev.id}
                       className={cn(
-                        "w-full text-left rounded-lg border p-3 text-xs hover:bg-gray-50 dark:hover:bg-[#1A1A1E] relative overflow-hidden transition-colors",
+                        "w-full text-left rounded-lg border p-3 text-xs hover:opacity-90 relative overflow-hidden transition-all",
                         isNote
-                          ? "border-dashed border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12]"
-                          : "border-solid border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12]"
+                          ? noteSolidClass
+                          : "border-solid border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] hover:bg-gray-50 dark:hover:bg-[#1A1A1E]"
                       )}
                       onClick={() => {
                         setOpenEvent(ev)
                       }}
                     >
-                      <div className={cn("absolute top-0 bottom-0 left-0 w-1", ev.meta?.courseId != null ? COURSE_COLORS[ev.meta.courseId % COURSE_COLORS.length] : "bg-gray-300")} />
-                      <div className="pl-2">
+                      {!isNote && <div className={cn("absolute top-0 bottom-0 left-0 w-1", colorClassRaw)} />}
+                      <div className={cn("relative", !isNote && "pl-2")}>
                         <div className="flex items-center gap-1.5">
                           {isNote
-                            ? <span className="text-gray-400">📄</span>
+                            ? <span className="text-white/80">📄</span>
                             : <span className="text-blue-500">☑</span>
                           }
-                          <span className="font-semibold text-gray-900 dark:text-white">{ev.title}</span>
+                          <span className={cn("font-semibold", isNote ? "text-white" : "text-gray-900 dark:text-white")}>{ev.title}</span>
                         </div>
-                        <div className="mt-1 text-gray-500 dark:text-gray-400">
+                        <div className={cn("mt-1", isNote ? "text-white/70" : "text-gray-500 dark:text-gray-400")}>
                           {format(new Date(ev.start), "h:mm a")}
-                          {ev.meta?.courseName && <span className="ml-2 text-gray-400 dark:text-gray-500">· {ev.meta.courseName}</span>}
+                          {ev.meta?.courseName && <span className={cn("ml-2", isNote ? "text-white/50" : "text-gray-400 dark:text-gray-500")}>· {ev.meta.courseName}</span>}
                         </div>
                       </div>
                     </button>
