@@ -53,8 +53,7 @@ async function main() {
     console.log("No SEED_USERNAME/SEED_PASSWORD/SEED_EMAIL provided; skipping seed user creation.");
   }
 
-  console.log({ passwordHash });
-  console.log("Seeded default admin user: DemoUser1 / DemoPassword123!");
+  console.log("Seed process completed. Default admin users are available if this is a fresh local setup.");
 }
 
 main()

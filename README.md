@@ -176,7 +176,7 @@ To fully sync with Canvas:
 1. **Push to Git** (GitHub/GitLab/Bitbucket).
 2. Go to <https://vercel.com>, create a project, and import the repo.
 3. In **Project → Settings → Environment Variables**, set at least:
-   - `DATABASE_URL` (for SQLite, use `file:./dev.db` or a hosted DB connection string)
+   - `DATABASE_URL` or `POSTGRES_PRISMA_URL` pointing to your production PostgreSQL database (e.g. `postgres://...`).
    - `JWT_SECRET` (a long random string)
    - Optional: `MS_*` and `CANVAS_*` variables
 4. Deploy.
@@ -184,4 +184,4 @@ To fully sync with Canvas:
 
    - `https://YOUR_APP.vercel.app/api/integrations/microsoft/callback`
 
-After deploy, you can log in with `DemoUser1 / DemoPassword123!` and start using the dashboard.
+After deploy, register or use an existing account via the app (signup/login). Avoid committing any real usernames/passwords to GitHub.
