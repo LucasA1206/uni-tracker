@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import AnimatedDropdown from "@/components/ui/animated-dropdown";
 
 interface WorkTask {
   id: number;
@@ -10,6 +11,12 @@ interface WorkTask {
   dueDate: string | null;
   followupPeople?: string[];
 }
+
+const TASK_STATUS_OPTIONS = [
+  { value: "todo", label: "To-Do" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "done", label: "Completed" },
+];
 
 interface EmailMessage {
   id: number;
@@ -124,23 +131,16 @@ export default function WorkTab() {
     }
   }, [form, refresh]);
 
-  const toggleStatus = useCallback(async (task: WorkTask) => {
-    const nextStatus =
-      task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
-    
-    // Optimistic update
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t))
-    );
-    
+  const updateTaskStatus = useCallback(async (taskId: number, status: string) => {
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
+
     try {
       await fetch("/api/work/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: task.id, status: nextStatus }),
+        body: JSON.stringify({ id: taskId, status }),
       });
     } catch (err) {
-      // Revert on error
       void refresh();
     }
   }, [refresh]);
@@ -327,7 +327,7 @@ export default function WorkTab() {
             Sync emails
           </button>
         </div>
-        <div className="space-y-2 rounded-lg border bg-card p-3 max-h-80 overflow-auto text-xs">
+        <div className="space-y-2 rounded-lg border bg-card p-3 max-h-80 overflow-y-auto overflow-x-hidden scrollbar-theme text-xs">
           {tasks.length === 0 && <p className="text-muted-foreground">No tasks yet.</p>}
           <div className="grid gap-3 md:grid-cols-3">
             {(["todo", "in_progress", "done"] as const).map((statusKey) => (
@@ -389,12 +389,12 @@ export default function WorkTab() {
                           })}
                         </div>
                       )}
-                      <button
-                        className="rounded-full border border-slate-600 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-200"
-                        onClick={() => void toggleStatus(t)}
-                      >
-                        {t.status}
-                      </button>
+                      <AnimatedDropdown
+                        items={TASK_STATUS_OPTIONS}
+                        value={t.status}
+                        onChange={(nextStatus) => void updateTaskStatus(t.id, nextStatus)}
+                        className="w-28"
+                      />
                       <button
                         className="rounded-full border border-red-600 px-2 py-0.5 text-[10px] text-red-200 hover:bg-red-900/40"
                         onClick={async () => {
