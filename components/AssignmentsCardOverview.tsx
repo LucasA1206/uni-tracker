@@ -35,6 +35,7 @@ interface Course {
   code: string;
   term: string;
   year: number;
+  color?: string | null;
 }
 
 interface Assignment {
@@ -336,7 +337,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
   const renderAssignmentCard = (a: Assignment) => {
     const course = courses.find((c) => c.id === a.course.id);
     const courseName = course ? course.name.split("-")[0].trim() : "Unknown Course";
-    const colorClass = COURSE_COLORS[(course?.id || 0) % COURSE_COLORS.length];
+    const colorClass = course?.color ? "" : COURSE_COLORS[(course?.id || 0) % COURSE_COLORS.length];
 
     return (
       <button
@@ -345,7 +346,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
         className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0A0A0B] p-4 shadow-sm flex items-stretch text-left w-full hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all group"
         onClick={() => setSelectedAssignment(a)}
       >
-        <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${colorClass}`} />
+        <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${colorClass}`} style={course?.color ? { backgroundColor: course.color } : {}} />
         <div className="pl-3 flex flex-col w-full">
           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 capitalize">{courseName}</span>
           <span className="text-sm font-bold text-gray-900 dark:text-white mt-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{a.title}</span>

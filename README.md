@@ -133,6 +133,18 @@ This will show:
 - Count of courses, assignments, notes, tasks, and events
 - List of all users if your user isn't found
 
+### Option 2.5: Restore a missing user
+```bash
+# Recreate a user with the same credentials
+export POSTGRES_PRISMA_URL="your-production-postgres-url"
+npm run restore:prod-user LucasA001 yourpassword lucas@university.edu
+```
+
+This will:
+- Check if user already exists
+- Create the user with bcrypt-hashed password if missing
+- Allow you to log in again
+
 ### Option 3: Direct SQL access
 Use any PostgreSQL client (pgAdmin, DBeaver, etc.) with your `POSTGRES_PRISMA_URL`.
 
