@@ -62,6 +62,7 @@ export async function PUT(req: NextRequest) {
       createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
       courseId: "courseId" in body ? (body.courseId ?? null) : undefined,
     },
+    include: { course: { select: { code: true, name: true } } },
   });
 
   return NextResponse.json({ note: updatedNote });

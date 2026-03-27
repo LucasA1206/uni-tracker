@@ -100,8 +100,21 @@ interface Note {
     title: string;
     content: string;
     createdAt: string;
-    courseId?: number;
-    course?: { code?: string; name?: string };
+    courseId?: number | null;
+    course?: { code?: string; name?: string } | null;
+}
+
+/** Returns a short human-readable label like "COMP1234 — Data Structures" */
+function getCourseLabel(note: Note): string {
+    const code = note.course?.code;
+    const rawName = note.course?.name || "";
+    // Strip trailing session info (e.g. " - Autumn 2026") from name
+    const cleanName = rawName
+        .replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "")
+        .replace(new RegExp(`^${escapeRegExp(code ?? "")}\\s*[-–]?\\s*`, "i"), "")
+        .trim();
+    if (!code) return "Uncategorized";
+    return cleanName ? `${code} — ${cleanName}` : code;
 }
 
 const MOCK_GENERATED_CONTENT = `# C++ Course Overview
@@ -506,17 +519,19 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         void refresh();
     };
 
-    // Group notes by course
+    // Group notes by course — keyed by label so the section header already has the display text
     const notesByCourse = useMemo(() => {
+        // Use a stable composite key: courseId (or "__none__") → label
+        const labelByKey: Record<string, string> = {};
         const grouped: Record<string, Note[]> = {};
         notes.forEach(note => {
-            // Prefer display name (first segment before dash), fall back to code, then Uncategorized
-            const rawName = note.course?.name || "";
-            const displayName = rawName
-                ? rawName.split("-")[0].replace(new RegExp(`^${note.course?.code ?? ""}\\s*`, "i"), "").trim() || note.course?.code || "Uncategorized"
-                : note.course?.code || "Uncategorized";
-            if (!grouped[displayName]) grouped[displayName] = [];
-            grouped[displayName].push(note);
+            const key = note.courseId ? String(note.courseId) : "__none__";
+            if (!labelByKey[key]) {
+                labelByKey[key] = note.courseId ? getCourseLabel(note) : "Uncategorized";
+            }
+            const label = labelByKey[key];
+            if (!grouped[label]) grouped[label] = [];
+            grouped[label].push(note);
         });
         return grouped;
     }, [notes]);
@@ -918,10 +933,15 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                         className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow h-64 overflow-hidden cursor-pointer"
                                     >
                                         <div className="space-y-2 pointer-events-none">
-                                            <div className="flex items-start justify-between">
-                                                <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={note.title}>
+                                            <div className="flex items-start justify-between gap-2">
+                                                <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 flex-1" title={note.title}>
                                                     {note.title}
                                                 </h3>
+                                                {note.course?.code && (
+                                                    <span className="shrink-0 inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
+                                                        {note.course.code}
+                                                    </span>
+                                                )}
                                             </div>
                                             <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
                                                 {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
