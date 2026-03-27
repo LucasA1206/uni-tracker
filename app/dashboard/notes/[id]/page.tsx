@@ -27,7 +27,8 @@ interface Note {
     title: string;
     content: string;
     createdAt: string;
-    course?: { code?: string; name?: string };
+    courseId?: number | null;
+    course?: { code?: string; name?: string } | null;
     attachments?: NoteAttachment[];
 }
 
@@ -40,10 +41,14 @@ export default function NoteDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isQuizOpen, setIsQuizOpen] = useState(false);
 
+    // Courses (for reassigning)
+    const [courses, setCourses] = useState<Course[]>([]);
+
     // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState("");
     const [editContent, setEditContent] = useState("");
+    const [editCourseId, setEditCourseId] = useState<string>("");
     const [editCreatedAt, setEditCreatedAt] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
@@ -69,9 +74,7 @@ export default function NoteDetailPage() {
                 setEditTitle(foundNote.title);
                 setEditContent(foundNote.content);
                 setEditCreatedAt(foundNote.createdAt);
-                // Attachments might be included or need separate fetch. 
-                // Based on our API change `GET /api/uni/notes` includes basic info.
-                // We'll fetch attachments separately to be safe or check if included.
+                setEditCourseId(foundNote.courseId ? String(foundNote.courseId) : "");
                 fetchAttachments();
             } else {
                 setError("Note not found.");
@@ -101,6 +104,13 @@ export default function NoteDetailPage() {
         }
     }, [fetchNote, params.id]);
 
+    useEffect(() => {
+        fetch("/api/uni/courses")
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data?.courses) setCourses(data.courses); })
+            .catch(() => {});
+    }, []);
+
     const handleSave = async () => {
         if (!note) return;
         setIsSaving(true);
@@ -112,6 +122,7 @@ export default function NoteDetailPage() {
                     id: note.id,
                     title: editTitle,
                     content: editContent,
+                    courseId: editCourseId ? Number(editCourseId) : null,
                     createdAt: editCreatedAt,
                 }),
             });
@@ -276,6 +287,7 @@ export default function NoteDetailPage() {
                                         setEditTitle(note.title);
                                         setEditContent(note.content);
                                         setEditCreatedAt(note.createdAt);
+                                        setEditCourseId(note.courseId ? String(note.courseId) : "");
                                     }}
                                     className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1F1F23]"
                                 >
@@ -383,20 +395,51 @@ export default function NoteDetailPage() {
                 <div className="space-y-4">
                     <div className="flex items-start justify-between">
                         <div className="space-y-1 w-full">
-                            {note.course?.code && (
-                                <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 ring-1 ring-inset ring-indigo-700/10 dark:ring-indigo-500/20 mb-2">
-                                    {note.course.code}
-                                </span>
-                            )}
+                            {note.course?.code && (() => {
+                                const rawName = note.course?.name || "";
+                                const cleanName = rawName
+                                    .replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "")
+                                    .replace(new RegExp(`^${note.course.code}\\s*[-–]?\\s*`, "i"), "")
+                                    .trim();
+                                const label = cleanName ? `${note.course.code} — ${cleanName}` : note.course.code;
+                                return (
+                                    <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 ring-1 ring-inset ring-indigo-700/10 dark:ring-indigo-500/20 mb-2">
+                                        {label}
+                                    </span>
+                                );
+                            })()}
 
                             {isEditing ? (
-                                <input
-                                    type="text"
-                                    value={editTitle}
-                                    onChange={(e) => setEditTitle(e.target.value)}
-                                    className="w-full text-3xl font-bold tracking-tight text-gray-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none pb-2"
-                                    placeholder="Note Title"
-                                />
+                                <div className="space-y-3 w-full">
+                                    <input
+                                        type="text"
+                                        value={editTitle}
+                                        onChange={(e) => setEditTitle(e.target.value)}
+                                        className="w-full text-3xl font-bold tracking-tight text-gray-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none pb-2"
+                                        placeholder="Note Title"
+                                    />
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <BookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
+                                        <select
+                                            value={editCourseId}
+                                            onChange={(e) => setEditCourseId(e.target.value)}
+                                            className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
+                                        >
+                                            <option value="">No course (unassigned)</option>
+                                            {courses.map((c) => {
+                                                const cRawName = c.name || "";
+                                                const cClean = cRawName
+                                                    .replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "")
+                                                    .replace(new RegExp(`^${c.code}\\s*[-–]?\\s*`, "i"), "")
+                                                    .trim();
+                                                const cLabel = cClean ? `${c.code} — ${cClean}` : c.code;
+                                                return (
+                                                    <option key={c.id} value={c.id}>{cLabel}</option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
+                                </div>
                             ) : (
                                 <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                                     {note.title}
