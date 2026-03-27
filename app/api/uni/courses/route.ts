@@ -61,3 +61,34 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ success: true });
 }
+
+export async function PATCH(req: NextRequest) {
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  if (!body || !body.id) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const course = await prisma.uniCourse.findFirst({
+    where: { id: Number(body.id), userId: user.userId },
+  });
+
+  if (!course) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  }
+
+  const updatedCourse = await prisma.uniCourse.update({
+    where: { id: course.id },
+    data: {
+      name: body.name !== undefined ? body.name : course.name,
+      code: body.code !== undefined ? body.code : course.code,
+      term: body.term !== undefined ? body.term : course.term,
+      year: body.year !== undefined ? Number(body.year) : course.year,
+      color: body.color !== undefined ? body.color : course.color,
+    },
+  });
+
+  return NextResponse.json({ course: updatedCourse });
+}
