@@ -43,10 +43,9 @@ model UniCourse {
   userId      Int
   name        String
   code        String
-  color       String?       // HEX or CSS color string
+  color       String?
   term        String   @default("Autumn")
   year        Int      @default(2026)
-  color       String?
   canvasId    String?
   assignments Assignment[]
   notes       Note[]

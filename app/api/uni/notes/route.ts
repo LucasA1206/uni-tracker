@@ -60,6 +60,7 @@ export async function PUT(req: NextRequest) {
       title: body.title !== undefined ? body.title : undefined,
       content: body.content !== undefined ? body.content : undefined,
       createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
+      courseId: "courseId" in body ? (body.courseId ?? null) : undefined,
     },
   });
 
