@@ -45,7 +45,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
         <div>
           <label className="block text-sm font-medium mb-1 text-white">
-            Username
+            Username or University Email
           </label>
           <input
             className="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
@@ -53,6 +53,7 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="off"
             name="username"
+            placeholder="Type username or email"
           />
         </div>
         <div>

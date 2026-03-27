@@ -108,7 +108,49 @@ The seed script (`prisma/seed.mjs`) creates the default admin user. To add more 
 
 ---
 
-## 4. Integrating the ReactBits particles background
+## 4. Viewing production database
+
+To inspect your Vercel PostgreSQL database:
+
+### Option 1: Prisma Studio (GUI)
+```bash
+# Set your production database URL
+export POSTGRES_PRISMA_URL="your-production-postgres-url"
+
+# Open Prisma Studio for production schema
+npm run prisma:studio:prod
+```
+
+### Option 2: Check specific user data
+```bash
+# Check if your user exists and see data counts
+export POSTGRES_PRISMA_URL="your-production-postgres-url"
+npm run check:prod-user LucasA001  # Replace with your username
+```
+
+This will show:
+- User details (if found)
+- Count of courses, assignments, notes, tasks, and events
+- List of all users if your user isn't found
+
+### Option 2.5: Restore a missing user
+```bash
+# Recreate a user with the same credentials
+export POSTGRES_PRISMA_URL="your-production-postgres-url"
+npm run restore:prod-user LucasA001 yourpassword lucas@university.edu
+```
+
+This will:
+- Check if user already exists
+- Create the user with bcrypt-hashed password if missing
+- Allow you to log in again
+
+### Option 3: Direct SQL access
+Use any PostgreSQL client (pgAdmin, DBeaver, etc.) with your `POSTGRES_PRISMA_URL`.
+
+---
+
+## 5. Integrating the ReactBits particles background
 
 The login page (`app/login/page.tsx`) uses `ParticlesBackground` from `components/ParticlesBackground.tsx`.
 
@@ -120,7 +162,7 @@ The login page will automatically pick up the new animated background.
 
 ---
 
-## 5. Microsoft (Outlook) integration scaffolding
+## 6. Microsoft (Outlook) integration scaffolding
 
 Environment variables (already declared in `.env`):
 
@@ -148,7 +190,7 @@ To fully enable Outlook calendar/email tasks:
 
 ---
 
-## 6. Canvas (UTS) integration scaffolding
+## 7. Canvas (UTS) integration scaffolding
 
 Environment variables:
 
@@ -171,12 +213,12 @@ To fully sync with Canvas:
 
 ---
 
-## 7. Deploying to Vercel
+## 8. Deploying to Vercel
 
 1. **Push to Git** (GitHub/GitLab/Bitbucket).
 2. Go to <https://vercel.com>, create a project, and import the repo.
 3. In **Project → Settings → Environment Variables**, set at least:
-   - `DATABASE_URL` (for SQLite, use `file:./dev.db` or a hosted DB connection string)
+   - `DATABASE_URL` or `POSTGRES_PRISMA_URL` pointing to your production PostgreSQL database (e.g. `postgres://...`).
    - `JWT_SECRET` (a long random string)
    - Optional: `MS_*` and `CANVAS_*` variables
 4. Deploy.
@@ -184,4 +226,4 @@ To fully sync with Canvas:
 
    - `https://YOUR_APP.vercel.app/api/integrations/microsoft/callback`
 
-After deploy, you can log in with `DemoUser1 / DemoPassword123!` and start using the dashboard.
+After deploy, register or use an existing account via the app (signup/login). Avoid committing any real usernames/passwords to GitHub.

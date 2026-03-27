@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MenuBar } from "@/components/ui/glow-menu";
+import AnimatedDropdown from "@/components/ui/animated-dropdown";
 import { History, CalendarClock, LineChart, Settings, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line } from "react-chartjs-2";
@@ -34,6 +35,7 @@ interface Course {
   code: string;
   term: string;
   year: number;
+  color?: string | null;
 }
 
 interface Assignment {
@@ -335,7 +337,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
   const renderAssignmentCard = (a: Assignment) => {
     const course = courses.find((c) => c.id === a.course.id);
     const courseName = course ? course.name.split("-")[0].trim() : "Unknown Course";
-    const colorClass = COURSE_COLORS[(course?.id || 0) % COURSE_COLORS.length];
+    const colorClass = course?.color ? "" : COURSE_COLORS[(course?.id || 0) % COURSE_COLORS.length];
 
     return (
       <button
@@ -344,7 +346,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
         className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0A0A0B] p-4 shadow-sm flex items-stretch text-left w-full hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all group"
         onClick={() => setSelectedAssignment(a)}
       >
-        <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${colorClass}`} />
+        <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${colorClass}`} style={course?.color ? { backgroundColor: course.color } : {}} />
         <div className="pl-3 flex flex-col w-full">
           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 capitalize">{courseName}</span>
           <span className="text-sm font-bold text-gray-900 dark:text-white mt-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{a.title}</span>
@@ -579,21 +581,18 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
                 ))}
                 <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
                   <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
-                  <select
-                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
+                  <AnimatedDropdown
+                    items={ASSIGNMENT_STATUSES}
                     value={selectedAssignment.status}
-                    onChange={(e) => void handleModalStatusChange(e.target.value)}
-                  >
-                    {ASSIGNMENT_STATUSES.map((status) => (
-                      <option key={status.value} value={status.value}>{status.label}</option>
-                    ))}
-                  </select>
+                    onChange={(newStatus) => void handleModalStatusChange(newStatus)}
+                    className="mt-1 w-full"
+                  />
                 </div>
               </div>
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 relative z-10 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 relative z-10 scrollbar-theme">
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Description</h4>
                 <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
