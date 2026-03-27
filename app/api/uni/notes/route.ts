@@ -59,7 +59,9 @@ export async function PUT(req: NextRequest) {
     data: {
       title: body.title !== undefined ? body.title : undefined,
       content: body.content !== undefined ? body.content : undefined,
+      courseId: body.courseId !== undefined ? (body.courseId ?? null) : undefined,
     },
+    include: { course: { select: { code: true, name: true } } },
   });
 
   return NextResponse.json({ note: updatedNote });

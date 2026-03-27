@@ -27,6 +27,7 @@ interface Course {
   code: string;
   term: string;
   year: number;
+  color?: string | null;
 }
 
 interface Assignment {
@@ -100,6 +101,8 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [hiddenSemesters, setHiddenSemesters] = useState<string[]>([]);
   const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
 
@@ -252,8 +255,26 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     if (!confirm("Are you sure? This will delete all course data.")) return;
     try {
       const res = await fetch(`/api/uni/courses?id=${id}`, { method: "DELETE" });
-      if (res.ok) refresh();
+      if (res.ok) {
+        if (selectedCourse?.id === id) setSelectedCourse(null);
+        refresh();
+      }
     } catch (err) { console.error("Delete course failed", err); }
+  };
+
+  const updateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse || !editingCourse.name || !editingCourse.code) return;
+    try {
+      const res = await fetch("/api/uni/courses", {
+        method: "PATCH",
+        body: JSON.stringify(editingCourse)
+      });
+      if (res.ok) {
+        setSelectedCourse(null);
+        refresh();
+      }
+    } catch (err) { console.error("Update course failed", err); }
   };
 
   const addAssignment = async (e: React.FormEvent) => {
@@ -432,8 +453,14 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
           <BlurFade delay={0.2}>
             <ul className="space-y-1 text-sm">
               {courses.map((c) => (
-                <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2">
-                  <div className={`absolute top-0 bottom-0 left-0 w-1 ${COURSE_COLORS[c.id % COURSE_COLORS.length]}`} />
+                <li 
+                  key={c.id} 
+                  className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2 cursor-pointer hover:border-indigo-500/50 transition-colors"
+                  onClick={() => {
+                    setSelectedCourse(c);
+                    setEditingCourse(c);
+                  }}
+                >
                   <div className="pl-2">
                     <div className="font-medium">{c.name.split("-")[0].trim()}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
@@ -441,7 +468,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   <button
                     type="button"
                     className="rounded-full border border-red-200 dark:border-red-900/30 px-2 py-0.5 text-[10px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    onClick={() => void deleteCourse(c.id)}
+                    onClick={(e) => { e.stopPropagation(); void deleteCourse(c.id); }}
                   >
                     Delete
                   </button>
@@ -777,6 +804,94 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 Delete Task
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {selectedCourse && editingCourse && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedCourse(null)}>
+          <div 
+            className="relative w-full max-w-[500px] flex flex-col rounded-3xl border border-gray-50/80 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            onClick={e => e.stopPropagation()}
+          >
+            <BorderBeam size={200} duration={8} colorFrom="#3b82f6" colorTo="#a855f7" />
+            
+            <div className="p-6 pb-2">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Course</h3>
+            </div>
+
+            <form onSubmit={updateCourse} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Name</label>
+                <input
+                  className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
+                  value={editingCourse.name}
+                  onChange={(e) => setEditingCourse({ ...editingCourse, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Code</label>
+                <input
+                  className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
+                  value={editingCourse.code}
+                  onChange={(e) => setEditingCourse({ ...editingCourse, code: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Term</label>
+                  <select
+                    className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden transition-all text-gray-900 dark:text-white"
+                    value={editingCourse.term}
+                    onChange={(e) => setEditingCourse({ ...editingCourse, term: e.target.value })}
+                  >
+                    <option value="Autumn">Autumn</option>
+                    <option value="Spring">Spring</option>
+                    <option value="Summer">Summer</option>
+                    <option value="Winter">Winter</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Year</label>
+                  <input
+                    type="number"
+                    className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden transition-all text-gray-900 dark:text-white"
+                    value={editingCourse.year}
+                    onChange={(e) => setEditingCourse({ ...editingCourse, year: parseInt(e.target.value) || new Date().getFullYear() })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Course Colour</label>
+                <div className="flex flex-wrap gap-2">
+                  {COURSE_COLORS.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`w-8 h-8 rounded-full ${color} ${editingCourse.color === color || (!editingCourse.color && COURSE_COLORS[editingCourse.id % COURSE_COLORS.length] === color) ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-[#0A0A0C]' : 'opacity-80 hover:opacity-100'} transition-all`}
+                      onClick={() => setEditingCourse({ ...editingCourse, color })}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCourse(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-500 text-white hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-500/20"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>,
         document.body
