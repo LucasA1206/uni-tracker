@@ -22,6 +22,17 @@ const COURSE_COLORS = [
   "bg-teal-500"
 ];
 
+const COURSE_COLORS_HEX = [
+  "#ef4444",
+  "#3b82f6",
+  "#22c55e",
+  "#eab308",
+  "#a855f7",
+  "#ec4899",
+  "#6366f1",
+  "#14b8a6"
+];
+
 const ASSIGNMENT_STATUS_OPTIONS = [
   { value: "pending", label: "To-Do" },
   { value: "in_progress", label: "In Progress" },
@@ -109,6 +120,8 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [hiddenSemesters, setHiddenSemesters] = useState<string[]>([]);
   const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
 
@@ -303,6 +316,24 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         setCourses(prev => prev.map(c => c.id === id ? { ...c, color } : c));
       }
     } catch (err) { console.error("Update course color failed", err); }
+  };
+
+  const updateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse || !editingCourse.name || !editingCourse.code) return;
+    try {
+      const res = await fetch("/api/uni/courses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingCourse)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCourses(prev => prev.map(c => c.id === editingCourse.id ? data.course : c));
+        setSelectedCourse(null);
+        setEditingCourse(null);
+      }
+    } catch (err) { console.error("Update course failed", err); }
   };
 
   const addAssignment = async (e: React.FormEvent) => {
@@ -528,24 +559,25 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
           <BlurFade delay={0.2}>
             <ul className="space-y-1 text-sm">
               {courses.map((c) => (
-                <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2">
-                  <div className={`absolute top-0 bottom-0 left-0 w-1 ${c.color ? "" : COURSE_COLORS[c.id % COURSE_COLORS.length]}`} style={c.color ? { backgroundColor: c.color } : {}} />
-                  <div className="pl-2 flex-grow flex items-center gap-2">
-                    <input 
-                      type="color" 
-                      value={c.color || "#6366f1"} 
-                      className="w-5 h-5 rounded cursor-pointer shrink-0 border-0 p-0 bg-transparent" 
-                      onChange={(e) => updateCourseColor(c.id, e.target.value)}
+                <li
+                  key={c.id}
+                  className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2 cursor-pointer hover:border-indigo-500/50 transition-colors group"
+                  onClick={() => { setSelectedCourse(c); setEditingCourse({ ...c }); }}
+                >
+                  <div className="flex items-center gap-3 pl-1 min-w-0 flex-1">
+                    <div
+                      className="shrink-0 w-3 h-3 rounded-full"
+                      style={{ background: c.color || COURSE_COLORS_HEX[c.id % COURSE_COLORS_HEX.length] }}
                     />
-                    <div>
-                      <div className="font-medium">{c.name.split("-")[0].trim()}</div>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{c.name.split("-")[0].trim()}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
                     </div>
                   </div>
                   <button
                     type="button"
-                    className="rounded-full border border-red-200 dark:border-red-900/30 px-2 py-0.5 text-[10px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    onClick={() => void deleteCourse(c.id)}
+                    className="shrink-0 rounded-full border border-red-200 dark:border-red-900/30 px-2 py-0.5 text-[10px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    onClick={(e) => { e.stopPropagation(); void deleteCourse(c.id); }}
                   >
                     Delete
                   </button>
@@ -884,6 +916,109 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 Delete Task
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Course Edit Modal */}
+      {selectedCourse && editingCourse && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => { setSelectedCourse(null); setEditingCourse(null); }}>
+          <div
+            className="relative w-full max-w-[480px] flex flex-col rounded-3xl border border-gray-50/80 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <BorderBeam size={200} duration={8} colorFrom="#3b82f6" colorTo="#a855f7" />
+
+            <div className="p-6 pb-2">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Course</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Update your course details and colour.</p>
+            </div>
+
+            <form onSubmit={updateCourse} className="p-6 pt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Name</label>
+                <input
+                  className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
+                  value={editingCourse.name}
+                  onChange={(e) => setEditingCourse({ ...editingCourse, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Code</label>
+                <input
+                  className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
+                  value={editingCourse.code}
+                  onChange={(e) => setEditingCourse({ ...editingCourse, code: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Session</label>
+                  <select
+                    className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-none transition-all text-gray-900 dark:text-white"
+                    value={editingCourse.term}
+                    onChange={(e) => setEditingCourse({ ...editingCourse, term: e.target.value })}
+                  >
+                    <option value="Autumn">Autumn</option>
+                    <option value="Spring">Spring</option>
+                    <option value="Summer">Summer</option>
+                    <option value="Winter">Winter</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Year</label>
+                  <input
+                    type="number"
+                    className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-none transition-all text-gray-900 dark:text-white"
+                    value={editingCourse.year}
+                    onChange={(e) => setEditingCourse({ ...editingCourse, year: parseInt(e.target.value) || new Date().getFullYear() })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Course Colour</label>
+                <div className="flex flex-wrap gap-2">
+                  {COURSE_COLORS_HEX.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      className={cn(
+                        "w-8 h-8 rounded-full transition-all",
+                        (editingCourse.color === hex) ? "ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-[#0A0A0C] scale-110" : "opacity-80 hover:opacity-100 hover:scale-105"
+                      )}
+                      style={{ background: hex }}
+                      onClick={() => setEditingCourse({ ...editingCourse, color: hex })}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-between items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { if (confirm("Delete this course? All its assignments and notes will also be deleted.")) void deleteCourse(editingCourse.id); setSelectedCourse(null); setEditingCourse(null); }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  Delete Course
+                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedCourse(null); setEditingCourse(null); }}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-500 text-white hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-500/20"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>,
         document.body

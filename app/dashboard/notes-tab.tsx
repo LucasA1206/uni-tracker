@@ -209,6 +209,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const [loading, setLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+    const [reassignNotePopup, setReassignNotePopup] = useState<number | null>(null); // note id being reassigned
 
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const [convertedMp3Blob, setConvertedMp3Blob] = useState<Blob | null>(null);
@@ -480,6 +481,22 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         if (!confirm("Are you sure you want to delete this note?")) return;
         await fetch(`/api/uni/notes?id=${id}`, { method: "DELETE" });
         void refresh();
+    };
+
+    const updateNoteCourse = async (noteId: number, courseId: number | null) => {
+        try {
+            const res = await fetch("/api/uni/notes", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: noteId, courseId }),
+            });
+            if (res.ok) {
+                setReassignNotePopup(null);
+                void refresh(); // full refresh to update grouping
+            }
+        } catch (err) {
+            console.error("Failed to update note course", err);
+        }
     };
 
     const deleteQuiz = async (e: React.MouseEvent, id: number) => {
@@ -910,18 +927,58 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between pointer-events-none">
-                                            <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 pointer-events-auto" onClick={() => router.push(`/dashboard/notes/${note.id}`)}>
+                                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                                            <button
+                                                className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                                onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/notes/${note.id}`); }}
+                                            >
                                                 View Full Note
                                             </button>
-                                            <button
-                                                onClick={(e) => deleteNote(e, note.id)}
-                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors pointer-events-auto"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                {/* Change Course button */}
+                                                <div className="relative">
+                                                    <button
+                                                        title="Move to another course"
+                                                        className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide"
+                                                        onClick={(e) => { e.stopPropagation(); setReassignNotePopup(prev => prev === note.id ? null : note.id); }}
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                        Move
+                                                    </button>
+                                                    {reassignNotePopup === note.id && (
+                                                        <div
+                                                            className="absolute bottom-full right-0 mb-2 w-52 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-30 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                                                            onClick={e => e.stopPropagation()}
+                                                        >
+                                                            <div className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-zinc-800">Move to course</div>
+                                                            <button
+                                                                className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-gray-400 italic"
+                                                                onClick={() => void updateNoteCourse(note.id, null)}
+                                                            >
+                                                                No Course
+                                                            </button>
+                                                            {courses.map(c => (
+                                                                <button
+                                                                    key={c.id}
+                                                                    className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ${note.courseId === c.id ? 'text-indigo-500 font-semibold' : 'text-gray-700 dark:text-gray-300'}`}
+                                                                    onClick={() => void updateNoteCourse(note.id, c.id)}
+                                                                >
+                                                                    {c.code} – {c.name.split('-')[0].trim()}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={(e) => deleteNote(e, note.id)}
+                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </motion.div>
+
                                 ))}
                             </div>
                         </div>

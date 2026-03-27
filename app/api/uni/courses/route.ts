@@ -80,7 +80,11 @@ export async function PUT(req: NextRequest) {
   const updatedCourse = await prisma.uniCourse.update({
     where: { id: body.id },
     data: {
-      color: body.color !== undefined ? body.color : undefined,
+      name: body.name !== undefined ? body.name : course.name,
+      code: body.code !== undefined ? body.code : course.code,
+      term: body.term !== undefined ? body.term : course.term,
+      year: body.year !== undefined ? Number(body.year) : course.year,
+      color: body.color !== undefined ? body.color : course.color,
     },
   });
 
