@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       userId: user.userId,
       name: body.name,
       code: body.code,
+      color: body.color || null,
       term: body.term || "Autumn",
       year: body.year ? Number(body.year) : 2026,
     },
@@ -62,7 +63,7 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-export async function PATCH(req: NextRequest) {
+export async function PUT(req: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -71,22 +72,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const course = await prisma.uniCourse.findFirst({
-    where: { id: Number(body.id), userId: user.userId },
-  });
-
+  const course = await prisma.uniCourse.findFirst({ where: { id: body.id, userId: user.userId } });
   if (!course) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 });
   }
 
   const updatedCourse = await prisma.uniCourse.update({
-    where: { id: course.id },
+    where: { id: body.id },
     data: {
-      name: body.name !== undefined ? body.name : course.name,
-      code: body.code !== undefined ? body.code : course.code,
-      term: body.term !== undefined ? body.term : course.term,
-      year: body.year !== undefined ? Number(body.year) : course.year,
-      color: body.color !== undefined ? body.color : course.color,
+      color: body.color !== undefined ? body.color : undefined,
     },
   });
 

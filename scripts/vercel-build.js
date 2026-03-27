@@ -9,8 +9,7 @@ const isVercel = process.env.VERCEL === '1';
 if (isVercel) {
     console.log('Detected Vercel environment.');
     if (fs.existsSync('prisma/schema.postgres.prisma')) {
-        console.log('Swapping Prisma schema to use PostgreSQL...');
-        fs.copyFileSync('prisma/schema.postgres.prisma', 'prisma/schema.prisma');
+        console.log('Using Prisma schema for PostgreSQL (prisma/schema.postgres.prisma).');
     } else {
         console.warn('prisma/schema.postgres.prisma not found. Using default schema.');
     }
@@ -18,9 +17,13 @@ if (isVercel) {
     console.log('Not on Vercel. Using default Prisma schema (likely SQLite).');
 }
 
+const prismaGenerateCmd = isVercel && fs.existsSync('prisma/schema.postgres.prisma')
+    ? 'npx prisma generate --schema prisma/schema.postgres.prisma'
+    : 'npx prisma generate';
+
 try {
     console.log('Running prisma generate...');
-    execSync('npx prisma generate', { stdio: 'inherit' });
+    execSync(prismaGenerateCmd, { stdio: 'inherit' });
 
     console.log('Running next build...');
     execSync('npx next build', { stdio: 'inherit' });

@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import GradeCharts, { AssignmentForCharts } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import AssignmentsCardOverview from "@/components/AssignmentsCardOverview";
+import AnimatedDropdown from "@/components/ui/animated-dropdown";
 import { createPortal } from "react-dom";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { BlurFade } from "@/components/magicui/blur-fade";
@@ -19,6 +20,12 @@ const COURSE_COLORS = [
   "bg-pink-500",
   "bg-indigo-500",
   "bg-teal-500"
+];
+
+const ASSIGNMENT_STATUS_OPTIONS = [
+  { value: "pending", label: "To-Do" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
 ];
 
 interface Course {
@@ -95,33 +102,31 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     status: "pending",
     weightPercent: "",
     followupPeople: [] as string[],
+    description: "",
   });
   const [newNote, setNewNote] = useState({ title: "", content: "", courseId: "" });
   const [hiddenCourses, setHiddenCourses] = useState<number[]>([]);
   const [hiddenSemesters, setHiddenSemesters] = useState<string[]>([]);
   const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch("/api/uni/dashboard");
-      const data = await res.json();
-      if (res.ok) {
-        setCourses(data.courses || []);
-        setAssignments(data.assignments || []);
-        setNotes(data.notes || []);
-      }
-    } catch (err) {
-      console.error("Refresh failed", err);
-    }
-  }, []);
-
   useEffect(() => {
-    refresh();
+    const loadData = async () => {
+      try {
+        const res = await fetch("/api/uni/dashboard");
+        const data = await res.json();
+        if (res.ok) {
+          setCourses(data.courses || []);
+          setAssignments(data.assignments || []);
+          setNotes(data.notes || []);
+        }
+      } catch (err) {
+        console.error("Failed to load data", err);
+      }
+    };
+    loadData();
     const stored = window.localStorage.getItem("active_hidden_semesters");
     if (stored) {
       try { setHiddenSemesters(JSON.parse(stored)); } catch {}
@@ -134,7 +139,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     if (storedSelectedSemesters) {
       try { setSelectedSemesters(JSON.parse(storedSelectedSemesters)); } catch {}
     }
-  }, [refresh]);
+  }, []);
 
   const displayCourses = useMemo(() => {
     if (openAssignmentDemo && courses.length === 0) {
@@ -239,16 +244,42 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const addCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCourse.name || !newCourse.code) return;
+
+    const courseData = { ...newCourse, year: parseInt(newCourse.year, 10) };
+    const tempId = Date.now(); // Temporary ID for optimistic update
+
+    // Optimistic update
+    const optimisticCourse = {
+      id: tempId,
+      name: courseData.name,
+      code: courseData.code,
+      term: courseData.term,
+      year: courseData.year
+    };
+    setCourses(prev => [...prev, optimisticCourse]);
+    setNewCourse({ name: "", code: "", term: "Autumn", year: new Date().getFullYear().toString() });
+
     try {
       const res = await fetch("/api/uni/courses", {
         method: "POST",
-        body: JSON.stringify({ ...newCourse, year: parseInt(newCourse.year, 10) })
+        body: JSON.stringify(courseData)
       });
       if (res.ok) {
-        setNewCourse({ name: "", code: "", term: "Autumn", year: new Date().getFullYear().toString() });
-        refresh();
+        const data = await res.json();
+        // Replace optimistic course with real data
+        setCourses(prev => prev.map(c => c.id === tempId ? data.course : c));
+      } else {
+        // Revert optimistic update on failure
+        setCourses(prev => prev.filter(c => c.id !== tempId));
+        setNewCourse({ ...courseData, year: courseData.year.toString() });
+        console.error("Add course failed");
       }
-    } catch (err) { console.error("Add course failed", err); }
+    } catch (err) {
+      // Revert optimistic update on error
+      setCourses(prev => prev.filter(c => c.id !== tempId));
+      setNewCourse({ ...courseData, year: courseData.year.toString() });
+      console.error("Add course failed", err);
+    }
   };
 
   const deleteCourse = async (id: number) => {
@@ -256,52 +287,96 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     try {
       const res = await fetch(`/api/uni/courses?id=${id}`, { method: "DELETE" });
       if (res.ok) {
-        if (selectedCourse?.id === id) setSelectedCourse(null);
-        refresh();
+        setCourses(prev => prev.filter(c => c.id !== id));
       }
     } catch (err) { console.error("Delete course failed", err); }
   };
 
-  const updateCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCourse || !editingCourse.name || !editingCourse.code) return;
+  const updateCourseColor = async (id: number, color: string) => {
     try {
-      const res = await fetch("/api/uni/courses", {
-        method: "PATCH",
-        body: JSON.stringify(editingCourse)
+      const res = await fetch(`/api/uni/courses`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, color })
       });
       if (res.ok) {
-        setSelectedCourse(null);
-        refresh();
+        setCourses(prev => prev.map(c => c.id === id ? { ...c, color } : c));
       }
-    } catch (err) { console.error("Update course failed", err); }
+    } catch (err) { console.error("Update course color failed", err); }
   };
 
   const addAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAssignment.courseId || !newAssignment.title) return;
+
+    const assignmentData = {
+      ...newAssignment,
+      courseId: parseInt(newAssignment.courseId, 10).toString(),
+      maxGrade: parseFloat(newAssignment.maxGrade) || 100,
+      grade: newAssignment.grade ? parseFloat(newAssignment.grade) : null,
+      weight: (parseFloat(newAssignment.weightPercent) || 0) / 100,
+    };
+    const tempId = Date.now(); // Temporary ID for optimistic update
+
+    // Optimistic update
+    const optimisticAssignment = {
+      id: tempId,
+      title: assignmentData.title,
+      dueDate: assignmentData.dueDate,
+      course: { id: parseInt(assignmentData.courseId), code: displayCourses.find(c => c.id === parseInt(assignmentData.courseId))?.code || "" },
+      grade: assignmentData.grade,
+      weight: assignmentData.weight,
+      maxGrade: assignmentData.maxGrade,
+      status: assignmentData.status,
+      description: assignmentData.description,
+      followupPeople: assignmentData.followupPeople,
+    };
+    setAssignments(prev => [...prev, optimisticAssignment]);
+    setNewAssignment({ courseId: "", title: "", dueDate: "", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [], description: "" });
+
     try {
       const res = await fetch("/api/uni/assignments", {
         method: "POST",
-        body: JSON.stringify({
-          ...newAssignment,
-          courseId: parseInt(newAssignment.courseId, 10).toString(),
-          maxGrade: parseFloat(newAssignment.maxGrade) || 100,
-          grade: newAssignment.grade ? parseFloat(newAssignment.grade) : null,
-          weight: (parseFloat(newAssignment.weightPercent) || 0) / 100,
-        })
+        body: JSON.stringify(assignmentData)
       });
       if (res.ok) {
-        setNewAssignment({ courseId: "", title: "", dueDate: "", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [] });
-        refresh();
+        const data = await res.json();
+        // Replace optimistic assignment with real data
+        setAssignments(prev => prev.map(a => a.id === tempId ? data.assignment : a));
+      } else {
+        // Revert optimistic update on failure
+        setAssignments(prev => prev.filter(a => a.id !== tempId));
+        setNewAssignment({
+          ...assignmentData,
+          courseId: assignmentData.courseId,
+          maxGrade: assignmentData.maxGrade.toString(),
+          grade: assignmentData.grade?.toString() || "",
+          weightPercent: (assignmentData.weight * 100).toString(),
+          description: assignmentData.description || "",
+        });
+        console.error("Add assignment failed");
       }
-    } catch (err) { console.error("Add assignment failed", err); }
+    } catch (err) {
+      // Revert optimistic update on error
+      setAssignments(prev => prev.filter(a => a.id !== tempId));
+      setNewAssignment({
+        ...assignmentData,
+        courseId: assignmentData.courseId,
+        maxGrade: assignmentData.maxGrade.toString(),
+        grade: assignmentData.grade?.toString() || "",
+        weightPercent: (assignmentData.weight * 100).toString(),
+        description: assignmentData.description || "",
+      });
+      console.error("Add assignment failed", err);
+    }
   };
 
   const deleteAssignment = async (id: number) => {
     try {
       const res = await fetch(`/api/uni/assignments?id=${id}`, { method: "DELETE" });
-      if (res.ok) refresh();
+      if (res.ok) {
+        setAssignments(prev => prev.filter(a => a.id !== id));
+      }
     } catch (err) { console.error("Delete assignment failed", err); }
   };
 
@@ -314,7 +389,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       });
       if (res.ok) {
         setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-        refresh();
+        // Removed refresh() call for instant updates
       }
     } catch (err) { console.error("Update status failed", err); }
   };
@@ -453,22 +528,24 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
           <BlurFade delay={0.2}>
             <ul className="space-y-1 text-sm">
               {courses.map((c) => (
-                <li 
-                  key={c.id} 
-                  className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2 cursor-pointer hover:border-indigo-500/50 transition-colors"
-                  onClick={() => {
-                    setSelectedCourse(c);
-                    setEditingCourse(c);
-                  }}
-                >
-                  <div className="pl-2">
-                    <div className="font-medium">{c.name.split("-")[0].trim()}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
+                <li key={c.id} className="relative overflow-hidden flex items-center justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-2">
+                  <div className={`absolute top-0 bottom-0 left-0 w-1 ${c.color ? "" : COURSE_COLORS[c.id % COURSE_COLORS.length]}`} style={c.color ? { backgroundColor: c.color } : {}} />
+                  <div className="pl-2 flex-grow flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={c.color || "#6366f1"} 
+                      className="w-5 h-5 rounded cursor-pointer shrink-0 border-0 p-0 bg-transparent" 
+                      onChange={(e) => updateCourseColor(c.id, e.target.value)}
+                    />
+                    <div>
+                      <div className="font-medium">{c.name.split("-")[0].trim()}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{c.code}</div>
+                    </div>
                   </div>
                   <button
                     type="button"
                     className="rounded-full border border-red-200 dark:border-red-900/30 px-2 py-0.5 text-[10px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); void deleteCourse(c.id); }}
+                    onClick={() => void deleteCourse(c.id)}
                   >
                     Delete
                   </button>
@@ -498,7 +575,14 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                     setSyncLoading(true);
                     try {
                       await fetch("/api/integrations/canvas/sync", { method: "POST" });
-                      await refresh();
+                      // Reload data after sync
+                      const res = await fetch("/api/uni/dashboard");
+                      const data = await res.json();
+                      if (res.ok) {
+                        setCourses(data.courses || []);
+                        setAssignments(data.assignments || []);
+                        setNotes(data.notes || []);
+                      }
                     } finally {
                       setSyncLoading(false);
                     }
@@ -596,7 +680,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 )}
               </div>
 
-              <div className="relative space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 min-h-[30rem] max-h-[50rem] overflow-auto scrollbar-hide">
+              <div className="relative space-y-3 rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/50 dark:bg-[#0F0F12]/50 backdrop-blur-sm p-6 min-h-[30rem] max-h-[50rem] overflow-y-auto overflow-x-hidden scrollbar-theme max-w-full">
                 <BorderBeam size={300} duration={20} colorFrom="#a855f7" colorTo="#3b82f6" initialOffset={25} />
                 {filteredAssignmentsBySelectedSemesters.length === 0 && (
                   <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet. Import from Canvas or add manually.</p>
@@ -648,7 +732,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                 })
                                 .map(([courseId, assignments]) =>
                                   assignments.map(a => (
-                                    <div key={a.id} className="group relative rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
+                                    <div key={a.id} className="group relative w-full min-w-0 rounded-xl border border-gray-100 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0A0A0C] p-3 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all cursor-pointer" onClick={() => setSelectedAssignment(a)}>
                                       <div className="flex items-center justify-between gap-4">
                                         <div className="min-w-0 flex-1 flex items-center gap-3">
                                           <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
@@ -667,13 +751,12 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                           </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-2" onClick={e => e.stopPropagation()}>
-                                          <select
-                                            className="rounded-full border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-zinc-900 px-2 py-0.5 text-[10px] font-bold text-gray-700 dark:text-zinc-300 outline-hidden"
+                                          <AnimatedDropdown
+                                            items={ASSIGNMENT_STATUS_OPTIONS}
                                             value={a.status}
-                                            onChange={(e) => updateAssignmentStatus(a.id, e.target.value)}
-                                          >
-                                            {ASSIGNMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                          </select>
+                                            onChange={(newStatus) => updateAssignmentStatus(a.id, newStatus)}
+                                            className="w-32"
+                                          />
                                           <div className="text-xs font-black text-indigo-500">{a.grade != null ? `${a.grade}/${a.maxGrade}` : 'PENDING'}</div>
                                         </div>
                                       </div>
@@ -748,15 +831,12 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 ))}
                 <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
                   <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
-                  <select
-                    className="mt-1 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200 outline-hidden"
+                  <AnimatedDropdown
+                    items={ASSIGNMENT_STATUS_OPTIONS}
                     value={selectedAssignment.status}
-                    onChange={(e) => void handleSelectedAssignmentStatusChange(e.target.value)}
-                  >
-                    {ASSIGNMENT_STATUSES.map((status) => (
-                      <option key={status.value} value={status.value}>{status.label}</option>
-                    ))}
-                  </select>
+                    onChange={(nextStatus) => void handleSelectedAssignmentStatusChange(nextStatus)}
+                    className="mt-1 w-full"
+                  />
                 </div>
               </div>
             </div>
@@ -804,94 +884,6 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 Delete Task
               </button>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {selectedCourse && editingCourse && typeof document !== "undefined" && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedCourse(null)}>
-          <div 
-            className="relative w-full max-w-[500px] flex flex-col rounded-3xl border border-gray-50/80 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
-            onClick={e => e.stopPropagation()}
-          >
-            <BorderBeam size={200} duration={8} colorFrom="#3b82f6" colorTo="#a855f7" />
-            
-            <div className="p-6 pb-2">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Course</h3>
-            </div>
-
-            <form onSubmit={updateCourse} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Name</label>
-                <input
-                  className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
-                  value={editingCourse.name}
-                  onChange={(e) => setEditingCourse({ ...editingCourse, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Code</label>
-                <input
-                  className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
-                  value={editingCourse.code}
-                  onChange={(e) => setEditingCourse({ ...editingCourse, code: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Term</label>
-                  <select
-                    className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden transition-all text-gray-900 dark:text-white"
-                    value={editingCourse.term}
-                    onChange={(e) => setEditingCourse({ ...editingCourse, term: e.target.value })}
-                  >
-                    <option value="Autumn">Autumn</option>
-                    <option value="Spring">Spring</option>
-                    <option value="Summer">Summer</option>
-                    <option value="Winter">Winter</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Year</label>
-                  <input
-                    type="number"
-                    className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-hidden transition-all text-gray-900 dark:text-white"
-                    value={editingCourse.year}
-                    onChange={(e) => setEditingCourse({ ...editingCourse, year: parseInt(e.target.value) || new Date().getFullYear() })}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Course Colour</label>
-                <div className="flex flex-wrap gap-2">
-                  {COURSE_COLORS.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`w-8 h-8 rounded-full ${color} ${editingCourse.color === color || (!editingCourse.color && COURSE_COLORS[editingCourse.id % COURSE_COLORS.length] === color) ? 'ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-[#0A0A0C]' : 'opacity-80 hover:opacity-100'} transition-all`}
-                      onClick={() => setEditingCourse({ ...editingCourse, color })}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCourse(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-500 text-white hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-500/20"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
           </div>
         </div>,
         document.body

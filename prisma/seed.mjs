@@ -30,8 +30,30 @@ async function main() {
     },
   });
 
-  console.log({ passwordHash });
-  console.log("Seeded default admin user: DemoUser1 / DemoPassword123!");
+  const seedUsername = process.env.SEED_USERNAME;
+  const seedPassword = process.env.SEED_PASSWORD;
+  const seedEmail = process.env.SEED_EMAIL;
+  const seedName = process.env.SEED_NAME || seedUsername;
+
+  if (seedUsername && seedPassword && seedEmail) {
+    const seedHash = await bcrypt.hash(seedPassword, 10);
+    await prisma.user.upsert({
+      where: { username: seedUsername },
+      update: {},
+      create: {
+        username: seedUsername,
+        universityEmail: seedEmail,
+        passwordHash: seedHash,
+        role: process.env.SEED_ROLE || "user",
+        name: seedName || "Seed User",
+      },
+    });
+    console.log(`Seeded runtime user: ${seedUsername}`);
+  } else {
+    console.log("No SEED_USERNAME/SEED_PASSWORD/SEED_EMAIL provided; skipping seed user creation.");
+  }
+
+  console.log("Seed process completed. Default admin users are available if this is a fresh local setup.");
 }
 
 main()

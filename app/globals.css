@@ -122,6 +122,38 @@
   }
 }
 
+@layer utilities {
+  .scrollbar-theme {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.7) rgba(148, 163, 184, 0.25);
+  }
+  .scrollbar-theme::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    background: var(--background);
+  }
+  .scrollbar-theme::-webkit-scrollbar-track {
+    background: rgba(148, 163, 184, 0.15);
+  }
+  .scrollbar-theme::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.8);
+    border-radius: 999px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    opacity: 0;
+    transition: opacity 0.3s ease, background-color 0.2s ease;
+  }
+  .scrollbar-theme:hover::-webkit-scrollbar-thumb,
+  .scrollbar-theme:active::-webkit-scrollbar-thumb,
+  .scrollbar-theme:focus-visible::-webkit-scrollbar-thumb {
+    opacity: 1;
+  }
+  .scrollbar-theme::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
+}
+
 /* Fix for unreadable highlighted text in dark mode descriptions */
 .dark .prose :where(mark),
 .dark .prose :where(mark) *,

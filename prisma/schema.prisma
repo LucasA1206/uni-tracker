@@ -1,5 +1,5 @@
 // Prisma schema for Uni & Work tracker
-// SQLite is used for simplicity (works locally and on Vercel with file-based DB).
+// SQLite is used for local development, PostgreSQL for production
 
 datasource db {
   provider = "sqlite"
@@ -43,6 +43,7 @@ model UniCourse {
   userId      Int
   name        String
   code        String
+  color       String?       // HEX or CSS color string
   term        String   @default("Autumn")
   year        Int      @default(2026)
   color       String?
@@ -82,7 +83,7 @@ model Note {
   courseId    Int?
   title       String
   content     String
-  createdAt   DateTime   @default(now())
+  createdAt   DateTime   @default(now()) // Default to now, but can be set manually
   attachments NoteAttachment[]
 
   @@index([userId])

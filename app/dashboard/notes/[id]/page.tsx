@@ -12,8 +12,6 @@ interface Course {
     id: number;
     name: string;
     code: string;
-    term?: string;
-    year?: number;
 }
 
 interface NoteAttachment {
@@ -29,7 +27,6 @@ interface Note {
     title: string;
     content: string;
     createdAt: string;
-    courseId?: number | null;
     course?: { code?: string; name?: string };
     attachments?: NoteAttachment[];
 }
@@ -43,14 +40,11 @@ export default function NoteDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isQuizOpen, setIsQuizOpen] = useState(false);
 
-    // Courses (for reassigning)
-    const [courses, setCourses] = useState<Course[]>([]);
-
     // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState("");
     const [editContent, setEditContent] = useState("");
-    const [editCourseId, setEditCourseId] = useState<string>("");
+    const [editCreatedAt, setEditCreatedAt] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
     // Attachments State
@@ -74,7 +68,10 @@ export default function NoteDetailPage() {
                 setNote(foundNote);
                 setEditTitle(foundNote.title);
                 setEditContent(foundNote.content);
-                setEditCourseId(foundNote.courseId ? String(foundNote.courseId) : "");
+                setEditCreatedAt(foundNote.createdAt);
+                // Attachments might be included or need separate fetch. 
+                // Based on our API change `GET /api/uni/notes` includes basic info.
+                // We'll fetch attachments separately to be safe or check if included.
                 fetchAttachments();
             } else {
                 setError("Note not found.");
@@ -104,13 +101,6 @@ export default function NoteDetailPage() {
         }
     }, [fetchNote, params.id]);
 
-    useEffect(() => {
-        fetch("/api/uni/courses")
-            .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data?.courses) setCourses(data.courses); })
-            .catch(() => {});
-    }, []);
-
     const handleSave = async () => {
         if (!note) return;
         setIsSaving(true);
@@ -122,7 +112,7 @@ export default function NoteDetailPage() {
                     id: note.id,
                     title: editTitle,
                     content: editContent,
-                    courseId: editCourseId ? Number(editCourseId) : null,
+                    createdAt: editCreatedAt,
                 }),
             });
 
@@ -249,12 +239,23 @@ export default function NoteDetailPage() {
                         <div className="h-4 w-px bg-gray-200 dark:bg-[#1F1F23]" />
                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                             <Calendar className="h-3.5 w-3.5" />
-                            {new Date(note.createdAt).toLocaleDateString(undefined, {
-                                weekday: 'short',
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                            })}
+                            {isEditing ? (
+                                <input
+                                    type="datetime-local"
+                                    className="bg-transparent border-b border-gray-300 dark:border-gray-700 outline-none text-gray-900 dark:text-gray-100"
+                                    value={editCreatedAt ? new Date(new Date(editCreatedAt).getTime() - new Date(editCreatedAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                                    onChange={(e) => setEditCreatedAt(new Date(e.target.value).toISOString())}
+                                />
+                            ) : (
+                                new Date(note.createdAt).toLocaleDateString(undefined, {
+                                    weekday: 'short',
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })
+                            )}
                         </div>
                     </div>
 
@@ -274,7 +275,7 @@ export default function NoteDetailPage() {
                                         setIsEditing(false);
                                         setEditTitle(note.title);
                                         setEditContent(note.content);
-                                        setEditCourseId(note.courseId ? String(note.courseId) : "");
+                                        setEditCreatedAt(note.createdAt);
                                     }}
                                     className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1F1F23]"
                                 >
@@ -389,31 +390,13 @@ export default function NoteDetailPage() {
                             )}
 
                             {isEditing ? (
-                                <div className="space-y-3 w-full">
-                                    <input
-                                        type="text"
-                                        value={editTitle}
-                                        onChange={(e) => setEditTitle(e.target.value)}
-                                        className="w-full text-3xl font-bold tracking-tight text-gray-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none pb-2"
-                                        placeholder="Note Title"
-                                    />
-                                    <div className="flex items-center gap-2 pt-1">
-                                        <BookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
-                                        <select
-                                            value={editCourseId}
-                                            onChange={(e) => setEditCourseId(e.target.value)}
-                                            className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
-                                        >
-                                            <option value="">No course (unassigned)</option>
-                                            {courses.map((c) => (
-                                                <option key={c.id} value={c.id}>
-                                                    {c.code}{c.name ? ` — ${c.name.split(' - ')[0].trim()}` : ""}
-                                                    {c.term && c.year ? ` (${c.term} ${c.year})` : ""}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
+                                <input
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    className="w-full text-3xl font-bold tracking-tight text-gray-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none pb-2"
+                                    placeholder="Note Title"
+                                />
                             ) : (
                                 <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
                                     {note.title}
