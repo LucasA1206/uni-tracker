@@ -100,8 +100,8 @@ interface Note {
     title: string;
     content: string;
     createdAt: string;
-    courseId?: number; // Ensure this is available
-    course?: { code?: string };
+    courseId?: number;
+    course?: { code?: string; name?: string };
 }
 
 const MOCK_GENERATED_CONTENT = `# C++ Course Overview
@@ -510,9 +510,13 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const notesByCourse = useMemo(() => {
         const grouped: Record<string, Note[]> = {};
         notes.forEach(note => {
-            const courseCode = note.course?.code || "Uncategorized";
-            if (!grouped[courseCode]) grouped[courseCode] = [];
-            grouped[courseCode].push(note);
+            // Prefer display name (first segment before dash), fall back to code, then Uncategorized
+            const rawName = note.course?.name || "";
+            const displayName = rawName
+                ? rawName.split("-")[0].replace(new RegExp(`^${note.course?.code ?? ""}\\s*`, "i"), "").trim() || note.course?.code || "Uncategorized"
+                : note.course?.code || "Uncategorized";
+            if (!grouped[displayName]) grouped[displayName] = [];
+            grouped[displayName].push(note);
         });
         return grouped;
     }, [notes]);
@@ -883,19 +887,19 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                         <p className="text-sm text-gray-500 dark:text-gray-400">No notes generated yet.</p>
                     </div>
                 ) : (
-                    Object.entries(notesByCourse).map(([courseCode, courseNotes]) => (
-                        <div key={courseCode} className="space-y-3">
+                    Object.entries(notesByCourse).map(([courseName, courseNotes]) => (
+                        <div key={courseName} className="space-y-3">
                             <div className="flex items-center gap-2 justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                                        {courseCode}
+                                        {courseName}
                                     </span>
                                     <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800 min-w-[20px]"></span>
                                 </div>
                                 <button
                                     onClick={() => setQuizConfig({
-                                        courseId: courseNotes[0]?.courseId || 0, // Fallback if needed, though we group by courseCode
-                                        title: courseCode
+                                        courseId: courseNotes[0]?.courseId || 0,
+                                        title: courseName
                                     })}
                                     className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
                                 >

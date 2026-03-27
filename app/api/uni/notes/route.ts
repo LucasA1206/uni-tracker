@@ -8,7 +8,7 @@ export async function GET() {
 
   const notes = await prisma.note.findMany({
     where: { userId: user.userId },
-    include: { course: { select: { code: true } } },
+    include: { course: { select: { code: true, name: true } } },
     orderBy: { createdAt: "desc" },
   });
 
