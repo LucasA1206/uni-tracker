@@ -79,6 +79,18 @@ function getSessionFromCourse(course: Course): string {
   return `${term} ${year}`;
 }
 
+/** Returns just the human-readable course title, stripping the leading numeric
+ *  code prefix (e.g. "12345 ") and trailing session info (e.g. " - Autumn 2024"). */
+function getCourseDisplayName(course: Course): string {
+  const name = course.name?.trim() || "";
+  if (!name) return course.code;
+  // Strip trailing session (" - Autumn 2024", " - Spring 2025", …)
+  let clean = name.replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "").trim();
+  // Strip leading 5-digit numeric code if present (e.g. "12345 ")
+  clean = clean.replace(/^\d{5}\s*/, "").trim();
+  return clean || course.code;
+}
+
 interface Note {
   id: number;
   title: string;
@@ -485,7 +497,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     const result: Record<string, Note[]> = { "General Notes": [] };
     for (const note of notes) {
       const course = displayCourses.find((c) => c.id === note.courseId);
-      const key = course ? `${course.name.split("-")[0].trim()} (${course.code})` : "General Notes";
+      const key = course ? `${getCourseDisplayName(course)} (${course.code.slice(0, 5)})` : "General Notes";
       if (!result[key]) result[key] = [];
       result[key].push(note);
     }
@@ -583,7 +595,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                               style={{ background: c.color || COURSE_COLORS_HEX[c.id % COURSE_COLORS_HEX.length] }}
                             />
                             <div className="min-w-0">
-                              <div className="font-medium truncate">{c.name.split("-")[0].trim()}</div>
+                              <div className="font-medium truncate">{getCourseDisplayName(c)}</div>
                               <div className="text-xs text-gray-500 dark:text-gray-400">{c.code.slice(0, 5)}</div>
                             </div>
                           </div>
@@ -705,7 +717,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   <option value="">Select course</option>
                   {displayCourses.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name.split("-")[0].trim()} ({c.code})
+                      {getCourseDisplayName(c)} ({c.code.slice(0, 5)})
                     </option>
                   ))}
                 </select>
@@ -825,7 +837,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                           <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
                                           <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 mb-0.5">
-                                              <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{(() => { const c = displayCourses.find(c => c.id === a.course.id); return c ? c.name.split('-')[0].trim() : a.course.code; })()}</div>
+                                              <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{(() => { const c = displayCourses.find(c => c.id === a.course.id); return c ? getCourseDisplayName(c) : a.course.code; })()}</div>
                                             </div>
                                             <div className="font-bold text-gray-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-500 transition-colors">{a.title}</div>
                                             <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
@@ -995,7 +1007,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Name</label>
                 <input
                   className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
-                  value={editingCourse.name}
+                  value={getCourseDisplayName(editingCourse)}
                   onChange={(e) => setEditingCourse({ ...editingCourse, name: e.target.value })}
                 />
               </div>
