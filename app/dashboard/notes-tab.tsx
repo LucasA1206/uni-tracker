@@ -104,17 +104,17 @@ interface Note {
     course?: { code?: string; name?: string } | null;
 }
 
-/** Returns a short human-readable label like "COMP1234 — Data Structures" */
+/** Returns just the human-readable course title, stripping the code prefix and session suffix. */
 function getCourseLabel(note: Note): string {
-    const code = note.course?.code;
+    if (!note.course?.code) return "Uncategorized";
+    const code = note.course.code;
     const rawName = note.course?.name || "";
-    // Strip trailing session info (e.g. " - Autumn 2026") from name
     const cleanName = rawName
         .replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "")
-        .replace(new RegExp(`^${escapeRegExp(code ?? "")}\\s*[-–]?\\s*`, "i"), "")
+        .replace(new RegExp(`^${escapeRegExp(code)}\\s*[-–]?\\s*`, "i"), "")
+        .replace(/^\d{5}\s*/, "")
         .trim();
-    if (!code) return "Uncategorized";
-    return cleanName ? `${code} — ${cleanName}` : code;
+    return cleanName || code;
 }
 
 const MOCK_GENERATED_CONTENT = `# C++ Course Overview
@@ -937,11 +937,6 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                                 <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 flex-1" title={note.title}>
                                                     {note.title}
                                                 </h3>
-                                                {note.course?.code && (
-                                                    <span className="shrink-0 inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 ring-1 ring-inset ring-indigo-500/20">
-                                                        {note.course.code}
-                                                    </span>
-                                                )}
                                             </div>
                                             <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
                                                 {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -971,25 +966,32 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                                     </button>
                                                     {reassignNotePopup === note.id && (
                                                         <div
-                                                            className="absolute bottom-full right-0 mb-2 w-52 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-30 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                                                            className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-30 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-60"
                                                             onClick={e => e.stopPropagation()}
                                                         >
-                                                            <div className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-zinc-800">Move to course</div>
-                                                            <button
-                                                                className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-gray-400 italic"
-                                                                onClick={() => void updateNoteCourse(note.id, null)}
-                                                            >
-                                                                No Course
-                                                            </button>
-                                                            {courses.map(c => (
+                                                            <div className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-zinc-800 shrink-0">Move to course</div>
+                                                            <div className="overflow-y-auto flex-1">
                                                                 <button
-                                                                    key={c.id}
-                                                                    className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ${note.courseId === c.id ? 'text-indigo-500 font-semibold' : 'text-gray-700 dark:text-gray-300'}`}
-                                                                    onClick={() => void updateNoteCourse(note.id, c.id)}
+                                                                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-gray-400 italic"
+                                                                    onClick={() => void updateNoteCourse(note.id, null)}
                                                                 >
-                                                                    {c.code.slice(0, 5)} – {getCourseDisplayName(c)}
+                                                                    No Course
                                                                 </button>
-                                                            ))}
+                                                                {coursesBySession.map(({ session, courses: sessionCourses }) => (
+                                                                    <div key={session}>
+                                                                        <div className="px-3 py-1 text-[9px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800">{session}</div>
+                                                                        {sessionCourses.map(c => (
+                                                                            <button
+                                                                                key={c.id}
+                                                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ${note.courseId === c.id ? 'text-indigo-500 font-semibold' : 'text-gray-700 dark:text-gray-300'}`}
+                                                                                onClick={() => void updateNoteCourse(note.id, c.id)}
+                                                                            >
+                                                                                {getCourseDisplayName(c)}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
