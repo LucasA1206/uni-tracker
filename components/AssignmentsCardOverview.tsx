@@ -552,7 +552,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
             <div className="p-8 pb-4 relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div className="space-y-1">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{selectedAssignment.course.code}</div>
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{selectedAssignment.course.code.slice(0, 5)}</div>
                   <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedAssignment.title}</h3>
                 </div>
                 <button onClick={() => setSelectedAssignment(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0">
