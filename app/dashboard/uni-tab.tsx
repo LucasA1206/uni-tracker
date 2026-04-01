@@ -1003,8 +1003,13 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Course Code</label>
                 <input
                   className="w-full rounded-lg bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 transition-all text-gray-900 dark:text-white"
-                  value={editingCourse.code}
-                  onChange={(e) => setEditingCourse({ ...editingCourse, code: e.target.value })}
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={editingCourse.code.slice(0, 5)}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 5);
+                    setEditingCourse({ ...editingCourse, code: digits });
+                  }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
