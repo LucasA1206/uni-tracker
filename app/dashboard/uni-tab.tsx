@@ -825,7 +825,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                           <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
                                           <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 mb-0.5">
-                                              <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{a.course.code}</div>
+                                              <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{(() => { const c = displayCourses.find(c => c.id === a.course.id); return c ? c.name.split('-')[0].trim() : a.course.code; })()}</div>
                                             </div>
                                             <div className="font-bold text-gray-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-500 transition-colors">{a.title}</div>
                                             <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">

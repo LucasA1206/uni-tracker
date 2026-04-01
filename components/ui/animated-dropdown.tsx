@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useRef, FC, ReactNode, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { clsx } from 'clsx'
@@ -53,7 +54,14 @@ export default function AnimatedDropdown({
   const normalizedValue = normalizeStatus(value) ?? normalizeStatus(defaultValue) ?? mergedItems[0]?.value
   const [isOpen, setIsOpen] = useState(false)
   const [selectedValue, setSelectedValue] = useState(normalizedValue)
+  const [isMounted, setIsMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     if (value !== undefined) {
@@ -64,33 +72,86 @@ export default function AnimatedDropdown({
 
   const selected = mergedItems.find((item) => item.value === selectedValue) || mergedItems[0]
 
+  const handleOpen = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setMenuStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 99999,
+      })
+    }
+    setIsOpen((prev) => !prev)
+  }
+
   const handleSelect = (item: DropdownItem) => {
     setSelectedValue(item.value)
     onChange?.(item.value)
     setIsOpen(false)
   }
 
-  function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
-    React.useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (ref.current && !ref.current.contains(event.target as Node)) handler()
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        buttonRef.current && !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false)
       }
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [ref, handler])
-  }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
 
-  useClickOutside(containerRef, () => setIsOpen(false))
+  const menu = (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          role="listbox"
+          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          style={menuStyle}
+          className={cn(
+            'overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-[#111111]',
+          )}
+        >
+          {mergedItems.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="option"
+              onClick={() => handleSelect(item)}
+              className={cn(
+                'w-full text-left px-3 py-2 text-sm transition-colors',
+                selectedValue === item.value
+                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800',
+                'border-b border-gray-200 last:border-b-0 dark:border-zinc-700',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 
   return (
     <div ref={containerRef} className={cn('relative inline-block text-left', className)}>
       <button
+        ref={buttonRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleOpen}
         className={cn(
-          'inline-flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm font-semibold transition-all',
+          'inline-flex items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-sm font-semibold transition-all w-full',
           'bg-white text-gray-700 dark:bg-[#1A1A1A] dark:text-gray-200',
           'border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800',
           buttonClassName
@@ -105,40 +166,7 @@ export default function AnimatedDropdown({
         </motion.span>
       </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            role="listbox"
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={cn(
-              'absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-[#111111]',
-              optionClassName
-            )}
-          >
-            {mergedItems.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                role="option"
-                onClick={() => handleSelect(item)}
-                className={cn(
-                  'w-full text-left px-3 py-2 text-sm transition-colors',
-                  selectedValue === item.value
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                    : 'hover:bg-gray-100 dark:hover:bg-zinc-800',
-                  'border-b border-gray-200 last:border-b-0 dark:border-zinc-700',
-                  optionClassName
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isMounted ? createPortal(menu, document.body) : null}
     </div>
   )
 }
