@@ -987,7 +987,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                                                     className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ${note.courseId === c.id ? 'text-indigo-500 font-semibold' : 'text-gray-700 dark:text-gray-300'}`}
                                                                     onClick={() => void updateNoteCourse(note.id, c.id)}
                                                                 >
-                                                                    {c.code} – {c.name.split('-')[0].trim()}
+                                                                    {c.code.slice(0, 5)} – {getCourseDisplayName(c)}
                                                                 </button>
                                                             ))}
                                                         </div>
