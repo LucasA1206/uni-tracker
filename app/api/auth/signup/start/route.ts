@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
+import { sanitizeString, rejectOversizedBody } from "@/lib/sanitize";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -15,25 +16,36 @@ function isStrongPassword(pw: string) {
 }
 
 export async function POST(req: NextRequest) {
+  // Body size guard — signup fields should never exceed 8 KB
+  const oversized = rejectOversizedBody(req, 8 * 1024);
+  if (oversized) return oversized;
+
   if (!JWT_SECRET) {
     return NextResponse.json(
-      { error: "Server misconfigured: JWT_SECRET is not set" },
+      { error: "Server misconfigured" },
       { status: 500 },
     );
   }
 
-  const body = await req.json().catch(() => null);
-  if (!body) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { name, username, universityEmail, password, confirmPassword } = body as {
-    name?: string;
-    username?: string;
-    universityEmail?: string;
-    password?: string;
-    confirmPassword?: string;
-  };
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const raw = body as Record<string, unknown>;
+
+  // Sanitize all string fields with per-field max lengths
+  const name = sanitizeString(raw.name, 100);
+  const username = sanitizeString(raw.username, 50);
+  const universityEmail = sanitizeString(raw.universityEmail, 254); // RFC 5321 max
+  const password = sanitizeString(raw.password, 256);
+  const confirmPassword = sanitizeString(raw.confirmPassword, 256);
 
   if (!name || !username || !universityEmail || !password || !confirmPassword) {
     return NextResponse.json({ error: "All fields are required" }, { status: 400 });
@@ -54,14 +66,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Ensure username/email are not already used by a real user
+  // Username must only contain safe characters
+  if (!/^[a-zA-Z0-9_.-]+$/.test(username)) {
+    return NextResponse.json(
+      { error: "Username may only contain letters, numbers, underscores, hyphens, and dots" },
+      { status: 400 },
+    );
+  }
+
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [{ username }, { universityEmail }],
     },
   });
   if (existingUser) {
-    return NextResponse.json({ error: "Username or university email is already in use" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Username or university email is already in use" },
+      { status: 400 },
+    );
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -85,6 +107,7 @@ export async function POST(req: NextRequest) {
   res.cookies.set("auth-token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60,
     path: "/",
   });
