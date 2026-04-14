@@ -76,8 +76,12 @@ export function middleware(req: NextRequest) {
       return res;
     }
   } else if (pathname.startsWith("/api/")) {
+    // API routes for chunked uploads need a much higher limit
+    const isChunkedUpload = pathname === "/api/ai/convert-mp4" || pathname === "/api/ai/generate-notes";
+    const limit = isChunkedUpload ? 5000 : 200;
+
     // All other API routes — generous: 200 requests per 15 minutes
-    const { allowed, retryAfter } = rateLimit(`api:${pathname}:${ip}`, 200, 15 * 60 * 1000);
+    const { allowed, retryAfter } = rateLimit(`api:${pathname}:${ip}`, limit, 15 * 60 * 1000);
     if (!allowed) {
       const res = new NextResponse(
         JSON.stringify({ error: "Too many requests. Please try again later." }),
