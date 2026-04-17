@@ -59,13 +59,28 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
   const [openEvent, setOpenEvent] = React.useState<ApiEvent | null>(null)
   const [openDay, setOpenDay] = React.useState<{ dateStr: string; dayEvents: ApiEvent[] } | null>(null)
   const [openCreate, setOpenCreate] = React.useState(false)
-  const [createForm, setCreateForm] = React.useState<{ title: string; description: string; date: string; startTime: string; endTime: string }>({
+  const [createForm, setCreateForm] = React.useState<{ title: string; description: string; date: string; startTime: string; endTime: string; type: string; courseId: string; weight: string; grade: string; maxGrade: string }>({
     title: "",
     description: "",
     date: format(new Date(), "yyyy-MM-dd"),
     startTime: "09:00",
     endTime: "10:00",
+    type: "manual",
+    courseId: "",
+    weight: "",
+    grade: "",
+    maxGrade: ""
   })
+  const [courses, setCourses] = React.useState<any[]>([])
+
+  React.useEffect(() => {
+    fetch("/api/uni/courses")
+      .then(r => r.json())
+      .then(d => {
+        if (d.courses) setCourses(d.courses)
+      })
+      .catch(console.error)
+  }, [])
 
   React.useEffect(() => {
     if (openEvent || openCreate || openDay) {
@@ -235,7 +250,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       <div className="flex justify-end mb-2">
         <button
           onClick={() => {
-            setCreateForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00" })
+            setCreateForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00", type: "manual", courseId: "", weight: "", grade: "", maxGrade: "" })
             setOpenCreate(true)
           }}
           className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#1A1A1E] transition-colors"
@@ -560,28 +575,70 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Event</h3>
             </div>
             <Separator className="my-4 dark:border-[#1F1F23]" />
-            <form
-              className="space-y-4 text-sm flex-1 flex flex-col overflow-y-auto pr-1"
+              <form
+              className="space-y-[10px] text-sm flex-1 flex flex-col overflow-y-auto p-[10px] px-8"
               onSubmit={async (e) => {
                 e.preventDefault()
                 const startIso = new Date(`${createForm.date}T${createForm.startTime}`).toISOString()
                 const endIso = new Date(`${createForm.date}T${createForm.endTime}`).toISOString()
+                
+                const bodyPayload: any = {
+                  title: createForm.title,
+                  description: createForm.description || undefined,
+                  start: startIso,
+                  end: endIso,
+                  type: createForm.type,
+                }
+                
+                if (createForm.type === "assignment" || createForm.type === "note") {
+                  bodyPayload.courseId = createForm.courseId ? Number(createForm.courseId) : undefined;
+                }
+                if (createForm.type === "assignment") {
+                  bodyPayload.weight = createForm.weight ? Number(createForm.weight) : undefined;
+                  bodyPayload.grade = createForm.grade ? Number(createForm.grade) : undefined;
+                  bodyPayload.maxGrade = createForm.maxGrade ? Number(createForm.maxGrade) : undefined;
+                }
+
                 await fetch("/api/calendar/events", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    title: createForm.title,
-                    description: createForm.description || undefined,
-                    start: startIso,
-                    end: endIso,
-                    type: "manual",
-                  }),
+                  body: JSON.stringify(bodyPayload),
                 })
                 setOpenCreate(false)
-                setCreateForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00" })
+                setCreateForm({ title: "", description: "", date: format(new Date(), "yyyy-MM-dd"), startTime: "09:00", endTime: "10:00", type: "manual", courseId: "", weight: "", grade: "", maxGrade: "" })
                 if (onRefresh) onRefresh();
               }}
             >
+              <div className="grid gap-2">
+                <label className="text-gray-700 dark:text-gray-300 font-medium">Type</label>
+                <select
+                  className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={createForm.type}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, type: e.target.value }))}
+                >
+                  <option value="manual">Other</option>
+                  <option value="assignment">Assignment</option>
+                  <option value="note">Note</option>
+                </select>
+              </div>
+
+              {(createForm.type === "assignment" || createForm.type === "note") && (
+                <div className="grid gap-2">
+                  <label className="text-gray-700 dark:text-gray-300 font-medium">Course</label>
+                  <select
+                    required
+                    className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={createForm.courseId}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, courseId: e.target.value }))}
+                  >
+                    <option value="" disabled>Select a course</option>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="grid gap-2">
                 <label className="text-gray-700 dark:text-gray-300 font-medium">Title</label>
                 <input
@@ -592,6 +649,45 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                   placeholder="Event title"
                 />
               </div>
+
+              {createForm.type === "assignment" && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-1">
+                    <label className="text-gray-700 dark:text-gray-300 font-medium text-xs">Weight (e.g. 0.2)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={createForm.weight}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, weight: e.target.value }))}
+                      placeholder="0.20"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <label className="text-gray-700 dark:text-gray-300 font-medium text-xs">Max Grade</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={createForm.maxGrade}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, maxGrade: e.target.value }))}
+                      placeholder="100"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <label className="text-gray-700 dark:text-gray-300 font-medium text-xs">Achieved Grade</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1A1A1E] text-gray-900 dark:text-white px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={createForm.grade}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, grade: e.target.value }))}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-2 flex-1">
                 <label className="text-gray-700 dark:text-gray-300 font-medium w-full">Description</label>
                 <textarea

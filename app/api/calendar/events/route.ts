@@ -146,6 +146,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
+  const type = body.type ? String(body.type) : "manual";
+
+  if (type === "assignment") {
+    if (!body.courseId) return NextResponse.json({ error: "courseId required for assignment" }, { status: 400 });
+    const assignment = await prisma.assignment.create({
+      data: {
+        courseId: Number(body.courseId),
+        title: String(body.title),
+        description: body.description ? String(body.description) : null,
+        dueDate: new Date(body.start),
+        weight: body.weight !== undefined ? Number(body.weight) : 0,
+        maxGrade: body.maxGrade !== undefined ? Number(body.maxGrade) : 100,
+        grade: body.grade !== undefined ? Number(body.grade) : null,
+        status: "pending",
+      },
+    });
+    return NextResponse.json({ event: { ...assignment, type: "assignment" } }, { status: 201 });
+  } else if (type === "note") {
+    const note = await prisma.note.create({
+      data: {
+        userId: user.userId,
+        courseId: body.courseId ? Number(body.courseId) : null,
+        title: String(body.title),
+        content: body.description ? String(body.description) : "",
+        createdAt: new Date(body.start),
+      },
+    });
+    return NextResponse.json({ event: { ...note, type: "note" } }, { status: 201 });
+  }
+
   const event = await prisma.calendarEvent.create({
     data: {
       userId: user.userId,
@@ -153,7 +183,7 @@ export async function POST(req: NextRequest) {
       description: body.description ? String(body.description) : null,
       start: new Date(body.start),
       end: new Date(body.end),
-      type: body.type ? String(body.type) : "manual",
+      type,
       sourceId: null,
       sourceExtraJson: null,
     },
