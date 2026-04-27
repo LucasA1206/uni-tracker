@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { Loader2, ArrowLeft, Calendar, BookOpen, Clock, FileText, Share2, Printer, MoreVertical, Edit2, Trash2, BrainCircuit, Save, X, Plus, Paperclip, File as FileIcon } from "lucide-react";
@@ -12,6 +12,53 @@ interface Course {
     id: number;
     name: string;
     code: string;
+    term?: string;
+    year?: number;
+}
+
+function getCourseNameParts(rawName: string): string[] {
+    return rawName.split("-").map(p => p.trim()).filter(Boolean);
+}
+
+function getCourseSession(course: Course): string {
+    const parts = getCourseNameParts(course.name || "");
+    if (parts.length >= 2) return parts[1];
+    if (course.term && course.year) return `${course.term} ${course.year}`;
+    return "Other";
+}
+
+function getCourseDisplayName(course: Course): string {
+    const name = course.name?.trim() || "";
+    if (!name) return course.code;
+    const parts = getCourseNameParts(name);
+    const firstSegment = parts[0] || name;
+    const codeEscaped = course.code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const firstWithoutCode = firstSegment.replace(new RegExp(`^${codeEscaped}\\s*`, 'i'), '').trim();
+    if (firstWithoutCode) return firstWithoutCode;
+    if (firstSegment) return firstSegment;
+    return name.replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, '').trim();
+}
+
+function getCourseOptionLabel(course: Course): string {
+    const displayName = getCourseDisplayName(course).trim();
+    if (!displayName || displayName.toLowerCase() === course.code.toLowerCase()) return course.code;
+    return `${displayName} (${course.code})`;
+}
+
+function sortSessions(a: string, b: string): number {
+    const parseSession = (label: string) => {
+        const match = label.match(/(Autumn|Spring|Summer|Winter)\s+(\d{4})/i);
+        if (!match) return { year: 0, order: 99 };
+        const term = match[1].toLowerCase();
+        const year = Number(match[2]);
+        const termOrder: Record<string, number> = { summer: 0, autumn: 1, winter: 2, spring: 3 };
+        return { year, order: termOrder[term] ?? 99 };
+    };
+    const pa = parseSession(a);
+    const pb = parseSession(b);
+    if (pa.year !== pb.year) return pb.year - pa.year;
+    if (pa.order !== pb.order) return pa.order - pb.order;
+    return a.localeCompare(b);
 }
 
 interface NoteAttachment {
@@ -110,6 +157,20 @@ export default function NoteDetailPage() {
             .then(data => { if (data?.courses) setCourses(data.courses); })
             .catch(() => {});
     }, []);
+
+    const coursesBySession = useMemo(() => {
+        const grouped: Record<string, Course[]> = {};
+        courses.forEach(c => {
+            const session = getCourseSession(c);
+            if (!grouped[session]) grouped[session] = [];
+            grouped[session].push(c);
+        });
+        const sortedSessions = Object.keys(grouped).sort(sortSessions);
+        return sortedSessions.map(session => ({
+            session,
+            courses: grouped[session].sort((a, b) => a.code.localeCompare(b.code)),
+        }));
+    }, [courses]);
 
     const handleSave = async () => {
         if (!note) return;
@@ -426,17 +487,13 @@ export default function NoteDetailPage() {
                                             className="flex-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors"
                                         >
                                             <option value="">No course (unassigned)</option>
-                                            {courses.map((c) => {
-                                                const cRawName = c.name || "";
-                                                const cClean = cRawName
-                                                    .replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "")
-                                                    .replace(new RegExp(`^${c.code}\\s*[-–]?\\s*`, "i"), "")
-                                                    .trim();
-                                                const cLabel = cClean ? `${c.code} — ${cClean}` : c.code;
-                                                return (
-                                                    <option key={c.id} value={c.id}>{cLabel}</option>
-                                                );
-                                            })}
+                                            {coursesBySession.map((group) => (
+                                                <optgroup key={group.session} label={group.session}>
+                                                    {group.courses.map((c) => (
+                                                        <option key={c.id} value={c.id}>{getCourseOptionLabel(c)}</option>
+                                                    ))}
+                                                </optgroup>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
