@@ -27,9 +27,15 @@ function getCourseSession(course: Course): string {
     return "Other";
 }
 
+/** Extracts just the 5-digit numeric course code from the full code string. */
+function getCourseCode(course: { code: string }): string {
+    const match = course.code.match(/\d{5}/);
+    return match ? match[0] : course.code.slice(0, 5);
+}
+
 function getCourseDisplayName(course: Course): string {
     const name = course.name?.trim() || "";
-    if (!name) return course.code;
+    if (!name) return getCourseCode(course);
     const parts = getCourseNameParts(name);
     const firstSegment = parts[0] || name;
     const codeEscaped = course.code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -41,8 +47,9 @@ function getCourseDisplayName(course: Course): string {
 
 function getCourseOptionLabel(course: Course): string {
     const displayName = getCourseDisplayName(course).trim();
-    if (!displayName || displayName.toLowerCase() === course.code.toLowerCase()) return course.code;
-    return `${displayName} (${course.code})`;
+    const code = getCourseCode(course);
+    if (!displayName || displayName.toLowerCase() === code.toLowerCase()) return code;
+    return `${displayName} (${code})`;
 }
 
 function sortSessions(a: string, b: string): number {
@@ -457,12 +464,13 @@ export default function NoteDetailPage() {
                     <div className="flex items-start justify-between">
                         <div className="space-y-1 w-full">
                             {note.course?.code && (() => {
+                                const courseCode = getCourseCode(note.course as { code: string });
                                 const rawName = note.course?.name || "";
                                 const cleanName = rawName
                                     .replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "")
                                     .replace(new RegExp(`^${note.course.code}\\s*[-–]?\\s*`, "i"), "")
                                     .trim();
-                                const label = cleanName ? `${note.course.code} — ${cleanName}` : note.course.code;
+                                const label = cleanName ? `${courseCode} — ${cleanName}` : courseCode;
                                 return (
                                     <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 ring-1 ring-inset ring-indigo-700/10 dark:ring-indigo-500/20 mb-2">
                                         {label}

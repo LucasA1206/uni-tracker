@@ -26,9 +26,15 @@ function getCourseSession(course: { name?: string; term?: string; year?: number 
   return "Other";
 }
 
+/** Extracts just the 5-digit numeric course code from the full code string. */
+function getCourseCode(course: { code: string }): string {
+  const match = course.code.match(/\d{5}/);
+  return match ? match[0] : course.code.slice(0, 5);
+}
+
 function getCourseDisplayName(course: { name?: string; code: string; term?: string; year?: number }): string {
   const name = course.name?.trim() || "";
-  if (!name) return course.code;
+  if (!name) return getCourseCode(course);
   const parts = getCourseNameParts(name);
   const firstSegment = parts[0] || name;
   const firstWithoutCode = firstSegment.replace(new RegExp(`^${course.code.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\s*`, 'i'), '').trim();
@@ -39,8 +45,9 @@ function getCourseDisplayName(course: { name?: string; code: string; term?: stri
 
 function getCourseOptionLabel(course: { name?: string; code: string; term?: string; year?: number }): string {
   const displayName = getCourseDisplayName(course).trim();
-  if (!displayName || displayName.toLowerCase() === course.code.toLowerCase()) return course.code;
-  return `${displayName} (${course.code})`;
+  const code = getCourseCode(course);
+  if (!displayName || displayName.toLowerCase() === code.toLowerCase()) return code;
+  return `${displayName} (${code})`;
 }
 
 function sortSessions(a: string, b: string): number {
@@ -103,6 +110,44 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
   const [openEvent, setOpenEvent] = React.useState<ApiEvent | null>(null)
   const [openDay, setOpenDay] = React.useState<{ dateStr: string; dayEvents: ApiEvent[] } | null>(null)
   const [deleting, setDeleting] = React.useState(false)
+  const [editForm, setEditForm] = React.useState<{ title: string; dueDate: string; weight: string; grade: string; maxGrade: string; status: string; courseId: string; description: string } | null>(null)
+  const [savingEdit, setSavingEdit] = React.useState(false)
+
+  const startEditEvent = (ev: ApiEvent) => {
+    const d = new Date(ev.start);
+    const valid = !isNaN(d.getTime()) && d.getFullYear() > 1970;
+    setEditForm({
+      title: ev.title,
+      dueDate: valid ? format(d, 'yyyy-MM-dd') : '',
+      weight: ev.meta?.weight != null ? String(Math.round(ev.meta.weight * 100)) : '',
+      grade: ev.meta?.grade != null ? String(ev.meta.grade) : '',
+      maxGrade: ev.meta?.maxGrade != null ? String(ev.meta.maxGrade) : '',
+      status: ev.meta?.status || 'pending',
+      courseId: ev.meta?.courseId != null ? String(ev.meta.courseId) : '',
+      description: ev.meta?.description || '',
+    });
+  };
+
+  const saveEditEvent = async () => {
+    if (!openEvent || !editForm || !openEvent.meta?.assignmentId) return;
+    setSavingEdit(true);
+    try {
+      const body: Record<string, unknown> = {
+        id: openEvent.meta.assignmentId,
+        title: editForm.title,
+        weight: Number(editForm.weight) / 100,
+        maxGrade: Number(editForm.maxGrade),
+        status: editForm.status,
+        description: editForm.description || '',
+      };
+      if (editForm.dueDate) body.dueDate = new Date(editForm.dueDate).toISOString();
+      if (editForm.grade !== '') body.grade = Number(editForm.grade); else body.grade = null;
+      if (editForm.courseId) body.courseId = Number(editForm.courseId);
+      const res = await fetch('/api/uni/assignments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.ok) { setEditForm(null); setOpenEvent(null); if (onRefresh) onRefresh(); }
+    } catch (err) { console.error('Save failed', err); }
+    finally { setSavingEdit(false); }
+  };
   const [openCreate, setOpenCreate] = React.useState(false)
   const [createForm, setCreateForm] = React.useState<{ title: string; description: string; date: string; startTime: string; endTime: string; type: string; courseId: string; weight: string; grade: string; maxGrade: string }>({
     title: "",
@@ -510,131 +555,89 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
             {/* Header */}
             <div className="p-8 pb-4 relative z-10 text-left">
               <div className="flex items-center justify-between mb-6">
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1 min-w-0">
                   <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">
                     {openEvent.meta?.courseCode || (openEvent.type === 'note' ? 'NOTES' : 'EVENT')}
                   </div>
-                  <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{openEvent.title}</h3>
+                  {editForm ? (
+                    <input className="text-2xl font-black text-gray-900 dark:text-white leading-tight bg-transparent border-b-2 border-indigo-500 outline-none w-full" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title" />
+                  ) : (
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{openEvent.title}</h3>
+                  )}
                 </div>
-                <Button variant="ghost" className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0" onClick={() => setOpenEvent(null)}>
-                  <X className="w-5 h-5 text-gray-500" />
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {!editForm && openEvent.type === 'assignment' && openEvent.meta?.assignmentId && (
+                    <Button variant="ghost" className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors" onClick={() => startEditEvent(openEvent)} title="Edit">
+                      <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </Button>
+                  )}
+                  <Button variant="ghost" className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors" onClick={() => { setOpenEvent(null); setEditForm(null); }}>
+                    <X className="w-5 h-5 text-gray-500" />
+                  </Button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                  <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">
-                    {openEvent.type === 'note' ? 'Date Created' : (openEvent.type === 'assignment' ? 'Due' : 'Due / Start')}
-                  </div>
-                  <div className="text-[11px] font-bold mt-1 uppercase text-indigo-500">
-                    {(() => {
-                      const d = new Date(openEvent.start);
-                      const isOld = isNaN(d.getTime()) || (d.getFullYear() < (new Date().getFullYear() - 5) && d.getFullYear() !== 1970);
-                      return isOld ? "No due date" : format(d, "MMM d, yyyy");
-                    })()}
-                  </div>
+              {editForm ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Date</label><input type="date" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.dueDate} onChange={e => setEditForm({ ...editForm, dueDate: e.target.value })} /></div>
+                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Weight %</label><input type="number" min="0" max="100" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.weight} onChange={e => setEditForm({ ...editForm, weight: e.target.value })} /></div>
+                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Grade</label><div className="flex items-center gap-1"><input type="number" min="0" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" placeholder="--" value={editForm.grade} onChange={e => setEditForm({ ...editForm, grade: e.target.value })} /><span className="text-gray-400 text-sm">/</span><input type="number" min="1" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.maxGrade} onChange={e => setEditForm({ ...editForm, maxGrade: e.target.value })} /></div></div>
+                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Status</label><select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}><option value="pending">To-Do</option><option value="in_progress">In Progress</option><option value="completed">Completed</option></select></div>
+                  <div className="space-y-1 col-span-2 sm:col-span-2"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Course</label><select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.courseId} onChange={e => setEditForm({ ...editForm, courseId: e.target.value })}>{courses.map((c: any) => <option key={c.id} value={c.id}>{getCourseOptionLabel(c)}</option>)}</select></div>
                 </div>
-                {openEvent.meta?.weight != null && (
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Weight</div>
-                    <div className="text-[11px] font-bold mt-1 uppercase text-purple-500">{Math.round((openEvent.meta.weight || 0) * 100)}%</div>
+                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">{openEvent.type === 'note' ? 'Date Created' : (openEvent.type === 'assignment' ? 'Due' : 'Due / Start')}</div>
+                    <div className="text-[11px] font-bold mt-1 uppercase text-indigo-500">{(() => { const d = new Date(openEvent.start); const isOld = isNaN(d.getTime()) || (d.getFullYear() < (new Date().getFullYear() - 5) && d.getFullYear() !== 1970); return isOld ? "No due date" : format(d, "MMM d, yyyy"); })()}</div>
                   </div>
-                )}
-                {openEvent.meta?.status && (
-                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Status</div>
-                    <div className="text-[11px] font-bold mt-1 uppercase text-blue-500">{openEvent.meta.status.replace('_', ' ')}</div>
-                  </div>
-                )}
-                {(openEvent.meta?.grade != null || openEvent.meta?.maxGrade != null) && (
-                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Grade</div>
-                    <div className="text-[11px] font-bold mt-1 uppercase text-pink-500">
-                      {openEvent.meta.grade != null ? `${openEvent.meta.grade}/${openEvent.meta.maxGrade}` : `PENDING/${openEvent.meta.maxGrade || '--'}`}
-                    </div>
-                  </div>
-                )}
-              </div>
+                  {openEvent.meta?.weight != null && (<div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center"><div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Weight</div><div className="text-[11px] font-bold mt-1 uppercase text-purple-500">{Math.round((openEvent.meta.weight || 0) * 100)}%</div></div>)}
+                  {openEvent.meta?.status && (<div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center"><div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Status</div><div className="text-[11px] font-bold mt-1 uppercase text-blue-500">{openEvent.meta.status.replace('_', ' ')}</div></div>)}
+                  {(openEvent.meta?.grade != null || openEvent.meta?.maxGrade != null) && (<div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center"><div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Grade</div><div className="text-[11px] font-bold mt-1 uppercase text-pink-500">{openEvent.meta.grade != null ? `${openEvent.meta.grade}/${openEvent.meta.maxGrade}` : `PENDING/${openEvent.meta.maxGrade || '--'}`}</div></div>)}
+                </div>
+              )}
             </div>
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 relative z-10 scrollbar-hide text-left">
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest text-left">Description</h4>
-                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
-                  {openEvent.meta?.description ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-left">
-                      {openEvent.type === 'note' ? (
-                        <ReactMarkdown>{openEvent.meta.description}</ReactMarkdown>
-                      ) : (
-                        <div dangerouslySetInnerHTML={{ __html: openEvent.meta.description }} />
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-left block italic">No description provided.</span>
-                  )}
-                </div>
+                {editForm ? (
+                  <textarea className="w-full p-4 rounded-2xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[120px] outline-none focus:ring-1 focus:ring-indigo-500 resize-y" value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} placeholder="Add a description..." />
+                ) : (
+                  <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
+                    {openEvent.meta?.description ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                        {openEvent.type === 'note' ? (<ReactMarkdown>{openEvent.meta.description}</ReactMarkdown>) : (<div dangerouslySetInnerHTML={{ __html: openEvent.meta.description }} />)}
+                      </div>
+                    ) : (<span className="text-left block italic">No description provided.</span>)}
+                  </div>
+                )}
               </div>
 
-              {(openEvent.meta?.canvasUrl || openEvent.meta?.noteUrl) && (
+              {!editForm && (openEvent.meta?.canvasUrl || openEvent.meta?.noteUrl) && (
                 <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex gap-4">
-                  {openEvent.meta.noteUrl && (
-                    <button
-                      onClick={() => window.location.href = openEvent.meta!.noteUrl!}
-                      className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider"
-                    >
-                      Open Note
-                      <FileText className="w-3 h-3" />
-                    </button>
-                  )}
-                  {openEvent.meta.canvasUrl && (
-                    <a
-                      href={openEvent.meta.canvasUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider"
-                    >
-                      View on Canvas
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
+                  {openEvent.meta.noteUrl && (<button onClick={() => window.location.href = openEvent.meta!.noteUrl!} className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider">Open Note<FileText className="w-3 h-3" /></button>)}
+                  {openEvent.meta.canvasUrl && (<a href={openEvent.meta.canvasUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-indigo-500 hover:text-indigo-600 font-bold text-xs uppercase tracking-wider">View on Canvas<ExternalLink className="w-3 h-3" /></a>)}
                 </div>
               )}
             </div>
 
             {/* Footer */}
             <div className="p-6 pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/20 flex justify-between gap-3 relative z-10">
-              {/* Delete button — only for local events (not external Google/Outlook) */}
-              {/^(assignment|note|manual|task)-\d+$/.test(openEvent.id) ? (
-                <button
-                  disabled={deleting}
-                  onClick={async () => {
-                    if (!confirm("Are you sure you want to delete this event?")) return;
-                    setDeleting(true);
-                    try {
-                      const res = await fetch(`/api/calendar/events?id=${encodeURIComponent(openEvent.id)}`, { method: "DELETE" });
-                      if (res.ok) {
-                        setOpenEvent(null);
-                        if (onRefresh) onRefresh();
-                      }
-                    } catch (err) {
-                      console.error("Delete event failed", err);
-                    } finally {
-                      setDeleting(false);
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800/40 transition-colors disabled:opacity-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {deleting ? "Deleting..." : "Delete"}
-                </button>
+              {!editForm && /^(assignment|note|manual|task)-\d+$/.test(openEvent.id) ? (
+                <button disabled={deleting} onClick={async () => { if (!confirm("Are you sure you want to delete this event?")) return; setDeleting(true); try { const res = await fetch(`/api/calendar/events?id=${encodeURIComponent(openEvent.id)}`, { method: "DELETE" }); if (res.ok) { setOpenEvent(null); if (onRefresh) onRefresh(); } } catch (err) { console.error("Delete event failed", err); } finally { setDeleting(false); } }} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800/40 transition-colors disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" />{deleting ? "Deleting..." : "Delete"}</button>
               ) : <div />}
-              <button 
-                onClick={() => setOpenEvent(null)}
-                className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                Close
-              </button>
+              <div className="flex gap-3">
+                {editForm ? (
+                  <>
+                    <button type="button" onClick={() => setEditForm(null)} className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">Cancel</button>
+                    <button type="button" disabled={savingEdit} onClick={() => void saveEditEvent()} className="px-6 py-2 rounded-xl text-xs font-bold bg-indigo-500 text-white hover:bg-indigo-600 transition-colors disabled:opacity-50">{savingEdit ? 'Saving...' : 'Save Changes'}</button>
+                  </>
+                ) : (
+                  <button onClick={() => { setOpenEvent(null); setEditForm(null); }} className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">Close</button>
+                )}
+              </div>
             </div>
           </div>
         </div>,

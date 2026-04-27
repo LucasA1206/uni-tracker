@@ -81,6 +81,12 @@ function getSessionFromCourse(course: Course): string {
   return `${term} ${year}`;
 }
 
+/** Extracts just the 5-digit numeric course code from the full code string. */
+function getCourseCode(course: { code: string }): string {
+  const match = course.code.match(/\d{5}/);
+  return match ? match[0] : course.code.slice(0, 5);
+}
+
 const COURSE_COLORS = [
   "bg-red-500",
   "bg-blue-500",
@@ -336,7 +342,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
 
   const renderAssignmentCard = (a: Assignment) => {
     const course = courses.find((c) => c.id === a.course.id);
-    const courseName = course ? course.name.split("-")[0].trim() : "Unknown Course";
+    const courseName = course ? getCourseCode(course) : "Unknown Course";
     const colorClass = course?.color ? "" : COURSE_COLORS[(course?.id || 0) % COURSE_COLORS.length];
 
     return (
@@ -552,7 +558,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
             <div className="p-8 pb-4 relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div className="space-y-1">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{selectedAssignment.course.code.slice(0, 5)}</div>
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{getCourseCode(selectedAssignment.course)}</div>
                   <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedAssignment.title}</h3>
                 </div>
                 <button onClick={() => setSelectedAssignment(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0">

@@ -41,9 +41,15 @@ function getCourseSession(course: Course): string {
     return "Other";
 }
 
+/** Extracts just the 5-digit numeric course code from the full code string. */
+function getCourseCode(course: { code: string }): string {
+    const match = course.code.match(/\d{5}/);
+    return match ? match[0] : course.code.slice(0, 5);
+}
+
 function getCourseDisplayName(course: Course): string {
     const name = course.name?.trim() || "";
-    if (!name) return course.code;
+    if (!name) return getCourseCode(course);
 
     const parts = getCourseNameParts(name);
     const firstSegment = parts[0] || name;
@@ -71,10 +77,11 @@ function getCourseDisplayName(course: Course): string {
 
 function getCourseOptionLabel(course: Course): string {
     const displayName = getCourseDisplayName(course).trim();
-    if (!displayName || displayName.toLowerCase() === course.code.toLowerCase()) {
-        return course.code;
+    const code = getCourseCode(course);
+    if (!displayName || displayName.toLowerCase() === code.toLowerCase()) {
+        return code;
     }
-    return `${displayName} (${course.code})`;
+    return `${displayName} (${code})`;
 }
 
 function sortSessions(a: string, b: string): number {
@@ -107,11 +114,11 @@ interface Note {
 /** Returns just the human-readable course title, stripping the code prefix and session suffix. */
 function getCourseLabel(note: Note): string {
     if (!note.course?.code) return "Uncategorized";
-    const code = note.course.code;
+    const code = getCourseCode(note.course as { code: string });
     const rawName = note.course?.name || "";
     const cleanName = rawName
         .replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "")
-        .replace(new RegExp(`^${escapeRegExp(code)}\\s*[-–]?\\s*`, "i"), "")
+        .replace(new RegExp(`^${escapeRegExp(note.course.code)}\\s*[-–]?\\s*`, "i"), "")
         .replace(/^\d{5}\s*/, "")
         .trim();
     return cleanName || code;
