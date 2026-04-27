@@ -87,6 +87,18 @@ function getCourseCode(course: { code: string }): string {
   return match ? match[0] : course.code.slice(0, 5);
 }
 
+/** Returns just the human-readable course title, stripping the leading numeric
+ *  code prefix (e.g. "12345 ") and trailing session info (e.g. " - Autumn 2024"). */
+function getCourseDisplayName(course: Course): string {
+  const name = course.name?.trim() || "";
+  if (!name) return getCourseCode(course);
+  // Strip trailing session (" - Autumn 2024", " - Spring 2025", …)
+  let clean = name.replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "").trim();
+  // Strip leading 5-digit numeric code if present (e.g. "12345 ")
+  clean = clean.replace(/^\d{5}\s*/, "").trim();
+  return clean || getCourseCode(course);
+}
+
 const COURSE_COLORS = [
   "bg-red-500",
   "bg-blue-500",
@@ -342,7 +354,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
 
   const renderAssignmentCard = (a: Assignment) => {
     const course = courses.find((c) => c.id === a.course.id);
-    const courseName = course ? getCourseCode(course) : "Unknown Course";
+    const courseName = course ? getCourseDisplayName(course) : "Unknown Course";
     const colorClass = course?.color ? "" : COURSE_COLORS[(course?.id || 0) % COURSE_COLORS.length];
 
     return (
@@ -558,7 +570,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
             <div className="p-8 pb-4 relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div className="space-y-1">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{getCourseCode(selectedAssignment.course)}</div>
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{(() => { const c = courses.find(c => c.id === selectedAssignment.course.id); return c ? getCourseDisplayName(c) : getCourseCode(selectedAssignment.course); })()}</div>
                   <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedAssignment.title}</h3>
                 </div>
                 <button onClick={() => setSelectedAssignment(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0">

@@ -12,6 +12,16 @@ function getCourseCode(code: string): string {
   return match ? match[0] : code.slice(0, 5);
 }
 
+/** Returns a clean, human-readable course name. */
+function getCourseDisplayName(name: string, code: string): string {
+  if (!name) return getCourseCode(code);
+  // Strip trailing session (" - Autumn 2024", etc.)
+  let clean = name.replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, "").trim();
+  // Strip leading 5-digit numeric code if present
+  clean = clean.replace(/^\d{5}\s*/, "").trim();
+  return clean || getCourseCode(code);
+}
+
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -94,7 +104,7 @@ export async function GET() {
           courseId: a.course.id,
           assignmentId: a.id,
           courseCode: getCourseCode(a.course.code),
-          courseName: a.course.name ? a.course.name.split("-")[0].trim() : getCourseCode(a.course.code),
+          courseName: getCourseDisplayName(a.course.name ?? "", a.course.code),
           courseColor: a.course.color ?? undefined,
           description: a.description ?? undefined,
           weight: a.weight,
@@ -114,7 +124,7 @@ export async function GET() {
       meta: {
         courseId: n.course?.id,
         courseCode: n.course?.code ? getCourseCode(n.course.code) : undefined,
-        courseName: n.course?.name ? n.course.name.split("-")[0].trim() : (n.course?.code ? getCourseCode(n.course.code) : undefined),
+        courseName: n.course?.name ? getCourseDisplayName(n.course.name, n.course.code) : (n.course?.code ? getCourseCode(n.course.code) : undefined),
         courseColor: n.course?.color ?? undefined,
         noteUrl: `/dashboard/notes/${n.id}`,
         description: n.content,

@@ -1016,7 +1016,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
             <div className="p-8 pb-4">
               <div className="flex items-center justify-between mb-6">
                 <div className="space-y-1 flex-1 min-w-0">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{getCourseCode(selectedAssignment.course)}</div>
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{(() => { const c = displayCourses.find(c => c.id === selectedAssignment.course.id); return c ? getCourseDisplayName(c) : getCourseCode(selectedAssignment.course); })()}</div>
                   {editingAssignment ? (
                     <input
                       className="text-2xl font-black text-gray-900 dark:text-white leading-tight bg-transparent border-b-2 border-indigo-500 outline-none w-full"

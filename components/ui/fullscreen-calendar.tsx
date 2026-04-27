@@ -557,7 +557,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
               <div className="flex items-center justify-between mb-6">
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">
-                    {openEvent.meta?.courseCode || (openEvent.type === 'note' ? 'NOTES' : 'EVENT')}
+                    {openEvent.meta?.courseName || openEvent.meta?.courseCode || (openEvent.type === 'note' ? 'NOTES' : 'EVENT')}
                   </div>
                   {editForm ? (
                     <input className="text-2xl font-black text-gray-900 dark:text-white leading-tight bg-transparent border-b-2 border-indigo-500 outline-none w-full" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title" />
