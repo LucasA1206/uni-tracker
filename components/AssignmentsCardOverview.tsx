@@ -561,6 +561,123 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
                 No grade data available yet.
               </div>
             )}
+
+            {/* ── Course Grades by Session ── */}
+            {sessions.length > 0 && (
+              <div className="space-y-4 mt-6">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-gray-900 dark:text-white">Course Grades by Session</h3>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold uppercase tracking-wider">Editable</span>
+                </div>
+
+                {sessions.map((session) => {
+                  const sessionCourses = courses.filter((c) => getSessionFromCourse(c) === session);
+                  if (sessionCourses.length === 0) return null;
+
+                  // Compute session-level aggregates
+                  const wams: number[] = [];
+                  const gpas: number[] = [];
+                  const courseRows = sessionCourses.map((course) => {
+                    const code = getCourseCode(course);
+                    const override = getOverride(code);
+
+                    // Auto WAM from assignments
+                    let autoWam: number | null = null;
+                    const ca = assignments.filter((a) => a.course.id === course.id && a.grade !== null);
+                    let totalWeight = 0, weightedSum = 0;
+                    for (const a of ca) {
+                      const pct = getPercentageGrade(a.grade, a.maxGrade);
+                      if (pct !== null) {
+                        totalWeight += a.weight;
+                        weightedSum += pct * a.weight;
+                      }
+                    }
+                    if (totalWeight > 0) autoWam = Math.round((weightedSum / totalWeight) * 10) / 10;
+
+                    const displayWam = override?.wam ?? autoWam;
+                    const autoGpa = displayWam != null ? getGrade7FromPercentage(displayWam) : null;
+                    const displayGpa = override?.gpa ?? autoGpa;
+
+                    if (displayWam != null) wams.push(displayWam);
+                    if (displayGpa != null) gpas.push(displayGpa);
+
+                    return {
+                      course,
+                      code,
+                      autoWam,
+                      displayWam,
+                      displayGpa,
+                      isWamOverridden: override?.wam != null,
+                      isGpaOverridden: override?.gpa != null,
+                      overrideWam: override?.wam,
+                      overrideGpa: override?.gpa,
+                    };
+                  });
+
+                  const sessionWam = wams.length > 0 ? Math.round((wams.reduce((s, v) => s + v, 0) / wams.length) * 10) / 10 : null;
+                  const sessionGpa = gpas.length > 0 ? Math.round((gpas.reduce((s, v) => s + v, 0) / gpas.length) * 10) / 10 : null;
+
+                  const inputClass = "w-20 text-center rounded-lg bg-white dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-700 px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white transition-all";
+
+                  return (
+                    <div key={session} className="rounded-xl border border-gray-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/40 overflow-hidden">
+                      {/* Session header */}
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-100/80 dark:bg-zinc-800/60 border-b border-gray-200 dark:border-zinc-800">
+                        <span className="text-xs font-black text-gray-500 dark:text-zinc-400 uppercase tracking-widest">{session}</span>
+                        <div className="flex items-center gap-4 text-[10px] font-bold">
+                          <span className="text-indigo-500">WAM: {sessionWam != null ? sessionWam.toFixed(1) : "—"}</span>
+                          <span className="text-purple-500">GPA: {sessionGpa != null ? sessionGpa.toFixed(1) : "—"}</span>
+                        </div>
+                      </div>
+
+                      {/* Table */}
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-[9px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-wider">
+                            <th className="text-left px-4 py-2">Course</th>
+                            <th className="text-center px-3 py-2">WAM</th>
+                            <th className="text-center px-3 py-2">GPA</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {courseRows.map((row) => (
+                            <tr key={row.code} className="border-t border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
+                              <td className="px-4 py-2.5">
+                                <span className="font-semibold text-gray-800 dark:text-zinc-200">{getCourseDisplayName(row.course)}</span>
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <input
+                                  className={inputClass}
+                                  value={row.isWamOverridden ? String(row.overrideWam) : (row.autoWam != null ? `${row.autoWam}` : "")}
+                                  placeholder="auto"
+                                  onChange={(e) => setOverrideField(row.code, session, "wam", e.target.value)}
+                                  title={row.autoWam != null ? `Auto: ${row.autoWam}%` : "No graded assignments"}
+                                />
+                                {!row.isWamOverridden && row.autoWam != null && (
+                                  <span className="ml-1 text-[9px] text-gray-400 dark:text-zinc-600 italic">auto</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <input
+                                  className={inputClass}
+                                  value={row.isGpaOverridden ? String(row.overrideGpa) : (row.displayGpa != null ? `${row.displayGpa}` : "")}
+                                  placeholder="auto"
+                                  onChange={(e) => setOverrideField(row.code, session, "gpa", e.target.value)}
+                                  title={row.displayGpa != null ? `Auto: ${row.displayGpa}` : "No graded assignments"}
+                                />
+                                {!row.isGpaOverridden && row.displayGpa != null && (
+                                  <span className="ml-1 text-[9px] text-gray-400 dark:text-zinc-600 italic">auto</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
