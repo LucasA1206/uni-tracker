@@ -191,3 +191,56 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ event }, { status: 201 });
 }
+
+export async function DELETE(req: NextRequest) {
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const eventId = searchParams.get("id");
+  if (!eventId) {
+    return NextResponse.json({ error: "Missing event id" }, { status: 400 });
+  }
+
+  // Parse composite ID like "assignment-5", "note-3", "manual-10", "task-7"
+  const match = eventId.match(/^(assignment|note|manual|task)-(\d+)$/);
+  if (!match) {
+    return NextResponse.json({ error: "Invalid event id format" }, { status: 400 });
+  }
+
+  const [, type, rawId] = match;
+  const numericId = Number(rawId);
+
+  try {
+    if (type === "assignment") {
+      const existing = await prisma.assignment.findFirst({
+        where: { id: numericId, course: { userId: user.userId } },
+      });
+      if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      await prisma.assignment.delete({ where: { id: numericId } });
+    } else if (type === "note") {
+      const existing = await prisma.note.findFirst({
+        where: { id: numericId, userId: user.userId },
+      });
+      if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      await prisma.note.delete({ where: { id: numericId } });
+    } else if (type === "manual") {
+      const existing = await prisma.calendarEvent.findFirst({
+        where: { id: numericId, userId: user.userId },
+      });
+      if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      await prisma.calendarEvent.delete({ where: { id: numericId } });
+    } else if (type === "task") {
+      const existing = await prisma.workTask.findFirst({
+        where: { id: numericId, userId: user.userId },
+      });
+      if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      await prisma.workTask.delete({ where: { id: numericId } });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Delete calendar event failed:", err);
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+  }
+}

@@ -91,6 +91,12 @@ function getCourseDisplayName(course: Course): string {
   return clean || course.code;
 }
 
+function getCourseOptionLabel(course: Course): string {
+  const displayName = getCourseDisplayName(course).trim();
+  if (!displayName || displayName.toLowerCase() === course.code.toLowerCase()) return course.code;
+  return `${displayName} (${course.code})`;
+}
+
 interface Note {
   id: number;
   title: string;
@@ -519,6 +525,34 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     return semesters;
   }, [displayCourses]);
 
+  const coursesBySessionForDropdown = useMemo(() => {
+    const grouped: Record<string, Course[]> = {};
+    displayCourses.forEach(c => {
+      const session = getSessionFromCourse(c);
+      if (!grouped[session]) grouped[session] = [];
+      grouped[session].push(c);
+    });
+    const sortedSessions = Object.keys(grouped).sort((a, b) => {
+      const parseSession = (label: string) => {
+        const match = label.match(/(Autumn|Spring|Summer|Winter)\s+(\d{4})/i);
+        if (!match) return { year: 0, order: 99 };
+        const term = match[1].toLowerCase();
+        const year = Number(match[2]);
+        const termOrder: Record<string, number> = { summer: 0, autumn: 1, winter: 2, spring: 3 };
+        return { year, order: termOrder[term] ?? 99 };
+      };
+      const pa = parseSession(a);
+      const pb = parseSession(b);
+      if (pa.year !== pb.year) return pb.year - pa.year;
+      if (pa.order !== pb.order) return pa.order - pb.order;
+      return a.localeCompare(b);
+    });
+    return sortedSessions.map(session => ({
+      session,
+      courses: grouped[session].sort((a, b) => a.code.localeCompare(b.code)),
+    }));
+  }, [displayCourses]);
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-3">
@@ -715,10 +749,14 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   onChange={(e) => setNewAssignment((a) => ({ ...a, courseId: e.target.value }))}
                 >
                   <option value="">Select course</option>
-                  {displayCourses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {getCourseDisplayName(c)} ({c.code.slice(0, 5)})
-                    </option>
+                  {coursesBySessionForDropdown.map((group) => (
+                    <optgroup key={group.session} label={group.session}>
+                      {group.courses.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {getCourseOptionLabel(c)}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 <input

@@ -4,7 +4,7 @@ import * as React from "react"
 import { createPortal } from "react-dom"
 import { format } from "date-fns"
 import ReactMarkdown from "react-markdown"
-import { CheckSquare, FileText, Calendar as CalendarIcon, Briefcase, X, ExternalLink } from "lucide-react"
+import { CheckSquare, FileText, Calendar as CalendarIcon, Briefcase, X, ExternalLink, Trash2 } from "lucide-react"
 
 import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
@@ -14,6 +14,50 @@ import interactionPlugin from "@fullcalendar/interaction"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+
+function getCourseNameParts(rawName: string): string[] {
+  return rawName.split("-").map(p => p.trim()).filter(Boolean);
+}
+
+function getCourseSession(course: { name?: string; term?: string; year?: number }): string {
+  const parts = getCourseNameParts(course.name || "");
+  if (parts.length >= 2) return parts[1];
+  if (course.term && course.year) return `${course.term} ${course.year}`;
+  return "Other";
+}
+
+function getCourseDisplayName(course: { name?: string; code: string; term?: string; year?: number }): string {
+  const name = course.name?.trim() || "";
+  if (!name) return course.code;
+  const parts = getCourseNameParts(name);
+  const firstSegment = parts[0] || name;
+  const firstWithoutCode = firstSegment.replace(new RegExp(`^${course.code.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\s*`, 'i'), '').trim();
+  if (firstWithoutCode) return firstWithoutCode;
+  if (firstSegment) return firstSegment;
+  return name.replace(/\s*-\s*(Autumn|Spring|Summer|Winter)\s+\d{4}\s*$/i, '').trim();
+}
+
+function getCourseOptionLabel(course: { name?: string; code: string; term?: string; year?: number }): string {
+  const displayName = getCourseDisplayName(course).trim();
+  if (!displayName || displayName.toLowerCase() === course.code.toLowerCase()) return course.code;
+  return `${displayName} (${course.code})`;
+}
+
+function sortSessions(a: string, b: string): number {
+  const parseSession = (label: string) => {
+    const match = label.match(/(Autumn|Spring|Summer|Winter)\s+(\d{4})/i);
+    if (!match) return { year: 0, order: 99 };
+    const term = match[1].toLowerCase();
+    const year = Number(match[2]);
+    const termOrder: Record<string, number> = { summer: 0, autumn: 1, winter: 2, spring: 3 };
+    return { year, order: termOrder[term] ?? 99 };
+  };
+  const pa = parseSession(a);
+  const pb = parseSession(b);
+  if (pa.year !== pb.year) return pb.year - pa.year;
+  if (pa.order !== pb.order) return pa.order - pb.order;
+  return a.localeCompare(b);
+}
 
 const COURSE_COLORS = [
   "bg-red-500",
@@ -58,6 +102,7 @@ interface FullScreenCalendarProps {
 export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullScreenCalendarProps) {
   const [openEvent, setOpenEvent] = React.useState<ApiEvent | null>(null)
   const [openDay, setOpenDay] = React.useState<{ dateStr: string; dayEvents: ApiEvent[] } | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
   const [openCreate, setOpenCreate] = React.useState(false)
   const [createForm, setCreateForm] = React.useState<{ title: string; description: string; date: string; startTime: string; endTime: string; type: string; courseId: string; weight: string; grade: string; maxGrade: string }>({
     title: "",
@@ -81,6 +126,20 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
       })
       .catch(console.error)
   }, [])
+
+  const coursesBySession = React.useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    courses.forEach((c: any) => {
+      const session = getCourseSession(c);
+      if (!grouped[session]) grouped[session] = [];
+      grouped[session].push(c);
+    });
+    const sortedSessions = Object.keys(grouped).sort(sortSessions);
+    return sortedSessions.map(session => ({
+      session,
+      courses: grouped[session].sort((a: any, b: any) => a.code.localeCompare(b.code)),
+    }));
+  }, [courses])
 
   React.useEffect(() => {
     if (openEvent || openCreate || openDay) {
@@ -544,7 +603,32 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
             </div>
 
             {/* Footer */}
-            <div className="p-6 pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/20 flex justify-end gap-3 relative z-10">
+            <div className="p-6 pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/20 flex justify-between gap-3 relative z-10">
+              {/* Delete button — only for local events (not external Google/Outlook) */}
+              {/^(assignment|note|manual|task)-\d+$/.test(openEvent.id) ? (
+                <button
+                  disabled={deleting}
+                  onClick={async () => {
+                    if (!confirm("Are you sure you want to delete this event?")) return;
+                    setDeleting(true);
+                    try {
+                      const res = await fetch(`/api/calendar/events?id=${encodeURIComponent(openEvent.id)}`, { method: "DELETE" });
+                      if (res.ok) {
+                        setOpenEvent(null);
+                        if (onRefresh) onRefresh();
+                      }
+                    } catch (err) {
+                      console.error("Delete event failed", err);
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800/40 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              ) : <div />}
               <button 
                 onClick={() => setOpenEvent(null)}
                 className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
@@ -632,8 +716,12 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                     onChange={(e) => setCreateForm((f) => ({ ...f, courseId: e.target.value }))}
                   >
                     <option value="" disabled>Select a course</option>
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                    {coursesBySession.map((group) => (
+                      <optgroup key={group.session} label={group.session}>
+                        {group.courses.map((c: any) => (
+                          <option key={c.id} value={c.id}>{getCourseOptionLabel(c)}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
