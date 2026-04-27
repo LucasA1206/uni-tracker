@@ -6,6 +6,12 @@ import { getGoogleCalendarEventsForUser } from "@/lib/gmail";
 
 const CANVAS_BASE_URL = process.env.CANVAS_BASE_URL;
 
+/** Extracts just the 5-digit numeric course code from the full code string. */
+function getCourseCode(code: string): string {
+  const match = code.match(/\d{5}/);
+  return match ? match[0] : code.slice(0, 5);
+}
+
 export async function GET() {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -87,8 +93,8 @@ export async function GET() {
         meta: {
           courseId: a.course.id,
           assignmentId: a.id,
-          courseCode: a.course.code,
-          courseName: a.course.name ? a.course.name.split("-")[0].trim() : a.course.code,
+          courseCode: getCourseCode(a.course.code),
+          courseName: a.course.name ? a.course.name.split("-")[0].trim() : getCourseCode(a.course.code),
           courseColor: a.course.color ?? undefined,
           description: a.description ?? undefined,
           weight: a.weight,
@@ -107,8 +113,8 @@ export async function GET() {
       type: "note",
       meta: {
         courseId: n.course?.id,
-        courseCode: n.course?.code,
-        courseName: n.course?.name ? n.course.name.split("-")[0].trim() : n.course?.code,
+        courseCode: n.course?.code ? getCourseCode(n.course.code) : undefined,
+        courseName: n.course?.name ? n.course.name.split("-")[0].trim() : (n.course?.code ? getCourseCode(n.course.code) : undefined),
         courseColor: n.course?.color ?? undefined,
         noteUrl: `/dashboard/notes/${n.id}`,
         description: n.content,

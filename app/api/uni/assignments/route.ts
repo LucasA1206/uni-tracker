@@ -99,15 +99,31 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
   }
 
+  // Build update payload — only include fields that were explicitly sent
+  const data: Record<string, unknown> = {};
+  if (body.grade != null) data.grade = Number(body.grade);
+  if (body.status != null) data.status = body.status;
+  if (Array.isArray(body.followupPeople)) data.followupPeople = JSON.stringify(body.followupPeople);
+  if (typeof body.title === "string" && body.title.trim().length > 0) data.title = body.title.trim().slice(0, 500);
+  if (body.dueDate != null) data.dueDate = new Date(body.dueDate);
+  if (body.weight != null) data.weight = Number(body.weight);
+  if (body.maxGrade != null) data.maxGrade = Number(body.maxGrade);
+  if (typeof body.description === "string") data.description = body.description.slice(0, 5000);
+  // Allow clearing grade
+  if (body.grade === null) data.grade = null;
+
+  // If courseId is changing, verify it belongs to the user
+  if (body.courseId != null) {
+    const newCourseId = sanitizeInt(body.courseId);
+    if (newCourseId === null) return NextResponse.json({ error: "Invalid courseId" }, { status: 400 });
+    const newCourse = await prisma.uniCourse.findFirst({ where: { id: newCourseId, userId: user.userId } });
+    if (!newCourse) return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    data.courseId = newCourseId;
+  }
+
   const assignment = await prisma.assignment.update({
     where: { id: assignmentId },
-    data: {
-      grade: body.grade != null ? Number(body.grade) : undefined,
-      status: body.status ?? undefined,
-      followupPeople: Array.isArray(body.followupPeople)
-        ? JSON.stringify(body.followupPeople)
-        : undefined,
-    },
+    data,
   });
 
   return NextResponse.json({ assignment });

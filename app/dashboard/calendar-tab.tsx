@@ -37,7 +37,7 @@ export default function CalendarTab({ showMock, autoOpenEventId }: CalendarTabPr
             end: new Date().toISOString(),
             type: "note",
             meta: {
-              courseCode: "COMS2001",
+              courseCode: "20001",
               courseName: "Cloud Computing",
               content: "# Lecture Note Snapshot\n\n- Exploring AWS Lambda and serverless architectures.\n- Benefits: Auto-scaling, pay-per-use.\n- Challenges: Cold starts, stateless nature."
             }
@@ -49,7 +49,7 @@ export default function CalendarTab({ showMock, autoOpenEventId }: CalendarTabPr
             end: new Date(Date.now() + 86400000 * 3).toISOString(),
             type: "assignment",
             meta: {
-              courseCode: "COMP1234",
+              courseCode: "01234",
               courseName: "System Design",
               weight: 0.25,
               maxGrade: 100,
