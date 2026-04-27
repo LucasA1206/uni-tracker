@@ -7,6 +7,7 @@ import AnimatedDropdown from "@/components/ui/animated-dropdown";
 import { History, CalendarClock, LineChart, Settings, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line } from "react-chartjs-2";
+import type { CourseGradeOverride } from "@/components/GradeCharts";
 
 import {
   Chart as ChartJS,
@@ -56,6 +57,8 @@ interface Props {
   courses: Course[];
   activeTabOverride?: string;
   onUpdateStatus?: (id: number, status: string) => Promise<void> | void;
+  courseGradeOverrides?: CourseGradeOverride[];
+  onOverridesChange?: (overrides: CourseGradeOverride[]) => void;
 }
 
 const ASSIGNMENT_STATUSES = [
@@ -127,7 +130,7 @@ function getGrade7FromPercentage(pct: number | null): number | null {
 
 const CURRENT_SESSION = "Autumn 2026";
 
-export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride, onUpdateStatus }: Props) {
+export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride, onUpdateStatus, courseGradeOverrides = [], onOverridesChange }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Upcoming Assignments");
 
   useEffect(() => {
@@ -136,8 +139,6 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
     }
   }, [activeTabOverride]);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [manualGpas, setManualGpas] = useState<Record<string, number>>({});
-  const [manualWams, setManualWams] = useState<Record<string, number>>({});
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
   useEffect(() => {
@@ -149,15 +150,6 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
   }, [assignments, selectedAssignment]);
 
   useEffect(() => {
-    try {
-      const storedGpa = window.localStorage.getItem("manual_session_gpas");
-      if (storedGpa) setManualGpas(JSON.parse(storedGpa));
-      const storedWam = window.localStorage.getItem("manual_session_wams");
-      if (storedWam) setManualWams(JSON.parse(storedWam));
-    } catch {}
-  }, []);
-
-  useEffect(() => {
     if (settingsOpen || selectedAssignment) {
       document.body.style.overflow = "hidden";
     } else {
@@ -166,14 +158,19 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
     return () => { document.body.style.overflow = ""; };
   }, [settingsOpen, selectedAssignment]);
 
-  const saveManualGpas = (newGpas: Record<string, number>) => {
-    setManualGpas(newGpas);
-    window.localStorage.setItem("manual_session_gpas", JSON.stringify(newGpas));
-  };
-
-  const saveManualWams = (newWams: Record<string, number>) => {
-    setManualWams(newWams);
-    window.localStorage.setItem("manual_session_wams", JSON.stringify(newWams));
+  // Helper to get/set per-course overrides
+  const getOverride = (code: string) => courseGradeOverrides.find(o => o.courseCode === code);
+  const setOverrideField = (courseCode: string, session: string, field: "wam" | "gpa", raw: string) => {
+    const numVal = raw.trim() === "" || raw.trim().toLowerCase() === "auto" ? null : parseFloat(raw);
+    const value = numVal != null && isNaN(numVal) ? null : numVal;
+    const existing = courseGradeOverrides.find(o => o.courseCode === courseCode);
+    let next: CourseGradeOverride[];
+    if (existing) {
+      next = courseGradeOverrides.map(o => o.courseCode === courseCode ? { ...o, [field]: value } : o);
+    } else {
+      next = [...courseGradeOverrides, { courseCode, session, wam: field === "wam" ? value : null, gpa: field === "gpa" ? value : null }];
+    }
+    onOverridesChange?.(next);
   };
 
   const handleModalStatusChange = async (status: string) => {
@@ -272,18 +269,26 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
     return arr;
   }, [courses]);
 
-  // GPA per session (manual overrides or calculated)
+  // GPA per session – uses per-course overrides as source of truth
   const computedGpas = useMemo(() => {
     const result: Record<string, number> = {};
     for (const session of sessions) {
-      if (manualGpas[session] !== undefined) {
-        result[session] = manualGpas[session];
-        continue;
-      }
       const sessionCourses = courses.filter((c) => getSessionFromCourse(c) === session);
       if (sessionCourses.length === 0) continue;
       let totalGpa = 0, courseCount = 0;
       for (const course of sessionCourses) {
+        const code = getCourseCode(course);
+        const override = getOverride(code);
+        if (override?.gpa != null) {
+          totalGpa += override.gpa; courseCount++; continue;
+        }
+        // If WAM is overridden, derive GPA from that
+        if (override?.wam != null) {
+          const gpa = getGrade7FromPercentage(override.wam);
+          if (gpa !== null) { totalGpa += gpa; courseCount++; }
+          continue;
+        }
+        // Auto-calculate from assignments
         const ca = validAssignments.filter((a) => a.course.id === course.id && a.grade !== null);
         if (ca.length === 0) continue;
         let totalWeight = 0, weightedSum = 0;
@@ -300,21 +305,24 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
       if (courseCount > 0) result[session] = totalGpa / courseCount;
     }
     return result;
-  }, [sessions, courses, validAssignments, manualGpas]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, courses, validAssignments, courseGradeOverrides]);
 
-  // WAM per session (manual overrides or calculated as weighted avg percentage across all assignments in session)
+  // WAM per session – uses per-course overrides as source of truth
   const computedWams = useMemo(() => {
     const result: Record<string, number> = {};
     for (const session of sessions) {
-      if (manualWams[session] !== undefined) {
-        result[session] = manualWams[session];
-        continue;
-      }
       const sessionCourses = courses.filter((c) => getSessionFromCourse(c) === session);
       if (sessionCourses.length === 0) continue;
-      // WAM = weighted avg of (grade/maxGrade)*100 across all session assignments with grades
-      let totalWeight = 0, weightedSum = 0;
+      const wams: number[] = [];
       for (const course of sessionCourses) {
+        const code = getCourseCode(course);
+        const override = getOverride(code);
+        if (override?.wam != null) {
+          wams.push(override.wam); continue;
+        }
+        // Auto-calculate from assignments
+        let totalWeight = 0, weightedSum = 0;
         const ca = validAssignments.filter((a) => a.course.id === course.id && a.grade !== null);
         for (const a of ca) {
           const pct = getPercentageGrade(a.grade, a.maxGrade);
@@ -323,11 +331,13 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
             weightedSum += pct * a.weight;
           }
         }
+        if (totalWeight > 0) wams.push(weightedSum / totalWeight);
       }
-      if (totalWeight > 0) result[session] = weightedSum / totalWeight;
+      if (wams.length > 0) result[session] = wams.reduce((s, v) => s + v, 0) / wams.length;
     }
     return result;
-  }, [sessions, courses, validAssignments, manualWams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, courses, validAssignments, courseGradeOverrides]);
 
   const gpaLabels = sessions.filter((s) => computedGpas[s] !== undefined);
   const wamLabels = sessions.filter((s) => computedWams[s] !== undefined);
@@ -651,7 +661,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
         document.body
       )}
 
-      {/* Grade settings popup */}
+      {/* Grade settings popup – per-course overrides */}
       {settingsOpen && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
@@ -669,70 +679,52 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
             </button>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Grade Settings</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
-              Enter final GPA (out of 7) or WAM (out of 100) for completed sessions. These override calculated values.
+              Override WAM or GPA per course. Leave blank for auto-calculated values from assignments.
             </p>
 
-            {/* GPA Section */}
-            <div className="mb-5">
-              <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-                GPA (out of 7)
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {sessions.map((session) => (
-                  <div key={session} className="flex justify-between items-center bg-gray-50 dark:bg-[#0A0A0B] p-2 rounded-lg border border-gray-200 dark:border-gray-800">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{session}</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="7"
-                      className="w-20 rounded-md bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-2 py-1 text-sm text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="Auto"
-                      value={manualGpas[session] !== undefined ? manualGpas[session] : ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const next = { ...manualGpas };
-                        if (val === "") { delete next[session]; } else { next[session] = parseFloat(val); }
-                        saveManualGpas(next);
-                      }}
-                    />
+            {sessions.map((session) => {
+              const sessionCourses = courses.filter((c) => getSessionFromCourse(c) === session);
+              if (sessionCourses.length === 0) return null;
+              return (
+                <div key={session} className="mb-5">
+                  <div className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-2">{session}</div>
+                  <div className="space-y-2">
+                    {sessionCourses.map((course) => {
+                      const code = getCourseCode(course);
+                      const override = getOverride(code);
+                      return (
+                        <div key={course.id} className="flex items-center gap-3 bg-gray-50 dark:bg-[#0A0A0B] p-2.5 rounded-lg border border-gray-200 dark:border-gray-800">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white flex-1 truncate">{getCourseDisplayName(course)} ({code})</span>
+                          <div className="flex items-center gap-2">
+                            <div className="text-center">
+                              <div className="text-[8px] text-gray-400 uppercase tracking-wider mb-0.5">WAM</div>
+                              <input
+                                type="number" step="0.1" min="0" max="100"
+                                className="w-16 rounded-md bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-1.5 py-1 text-xs text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="auto"
+                                value={override?.wam != null ? String(override.wam) : ""}
+                                onChange={(e) => setOverrideField(code, session, "wam", e.target.value)}
+                              />
+                            </div>
+                            <div className="text-center">
+                              <div className="text-[8px] text-gray-400 uppercase tracking-wider mb-0.5">GPA</div>
+                              <input
+                                type="number" step="0.01" min="0" max="7"
+                                className="w-16 rounded-md bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-1.5 py-1 text-xs text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="auto"
+                                value={override?.gpa != null ? String(override.gpa) : ""}
+                                onChange={(e) => setOverrideField(code, session, "gpa", e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-                {sessions.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No sessions found.</p>}
-              </div>
-            </div>
-
-            {/* WAM Section */}
-            <div>
-              <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                WAM (out of 100)
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {sessions.map((session) => (
-                  <div key={session} className="flex justify-between items-center bg-gray-50 dark:bg-[#0A0A0B] p-2 rounded-lg border border-gray-200 dark:border-gray-800">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">{session}</span>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="100"
-                      className="w-20 rounded-md bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-2 py-1 text-sm text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="Auto"
-                      value={manualWams[session] !== undefined ? manualWams[session] : ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const next = { ...manualWams };
-                        if (val === "") { delete next[session]; } else { next[session] = parseFloat(val); }
-                        saveManualWams(next);
-                      }}
-                    />
-                  </div>
-                ))}
-                {sessions.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No sessions found.</p>}
-              </div>
-            </div>
+                </div>
+              );
+            })}
+            {sessions.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No sessions found.</p>}
           </div>
         </div>,
         document.body

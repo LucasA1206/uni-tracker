@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { RefreshCw } from "lucide-react";
-import GradeCharts, { AssignmentForCharts } from "@/components/GradeCharts";
+import GradeCharts, { AssignmentForCharts, CourseGradeOverride } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import AssignmentsCardOverview from "@/components/AssignmentsCardOverview";
 import AnimatedDropdown from "@/components/ui/animated-dropdown";
@@ -151,6 +151,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
   const [savingAssignment, setSavingAssignment] = useState(false);
+  const [courseGradeOverrides, setCourseGradeOverrides] = useState<CourseGradeOverride[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -174,6 +175,10 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     const storedCharts = window.localStorage.getItem("uni_hidden_charts");
     if (storedCharts) {
       try { setHiddenForCharts(JSON.parse(storedCharts)); } catch {}
+    }
+    const storedOverrides = window.localStorage.getItem("course_grade_overrides");
+    if (storedOverrides) {
+      try { setCourseGradeOverrides(JSON.parse(storedOverrides)); } catch {}
     }
     const storedSelectedSemesters = window.localStorage.getItem("selected_semesters");
     if (storedSelectedSemesters) {
@@ -814,6 +819,11 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   courses={displayCourses} 
                   activeTabOverride={assignmentsTabOverride}
                   onUpdateStatus={updateAssignmentStatus}
+                  courseGradeOverrides={courseGradeOverrides}
+                  onOverridesChange={(newOverrides) => {
+                    setCourseGradeOverrides(newOverrides);
+                    window.localStorage.setItem("course_grade_overrides", JSON.stringify(newOverrides));
+                  }}
                 />
                 <BorderBeam size={200} duration={12} colorFrom="#6366f1" colorTo="#3b82f6" />
               </div>
@@ -998,7 +1008,14 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
           
           <div id="step-grade-overview" className="relative rounded-2xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50/40 dark:bg-[#0F0F12]/40 backdrop-blur-md p-6 overflow-hidden">
             <BorderBeam size={400} duration={15} colorFrom="#f43f5e" colorTo="#fb923c" initialOffset={50} />
-            <GradeCharts assignments={displayAssignmentsForCharts} />
+            <GradeCharts
+              assignments={displayAssignmentsForCharts}
+              overrides={courseGradeOverrides}
+              onOverridesChange={(newOverrides) => {
+                setCourseGradeOverrides(newOverrides);
+                window.localStorage.setItem("course_grade_overrides", JSON.stringify(newOverrides));
+              }}
+            />
           </div>
         </section>
       </BlurFade>
