@@ -37,10 +37,10 @@ const nextConfig: NextConfig = {
             value: "max-age=31536000; includeSubDomains; preload",
           },
 
-          // Restrict browser features
+          // Restrict browser features — allow microphone for recording, block everything else
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), payment=()",
+            value: "camera=(), microphone=(self), geolocation=(), payment=()",
           },
 
           // Content-Security-Policy
