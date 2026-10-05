@@ -43,8 +43,8 @@ const SECURITY_HEADERS: Record<string, string> = {
     "base-uri 'self'",
     "form-action 'self'",
   ].join("; "),
-  // Limit browser feature access
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  // Limit browser feature access — allow microphone on self for audio recording
+  "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
 };
 
 function addSecurityHeaders(response: NextResponse): NextResponse {

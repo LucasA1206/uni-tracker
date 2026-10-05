@@ -272,9 +272,10 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const handleStartRecording = async () => {
         setRecordedBlob(null);
         setRecordingTime(0);
-        if (recordingSource === 'mic') await startRecording();
-        else await startSystemRecording();
-        setIsRecording(true);
+        const started = recordingSource === 'mic' ? await startRecording() : await startSystemRecording();
+        if (started) {
+            setIsRecording(true);
+        }
     };
 
     const handleStopRecording = async () => {
