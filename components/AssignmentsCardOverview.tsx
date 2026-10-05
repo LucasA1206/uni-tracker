@@ -128,7 +128,6 @@ function getGrade7FromPercentage(pct: number | null): number | null {
   return 0;
 }
 
-const CURRENT_SESSION = "Autumn 2026";
 
 export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride, onUpdateStatus, courseGradeOverrides = [], onOverridesChange }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Upcoming Assignments");
@@ -222,13 +221,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
     return !isNaN(d.getTime()) && d.getFullYear() !== 1970;
   });
 
-  const currentSessionAssignments = assignments.filter((a) => {
-    const course = courses.find((c) => c.id === a.course.id);
-    if (!course) return false;
-    return getSessionFromCourse(course) === CURRENT_SESSION;
-  });
-
-  const pastAssignments = currentSessionAssignments
+  const pastAssignments = assignments
     .filter((a) => {
       const d = new Date(a.dueDate);
       const hasDate = !isNaN(d.getTime()) && d.getFullYear() !== 1970;
@@ -236,7 +229,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
     })
     .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
 
-  const upcomingAssignments = currentSessionAssignments
+  const upcomingAssignments = assignments
     .filter((a) => {
       const d = new Date(a.dueDate);
       const hasDate = !isNaN(d.getTime()) && d.getFullYear() !== 1970;
@@ -244,7 +237,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
     })
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
-  const noDueDateAssignments = currentSessionAssignments
+  const noDueDateAssignments = assignments
     .filter((a) => {
       const d = new Date(a.dueDate);
       const hasDate = !isNaN(d.getTime()) && d.getFullYear() !== 1970;
@@ -403,9 +396,9 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
       <div className="mt-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#030303]/50 backdrop-blur-xl p-4 min-h-[300px]">
         {activeTab === "Past Assignments" && (
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Past Assignments ({CURRENT_SESSION})</h3>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Past Assignments</h3>
             {pastAssignments.length === 0 ? (
-              <p className="text-sm text-gray-500">No past assignments for this session.</p>
+              <p className="text-sm text-gray-500">No past assignments.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {pastAssignments.map(renderAssignmentCard)}
