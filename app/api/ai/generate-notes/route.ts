@@ -6,6 +6,12 @@ import { tmpdir } from "os";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { getAuthUser } from "@/lib/auth";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegStatic from "ffmpeg-static";
+
+if (ffmpegStatic) {
+    ffmpeg.setFfmpegPath(ffmpegStatic);
+}
 
 export const maxDuration = 300;
 
@@ -49,8 +55,7 @@ Follow this structure and formatting guide exactly:
 
 function getAudioMimeType(fileName: string): string {
     const ext = fileName.split('.').pop()?.toLowerCase();
-    // Google AI File API expects video/webm for WebM containers (including audio recordings from browser MediaRecorder)
-    if (ext === "webm") return "video/webm";
+    if (ext === "webm") return "audio/webm";
     if (ext === "wav") return "audio/wav";
     if (ext === "m4a") return "audio/mp4";
     if (ext === "mp4") return "video/mp4";
@@ -138,7 +143,7 @@ export async function POST(req: NextRequest) {
             const genAI = new GoogleGenerativeAI(apiKey);
             // gemini-2.5-flash is designed for multimodal inputs (audio + multiple PDF documents)
             // gemini-2.5-flash-lite frequently encounters 500 Internal Server Errors on large multi-file payloads
-            const modelName = "gemini-2.5-flash-lite";
+            const modelName = "gemini-2.5-flash";
             const model = genAI.getGenerativeModel({ model: modelName });
 
             try {
@@ -168,11 +173,43 @@ export async function POST(req: NextRequest) {
                     where: { fileId: safeAudioFileId }
                 });
 
-                console.log(`Uploading audio to Google AI File API: ${tempAudioPath}`);
-                const audioMimeType = getAudioMimeType(safeAudioName);
-                const audioUploadResult = await fileManager.uploadFile(tempAudioPath, {
-                    mimeType: audioMimeType,
-                    displayName: safeAudioName,
+                // Transcode non-mp3 audio (e.g. browser .webm or .wav) to MP3 for maximum Google AI File API compatibility
+                let fileToUpload = tempAudioPath;
+                let mimeTypeToUpload = getAudioMimeType(safeAudioName);
+                let displayNameToUpload = safeAudioName;
+
+                const isAlreadyMp3 = safeAudioName.toLowerCase().endsWith(".mp3");
+                if (!isAlreadyMp3 && ffmpegStatic) {
+                    const tempMp3Path = join(tempDir, `${safeAudioFileId}-converted.mp3`);
+                    tempFilesToClean.push(tempMp3Path);
+                    try {
+                        console.log(`Transcoding audio ${safeAudioName} to MP3 for Google AI File API...`);
+                        await new Promise<void>((resolve, reject) => {
+                            ffmpeg(tempAudioPath)
+                                .toFormat("mp3")
+                                .audioBitrate(128)
+                                .on("end", () => {
+                                    console.log("Audio transcoding to MP3 completed.");
+                                    resolve();
+                                })
+                                .on("error", (err) => {
+                                    console.warn("ffmpeg audio transcoding error:", err);
+                                    reject(err);
+                                })
+                                .save(tempMp3Path);
+                        });
+                        fileToUpload = tempMp3Path;
+                        mimeTypeToUpload = "audio/mp3";
+                        displayNameToUpload = `${safeAudioName.replace(/\.[^/.]+$/, "")}.mp3`;
+                    } catch (convErr) {
+                        console.warn("Transcoding failed, falling back to original audio format:", convErr);
+                    }
+                }
+
+                console.log(`Uploading audio to Google AI File API: ${fileToUpload} (${mimeTypeToUpload})`);
+                const audioUploadResult = await fileManager.uploadFile(fileToUpload, {
+                    mimeType: mimeTypeToUpload,
+                    displayName: displayNameToUpload,
                 });
                 googleFilesToClean.push(audioUploadResult.file.name);
 
@@ -186,7 +223,8 @@ export async function POST(req: NextRequest) {
                 }
 
                 if (audioFileStatus.state === "FAILED") {
-                    throw new Error("Google AI File API failed to process the uploaded audio file.");
+                    console.error("Google AI File API audio error:", audioFileStatus.error);
+                    throw new Error(`Google AI File API failed to process the uploaded audio file: ${audioFileStatus.error?.message || "File processing failed"}`);
                 }
 
                 const audioContentPart = {
