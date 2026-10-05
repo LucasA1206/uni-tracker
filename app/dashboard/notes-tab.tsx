@@ -477,6 +477,44 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         }
     };
 
+    const uploadFileInChunks = async (
+        file: File,
+        fileId: string,
+        onProgress: (percent: number) => void
+    ) => {
+        const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks to stay safely under Vercel payload limits
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            const percent = Math.round((chunkIndex / totalChunks) * 100);
+            onProgress(percent);
+
+            const start = chunkIndex * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, file.size);
+            const chunk = file.slice(start, end);
+
+            const formData = new FormData();
+            formData.append("file", chunk);
+            formData.append("chunkIndex", chunkIndex.toString());
+            formData.append("totalChunks", totalChunks.toString());
+            formData.append("fileId", fileId);
+            formData.append("originalName", file.name);
+
+            const res = await fetch("/api/ai/generate-notes", {
+                method: "POST",
+                credentials: "include",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || `Upload failed at chunk ${chunkIndex + 1} of ${file.name}`);
+            }
+        }
+        onProgress(100);
+        return totalChunks;
+    };
+
     const handleGenerate = async () => {
         if (!uploadFile) return;
 
@@ -484,68 +522,70 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         setProcessingStage("Starting upload...");
 
         try {
-            const CHUNK_SIZE = 1 * 1024 * 1024; // Decreased chunk size to 1MB to avoid payload size limit
-            const totalChunks = Math.ceil(uploadFile.size / CHUNK_SIZE);
-            const fileId = `upload-${Date.now()}`;
+            // 1. Upload audio file chunk by chunk
+            const audioFileId = `audio-${Date.now()}`;
+            const totalAudioChunks = await uploadFileInChunks(uploadFile, audioFileId, (percent) => {
+                setProcessingStage(`Uploading audio (${percent}%)...`);
+            });
 
-            for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                // Update UI to show upload progress
-                const percent = Math.round(((chunkIndex) / totalChunks) * 100);
-                setProcessingStage(`Uploading audio... ${percent}%`);
-
-                const start = chunkIndex * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, uploadFile.size);
-                const chunk = uploadFile.slice(start, end);
-
-                const formData = new FormData();
-                formData.append("file", chunk);
-                formData.append("chunkIndex", chunkIndex.toString());
-                formData.append("totalChunks", totalChunks.toString());
-                formData.append("fileId", fileId);
-                formData.append("originalName", uploadFile.name);
-                if (selectedCourseId) {
-                    formData.append("courseId", selectedCourseId);
-                }
-
-                // On the last chunk, attach all slide files if present
-                if (chunkIndex === totalChunks - 1 && slideFiles.length > 0) {
-                    slideFiles.forEach((sf, idx) => {
-                        formData.append(`slideFile_${idx}`, sf);
-                        formData.append(`slideName_${idx}`, sf.name);
-                    });
-                    formData.append("slideCount", slideFiles.length.toString());
-                    setProcessingStage(`Processing audio + ${slideFiles.length} slide file${slideFiles.length > 1 ? 's' : ''} with Gemini... (this may take a minute)`);
-                } else if (chunkIndex === totalChunks - 1) {
-                    setProcessingStage("Processing with Gemini 2.0 Flash Lite... (this may take a minute)");
-                }
-
-                const res = await fetch("/api/ai/generate-notes", {
-                    method: "POST",
-                    credentials: "include",
-                    body: formData,
+            // 2. Upload slide files (if any) chunk by chunk
+            const slidesMeta: Array<{ fileId: string; name: string; totalChunks: number }> = [];
+            for (let i = 0; i < slideFiles.length; i++) {
+                const sf = slideFiles[i];
+                const slideId = `slide-${Date.now()}-${i}`;
+                const slideChunks = await uploadFileInChunks(sf, slideId, (percent) => {
+                    setProcessingStage(`Uploading slide ${i + 1}/${slideFiles.length}: ${sf.name} (${percent}%)...`);
                 });
-
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
-                    throw new Error(errorData.error || `Upload failed at chunk ${chunkIndex + 1}`);
-                }
-
-                const data = await res.json();
-
-                // If this was the last chunk, we are done
-                if (chunkIndex === totalChunks - 1) {
-                    setProcessingStage("Finalizing notes...");
-                    if (data.note?.id) {
-                        router.push(`/dashboard/notes/${data.note.id}`);
-                    } else {
-                        await refresh();
-                    }
-                    setUploadFile(null);
-                    setSlideFiles([]);
-                    setSelectedCourseId("");
-                    return; // Exit function
-                }
+                slidesMeta.push({
+                    fileId: slideId,
+                    name: sf.name,
+                    totalChunks: slideChunks,
+                });
             }
+
+            // 3. Trigger note generation with Gemini File API
+            setProcessingStage(
+                slideFiles.length > 0
+                    ? `Analyzing audio + ${slideFiles.length} slide file${slideFiles.length > 1 ? 's' : ''} with Gemini... (this may take a minute)`
+                    : "Analyzing lecture audio with Gemini... (this may take a minute)"
+            );
+
+            const res = await fetch("/api/ai/generate-notes", {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    action: "generate",
+                    audio: {
+                        fileId: audioFileId,
+                        name: uploadFile.name,
+                        totalChunks: totalAudioChunks,
+                    },
+                    slides: slidesMeta,
+                    courseId: selectedCourseId || undefined,
+                }),
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to generate notes");
+            }
+
+            const data = await res.json();
+            setProcessingStage("Finalizing notes...");
+
+            if (data.note?.id) {
+                router.push(`/dashboard/notes/${data.note.id}`);
+            } else {
+                await refresh();
+            }
+
+            setUploadFile(null);
+            setSlideFiles([]);
+            setSelectedCourseId("");
+
         } catch (err: any) {
             console.error("Failed to generate note", err);
             alert(`Error: ${err.message}`);

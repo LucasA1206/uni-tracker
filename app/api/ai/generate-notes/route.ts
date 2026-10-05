@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { writeFile, appendFile, unlink, readFile } from "fs/promises";
+import { writeFile, appendFile, unlink } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleAIFileManager } from "@google/generative-ai/server";
 import { getAuthUser } from "@/lib/auth";
 
 export const maxDuration = 300;
@@ -46,9 +47,16 @@ Follow this structure and formatting guide exactly:
     *   Conclude with a glossary of terms or a final summary.
 `;
 
-export async function POST(req: NextRequest) {
-    let tempFilePath = "";
+function getAudioMimeType(fileName: string): string {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === "webm") return "audio/webm";
+    if (ext === "wav") return "audio/wav";
+    if (ext === "m4a") return "audio/mp4";
+    if (ext === "mp4") return "video/mp4";
+    return "audio/mp3";
+}
 
+export async function POST(req: NextRequest) {
     try {
         const authUser = await getAuthUser(req);
         if (!authUser) {
@@ -62,150 +70,230 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        const apiKey = user.googleApiKey || process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json(
-                { error: "No Google API Key configured. Please add one in settings or configure the server." },
-                { status: 400 }
-            );
-        }
+        const contentType = req.headers.get("content-type") || "";
 
-        const formData = await req.formData();
-        const file = formData.get("file") as File | null;
-        const courseId = formData.get("courseId") as string | null;
-        const chunkIndex = parseInt(formData.get("chunkIndex") as string || "0");
-        const totalChunks = parseInt(formData.get("totalChunks") as string || "1");
-        const fileId = formData.get("fileId") as string || `upload-${Date.now()}`;
-        const originalName = formData.get("originalName") as string || "file";
+        // ──────────────────────────────────────────────────────────────────────────
+        // Case 1: Chunk Upload (multipart/form-data)
+        // ──────────────────────────────────────────────────────────────────────────
+        if (contentType.includes("multipart/form-data")) {
+            const formData = await req.formData();
+            const file = formData.get("file") as File | null;
+            const chunkIndex = parseInt(formData.get("chunkIndex") as string || "0");
+            const fileId = formData.get("fileId") as string || `upload-${Date.now()}`;
 
-        if (!file) {
-            return NextResponse.json({ error: "No file provided" }, { status: 400 });
-        }
-
-        const tempDir = tmpdir();
-        const safeFileId = fileId.replace(/[^a-zA-Z0-9-]/g, '');
-        const safeOriginalName = originalName.replace(/[^a-zA-Z0-9.-]/g, '');
-        tempFilePath = join(tempDir, `${safeFileId}-${safeOriginalName}`);
-
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
-        // Save chunk to database
-        await prisma.fileChunk.create({
-            data: {
-                fileId: safeFileId,
-                chunkIndex,
-                data: buffer,
+            if (!file) {
+                return NextResponse.json({ error: "No file chunk provided" }, { status: 400 });
             }
-        });
 
-        if (chunkIndex < totalChunks - 1) {
+            const safeFileId = fileId.replace(/[^a-zA-Z0-9-]/g, '');
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+
+            // Upsert chunk in database
+            await prisma.fileChunk.upsert({
+                where: {
+                    fileId_chunkIndex: {
+                        fileId: safeFileId,
+                        chunkIndex,
+                    }
+                },
+                update: {
+                    data: buffer,
+                },
+                create: {
+                    fileId: safeFileId,
+                    chunkIndex,
+                    data: buffer,
+                }
+            });
+
             return NextResponse.json({ status: "chunk_received", chunkIndex }, { status: 200 });
         }
 
-        console.log("All chunks received. Assembling file from DB...", safeFileId);
+        // ──────────────────────────────────────────────────────────────────────────
+        // Case 2: Trigger Generation (application/json)
+        // ──────────────────────────────────────────────────────────────────────────
+        if (contentType.includes("application/json")) {
+            const body = await req.json();
+            const { action, audio, slides, courseId } = body;
 
-        // Fetch all chunks from DB in order
-        const chunks = await prisma.fileChunk.findMany({
-            where: { fileId: safeFileId },
-            orderBy: { chunkIndex: 'asc' }
-        });
+            if (action !== "generate" || !audio?.fileId) {
+                return NextResponse.json({ error: "Invalid generate request: missing audio details" }, { status: 400 });
+            }
 
-        if (chunks.length !== totalChunks) {
-            throw new Error(`Expected ${totalChunks} chunks but found ${chunks.length}. Upload may have been interrupted. Please try again.`);
-        }
+            const apiKey = user.googleApiKey || process.env.GEMINI_API_KEY;
+            if (!apiKey) {
+                return NextResponse.json(
+                    { error: "No Google API Key configured. Please add one in settings or configure the server." },
+                    { status: 400 }
+                );
+            }
 
-        // Write all chunks to the temporary file
-        await writeFile(tempFilePath, Buffer.alloc(0));
-        for (const chunk of chunks) {
-            await appendFile(tempFilePath, chunk.data);
-        }
+            const tempDir = tmpdir();
+            const tempFilesToClean: string[] = [];
+            const googleFilesToClean: string[] = [];
 
-        // Clean up chunks from DB
-        await prisma.fileChunk.deleteMany({
-            where: { fileId: safeFileId }
-        });
+            const fileManager = new GoogleAIFileManager(apiKey);
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-        console.log("File assembled. Processing file with Gemini:", tempFilePath);
+            try {
+                // 1. Assemble Audio File from DB Chunks
+                const safeAudioFileId = String(audio.fileId).replace(/[^a-zA-Z0-9-]/g, '');
+                const safeAudioName = String(audio.name || "lecture.mp3").replace(/[^a-zA-Z0-9.-]/g, '');
+                const tempAudioPath = join(tempDir, `${safeAudioFileId}-${safeAudioName}`);
+                tempFilesToClean.push(tempAudioPath);
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+                console.log(`Assembling audio file ${safeAudioFileId} from DB...`);
+                const audioChunks = await prisma.fileChunk.findMany({
+                    where: { fileId: safeAudioFileId },
+                    orderBy: { chunkIndex: 'asc' }
+                });
 
-        const audioBuffer = await readFile(tempFilePath);
+                if (audioChunks.length === 0) {
+                    throw new Error("No audio chunks found in database. The upload may have failed or timed out.");
+                }
 
-        const ext = safeOriginalName.split('.').pop()?.toLowerCase();
-        let mimeType = "audio/mp3";
-        if (ext === "webm") mimeType = "audio/webm";
-        else if (ext === "wav") mimeType = "audio/wav";
-        else if (ext === "m4a") mimeType = "audio/mp4";
+                await writeFile(tempAudioPath, Buffer.alloc(0));
+                for (const chunk of audioChunks) {
+                    await appendFile(tempAudioPath, chunk.data);
+                }
 
-        const audioParts = [
-            {
-                inlineData: {
-                    data: audioBuffer.toString("base64"),
-                    mimeType
+                // Delete audio chunks from DB
+                await prisma.fileChunk.deleteMany({
+                    where: { fileId: safeAudioFileId }
+                });
+
+                console.log(`Uploading audio to Google AI File API: ${tempAudioPath}`);
+                const audioMimeType = getAudioMimeType(safeAudioName);
+                const audioUploadResult = await fileManager.uploadFile(tempAudioPath, {
+                    mimeType: audioMimeType,
+                    displayName: safeAudioName,
+                });
+                googleFilesToClean.push(audioUploadResult.file.name);
+
+                // Wait for audio file to transition to ACTIVE state
+                let audioFileStatus = await fileManager.getFile(audioUploadResult.file.name);
+                let pollCount = 0;
+                while (audioFileStatus.state === "PROCESSING" && pollCount < 45) {
+                    await new Promise((r) => setTimeout(r, 2000));
+                    audioFileStatus = await fileManager.getFile(audioUploadResult.file.name);
+                    pollCount++;
+                }
+
+                if (audioFileStatus.state === "FAILED") {
+                    throw new Error("Google AI File API failed to process the uploaded audio file.");
+                }
+
+                const audioContentPart = {
+                    fileData: {
+                        fileUri: audioUploadResult.file.uri,
+                        mimeType: audioUploadResult.file.mimeType,
+                    }
+                };
+
+                // 2. Assemble and Upload Slide PDFs (if provided)
+                const slideContentParts: Array<{ fileData: { fileUri: string; mimeType: string } }> = [];
+                const slideList = Array.isArray(slides) ? slides : [];
+
+                for (let i = 0; i < Math.min(slideList.length, 5); i++) {
+                    const slideMeta = slideList[i];
+                    if (!slideMeta?.fileId) continue;
+
+                    const safeSlideId = String(slideMeta.fileId).replace(/[^a-zA-Z0-9-]/g, '');
+                    const safeSlideName = String(slideMeta.name || `slide_${i}.pdf`).replace(/[^a-zA-Z0-9.-]/g, '');
+                    const tempSlidePath = join(tempDir, `${safeSlideId}-${safeSlideName}`);
+                    tempFilesToClean.push(tempSlidePath);
+
+                    const sChunks = await prisma.fileChunk.findMany({
+                        where: { fileId: safeSlideId },
+                        orderBy: { chunkIndex: 'asc' }
+                    });
+
+                    if (sChunks.length > 0) {
+                        await writeFile(tempSlidePath, Buffer.alloc(0));
+                        for (const chunk of sChunks) {
+                            await appendFile(tempSlidePath, chunk.data);
+                        }
+
+                        await prisma.fileChunk.deleteMany({
+                            where: { fileId: safeSlideId }
+                        });
+
+                        console.log(`Uploading slide ${i + 1} (${safeSlideName}) to Google AI File API...`);
+                        const slideUploadResult = await fileManager.uploadFile(tempSlidePath, {
+                            mimeType: "application/pdf",
+                            displayName: safeSlideName,
+                        });
+                        googleFilesToClean.push(slideUploadResult.file.name);
+
+                        // Ensure slide file is ready
+                        let sStatus = await fileManager.getFile(slideUploadResult.file.name);
+                        let sPoll = 0;
+                        while (sStatus.state === "PROCESSING" && sPoll < 20) {
+                            await new Promise((r) => setTimeout(r, 1500));
+                            sStatus = await fileManager.getFile(slideUploadResult.file.name);
+                            sPoll++;
+                        }
+
+                        slideContentParts.push({
+                            fileData: {
+                                fileUri: slideUploadResult.file.uri,
+                                mimeType: slideUploadResult.file.mimeType,
+                            }
+                        });
+                    }
+                }
+
+                // 3. Generate Notes with Gemini
+                const hasSlides = slideContentParts.length > 0;
+                const userPrompt = hasSlides
+                    ? `Please generate comprehensive lecture notes using both the provided audio recording and the ${slideContentParts.length} lecture slide PDF${slideContentParts.length > 1 ? 's' : ''}. Use the slide structure to organise sections, and fill in details from the audio.`
+                    : "Please format the following audio recording into structured lecture notes.";
+
+                console.log(`Generating notes with Gemini (Audio + ${slideContentParts.length} slide decks)...`);
+                const result = await model.generateContent([
+                    SYSTEM_PROMPT,
+                    { text: userPrompt },
+                    audioContentPart,
+                    ...slideContentParts,
+                ]);
+
+                const generatedNotes = result.response.text();
+                console.log("Notes successfully generated! Length:", generatedNotes.length);
+
+                const titleMatch = generatedNotes.match(/^# (.*)$/m);
+                const title = titleMatch ? titleMatch[1].replace(/[*#]/g, '').trim() : `Lecture Notes: ${safeAudioName}`;
+
+                const newNote = await prisma.note.create({
+                    data: {
+                        title: title || "Untitled Notes",
+                        content: generatedNotes,
+                        userId: user.id,
+                        courseId: courseId ? parseInt(courseId) : undefined,
+                    },
+                });
+
+                return NextResponse.json({ note: newNote }, { status: 201 });
+
+            } finally {
+                // Clean up local temp files on disk
+                for (const p of tempFilesToClean) {
+                    await unlink(p).catch(() => {});
+                }
+                // Clean up remote Google AI files asynchronously
+                for (const gName of googleFilesToClean) {
+                    fileManager.deleteFile(gName).catch((err) => {
+                        console.warn(`Could not delete Google AI file ${gName}:`, err?.message);
+                    });
                 }
             }
-        ];
-
-        // Handle optional slide PDFs (up to 5)
-        const slideCount = parseInt(formData.get("slideCount") as string || "0");
-        const slideParts: Array<{ inlineData: { data: string; mimeType: string } }> = [];
-
-        for (let i = 0; i < Math.min(slideCount, 5); i++) {
-            const slideFile = formData.get(`slideFile_${i}`) as File | null;
-            const slideName = (formData.get(`slideName_${i}`) as string) || `slide_${i}.pdf`;
-            if (slideFile) {
-                const slideBuffer = Buffer.from(await slideFile.arrayBuffer());
-                slideParts.push({
-                    inlineData: {
-                        data: slideBuffer.toString("base64"),
-                        mimeType: "application/pdf"
-                    }
-                });
-                console.log(`Loaded slide ${i + 1}: ${slideName} (${(slideBuffer.length / 1024).toFixed(1)} KB)`);
-            }
         }
 
-        const hasSlides = slideParts.length > 0;
-        const userPrompt = hasSlides
-            ? `Please generate comprehensive lecture notes using both the provided audio recording and the ${slideParts.length} lecture slide PDF${slideParts.length > 1 ? 's' : ''}. Use the slide structure to organise sections, and fill in details from the audio.`
-            : "Please format the following audio recording into lecture notes.";
-
-        console.log(`Generating structured notes... (audio + ${slideParts.length} slide file(s))`);
-        const result = await model.generateContent([
-            SYSTEM_PROMPT,
-            { text: userPrompt },
-            ...audioParts,
-            ...slideParts,
-        ]);
-
-        const generatedNotes = result.response.text();
-        console.log("Notes generated successfully. Length:", generatedNotes.length);
-
-        const titleMatch = generatedNotes.match(/^# (.*)$/m);
-        const title = titleMatch ? titleMatch[1].replace(/[*#]/g, '').trim() : `Lecture Notes: ${originalName}`;
-
-        const newNote = await prisma.note.create({
-            data: {
-                title: title || "Untitled Notes",
-                content: generatedNotes,
-                userId: user.id,
-                courseId: courseId ? parseInt(courseId) : undefined,
-            },
-        });
-
-        await unlink(tempFilePath).catch(() => { });
-
-        return NextResponse.json({ note: newNote }, { status: 201 });
+        return NextResponse.json({ error: "Unsupported request format" }, { status: 400 });
 
     } catch (error: any) {
         console.error("AI Generation Error:", error);
-
-        if (tempFilePath) {
-            await unlink(tempFilePath).catch(() => { });
-        }
-
         return NextResponse.json(
             { error: error.message || "Failed to generate notes" },
             { status: 500 }
