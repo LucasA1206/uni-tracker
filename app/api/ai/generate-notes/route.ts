@@ -49,7 +49,8 @@ Follow this structure and formatting guide exactly:
 
 function getAudioMimeType(fileName: string): string {
     const ext = fileName.split('.').pop()?.toLowerCase();
-    if (ext === "webm") return "audio/webm";
+    // Google AI File API expects video/webm for WebM containers (including audio recordings from browser MediaRecorder)
+    if (ext === "webm") return "video/webm";
     if (ext === "wav") return "audio/wav";
     if (ext === "m4a") return "audio/mp4";
     if (ext === "mp4") return "video/mp4";
@@ -135,7 +136,10 @@ export async function POST(req: NextRequest) {
 
             const fileManager = new GoogleAIFileManager(apiKey);
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+            // gemini-2.5-flash is designed for multimodal inputs (audio + multiple PDF documents)
+            // gemini-2.5-flash-lite frequently encounters 500 Internal Server Errors on large multi-file payloads
+            const modelName = "gemini-2.5-flash-lite";
+            const model = genAI.getGenerativeModel({ model: modelName });
 
             try {
                 // 1. Assemble Audio File from DB Chunks
@@ -236,6 +240,11 @@ export async function POST(req: NextRequest) {
                             sPoll++;
                         }
 
+                        if (sStatus.state === "FAILED") {
+                            console.warn(`Slide ${safeSlideName} failed processing on Google AI, skipping`);
+                            continue;
+                        }
+
                         slideContentParts.push({
                             fileData: {
                                 fileUri: slideUploadResult.file.uri,
@@ -252,12 +261,23 @@ export async function POST(req: NextRequest) {
                     : "Please format the following audio recording into structured lecture notes.";
 
                 console.log(`Generating notes with Gemini (Audio + ${slideContentParts.length} slide decks)...`);
-                const result = await model.generateContent([
+
+                const promptParts = [
                     SYSTEM_PROMPT,
                     { text: userPrompt },
                     audioContentPart,
                     ...slideContentParts,
-                ]);
+                ];
+
+                let result;
+                try {
+                    result = await model.generateContent(promptParts);
+                } catch (firstErr: any) {
+                    // If a 500 error occurs, wait briefly and retry once
+                    console.warn("Initial generateContent failed, retrying in 3 seconds...", firstErr?.message);
+                    await new Promise((r) => setTimeout(r, 3000));
+                    result = await model.generateContent(promptParts);
+                }
 
                 const generatedNotes = result.response.text();
                 console.log("Notes successfully generated! Length:", generatedNotes.length);
@@ -279,7 +299,7 @@ export async function POST(req: NextRequest) {
             } finally {
                 // Clean up local temp files on disk
                 for (const p of tempFilesToClean) {
-                    await unlink(p).catch(() => {});
+                    await unlink(p).catch(() => { });
                 }
                 // Clean up remote Google AI files asynchronously
                 for (const gName of googleFilesToClean) {
