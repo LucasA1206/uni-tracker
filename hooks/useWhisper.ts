@@ -70,9 +70,22 @@ export function useWhisper() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             initMediaRecorder(stream);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error accessing microphone:", err);
-            alert("Could not access microphone. Please allow microphone permissions.");
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                alert(
+                    "Microphone access was denied by your browser.\n\n" +
+                    "In Opera: go to Settings → Privacy & Security → Site Settings → Microphone, " +
+                    "allow this site, then refresh the page and try again.\n\n" +
+                    "If you already allowed it, try refreshing the page — some browsers require a reload for new permissions to take effect."
+                );
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                alert("No microphone found. Please connect a microphone and try again.");
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                alert("Your microphone is already in use by another application. Please close other apps using it and try again.");
+            } else {
+                alert(`Could not access microphone.\n\nError: ${err.name} — ${err.message}\n\nIf this persists, check that the page is running over HTTPS and that microphone permissions are allowed in your browser's site settings.`);
+            }
         }
     }, []);
 

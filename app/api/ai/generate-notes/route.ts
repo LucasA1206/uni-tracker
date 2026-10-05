@@ -10,14 +10,16 @@ export const maxDuration = 300;
 
 const SYSTEM_PROMPT = `
 You are an expert academic note-taker. 
-Your task is to generate highly structured, visually appealing, and educational notes from the provided lecture audio, mimicking the style of high-quality formatted PDFs.
+Your task is to generate highly structured, visually appealing, and educational notes from the provided lecture content.
+You may be given a lecture audio recording, one or more lecture slide PDFs, or both — use ALL provided materials to create the most complete, accurate notes possible.
+When slides are provided, extract key diagrams, definitions, titles, and bullet points from them and integrate them into the notes. Cross-reference the audio content with slide content.
 The notes must be formatted in strict Markdown.
 
 Follow this structure and formatting guide exactly:
 
 1.  **# [Lecture Title]** 
     *   This should be the very first line.
-    *   Infer a clear, professional title if not provided.
+    *   Infer a clear, professional title from the slides or audio if not explicitly stated.
 
 2.  **### Brief Overview**
     *   A concise summary of the lecture's main goals and topic.
@@ -31,6 +33,7 @@ Follow this structure and formatting guide exactly:
     *   Use **##** for major distinct sections.
     *   Use **###** for sub-sections within these major sections.
     *   **Bold** key terms and definitions when they are first introduced.
+    *   If slides are present, follow their section/chapter structure.
 
 6.  **Code & Technical Details**:
     *   If ANY code, algorithms, or technical syntax is mentioned, you MUST use a code block.
@@ -145,11 +148,36 @@ export async function POST(req: NextRequest) {
             }
         ];
 
-        console.log("Generating structured notes...");
+        // Handle optional slide PDFs (up to 5)
+        const slideCount = parseInt(formData.get("slideCount") as string || "0");
+        const slideParts: Array<{ inlineData: { data: string; mimeType: string } }> = [];
+
+        for (let i = 0; i < Math.min(slideCount, 5); i++) {
+            const slideFile = formData.get(`slideFile_${i}`) as File | null;
+            const slideName = (formData.get(`slideName_${i}`) as string) || `slide_${i}.pdf`;
+            if (slideFile) {
+                const slideBuffer = Buffer.from(await slideFile.arrayBuffer());
+                slideParts.push({
+                    inlineData: {
+                        data: slideBuffer.toString("base64"),
+                        mimeType: "application/pdf"
+                    }
+                });
+                console.log(`Loaded slide ${i + 1}: ${slideName} (${(slideBuffer.length / 1024).toFixed(1)} KB)`);
+            }
+        }
+
+        const hasSlides = slideParts.length > 0;
+        const userPrompt = hasSlides
+            ? `Please generate comprehensive lecture notes using both the provided audio recording and the ${slideParts.length} lecture slide PDF${slideParts.length > 1 ? 's' : ''}. Use the slide structure to organise sections, and fill in details from the audio.`
+            : "Please format the following audio recording into lecture notes.";
+
+        console.log(`Generating structured notes... (audio + ${slideParts.length} slide file(s))`);
         const result = await model.generateContent([
             SYSTEM_PROMPT,
-            { text: "Please format the following audio recording into lecture notes." },
-            ...audioParts
+            { text: userPrompt },
+            ...audioParts,
+            ...slideParts,
         ]);
 
         const generatedNotes = result.response.text();

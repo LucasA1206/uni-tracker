@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video, X } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video, X, FileUp } from "lucide-react";
 import { useWhisper } from "@/hooks/useWhisper";
 import QuizModal from "@/components/quiz/QuizModal";
 
@@ -237,6 +237,8 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingStage, setProcessingStage] = useState("");
     const [dragActive, setDragActive] = useState(false);
+    const [slideFiles, setSlideFiles] = useState<File[]>([]);
+    const [slideDragActive, setSlideDragActive] = useState(false);
 
 
     const router = useRouter();
@@ -297,6 +299,54 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         if (!recordedBlob) return;
         const file = new File([recordedBlob], `recording-${new Date().getTime()}.webm`, { type: recordedBlob.type });
         setUploadFile(file);
+    };
+
+    const handleSlideFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const incoming = Array.from(e.target.files).filter(
+                f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+            );
+            if (incoming.length === 0) { alert('Please upload PDF files (.pdf)'); return; }
+            setSlideFiles(prev => {
+                const combined = [...prev, ...incoming];
+                if (combined.length > 5) {
+                    alert('You can upload a maximum of 5 slide files.');
+                    return combined.slice(0, 5);
+                }
+                return combined;
+            });
+        }
+    };
+
+    const handleSlideDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSlideDragActive(false);
+        if (e.dataTransfer.files) {
+            const incoming = Array.from(e.dataTransfer.files).filter(
+                f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+            );
+            if (incoming.length === 0) { alert('Please drop PDF files (.pdf)'); return; }
+            setSlideFiles(prev => {
+                const combined = [...prev, ...incoming];
+                if (combined.length > 5) {
+                    alert('You can upload a maximum of 5 slide files.');
+                    return combined.slice(0, 5);
+                }
+                return combined;
+            });
+        }
+    };
+
+    const handleSlideDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === 'dragenter' || e.type === 'dragover') setSlideDragActive(true);
+        else if (e.type === 'dragleave') setSlideDragActive(false);
+    };
+
+    const removeSlideFile = (index: number) => {
+        setSlideFiles(prev => prev.filter((_, i) => i !== index));
     };
     // const [selectedNote, setSelectedNote] = useState<Note | null>(null); // Removed modal state
 
@@ -440,7 +490,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
             for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
                 // Update UI to show upload progress
                 const percent = Math.round(((chunkIndex) / totalChunks) * 100);
-                setProcessingStage(`Uploading... ${percent}%`);
+                setProcessingStage(`Uploading audio... ${percent}%`);
 
                 const start = chunkIndex * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, uploadFile.size);
@@ -456,8 +506,15 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                     formData.append("courseId", selectedCourseId);
                 }
 
-                // If it's the last chunk, we update message before sending because it might take a while
-                if (chunkIndex === totalChunks - 1) {
+                // On the last chunk, attach all slide files if present
+                if (chunkIndex === totalChunks - 1 && slideFiles.length > 0) {
+                    slideFiles.forEach((sf, idx) => {
+                        formData.append(`slideFile_${idx}`, sf);
+                        formData.append(`slideName_${idx}`, sf.name);
+                    });
+                    formData.append("slideCount", slideFiles.length.toString());
+                    setProcessingStage(`Processing audio + ${slideFiles.length} slide file${slideFiles.length > 1 ? 's' : ''} with Gemini... (this may take a minute)`);
+                } else if (chunkIndex === totalChunks - 1) {
                     setProcessingStage("Processing with Gemini 2.0 Flash Lite... (this may take a minute)");
                 }
 
@@ -483,6 +540,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                         await refresh();
                     }
                     setUploadFile(null);
+                    setSlideFiles([]);
                     setSelectedCourseId("");
                     return; // Exit function
                 }
@@ -566,7 +624,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                     AI Lecture Notes
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Upload your lecture recordings (.mp3) and let AI generate detailed, structured notes for you.
+                    Upload your lecture recordings (.mp3) and optionally your lecture slides (.pdf) — AI will use both to generate detailed, structured notes.
                 </p>
             </div>
 
@@ -728,8 +786,6 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                     </div>
                 </motion.div>
 
-
-                {/* Right: Audio Recorder */}
                 <div id="step-recorder-zone" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
 
                     <div className="space-y-4">
@@ -829,6 +885,79 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                     </div>
                 </div>
 
+            </div>
+
+            {/* Lecture Slides Upload — full-width below the two panels */}
+            <div
+                className={`rounded-2xl border-2 border-dashed transition-colors duration-200 p-5
+                    ${slideDragActive ? 'border-purple-500 bg-purple-50/10' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12]'}
+                    ${isProcessing ? 'pointer-events-none opacity-60' : ''}`}
+                onDragEnter={handleSlideDrag}
+                onDragLeave={handleSlideDrag}
+                onDragOver={handleSlideDrag}
+                onDrop={handleSlideDrop}
+            >
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <FileUp className="w-4 h-4 text-purple-500" />
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Lecture Slides
+                        </h3>
+                        <span className="text-xs text-gray-400">(Optional · PDF · max 5)</span>
+                    </div>
+                    {slideFiles.length < 5 && (
+                        <label className="cursor-pointer text-xs font-medium text-purple-500 hover:text-purple-400 transition-colors">
+                            + Add PDF
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept=".pdf,application/pdf"
+                                multiple
+                                onChange={handleSlideFileChange}
+                            />
+                        </label>
+                    )}
+                </div>
+
+                {slideFiles.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Drag &amp; drop your PDF slide decks here, or click{' '}
+                            <span className="text-purple-500 font-medium">+ Add PDF</span> above
+                        </p>
+                        <p className="text-xs text-gray-400">AI will cross-reference slides with your audio recording for richer notes</p>
+                    </div>
+                ) : (
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {slideFiles.map((f, idx) => (
+                            <li key={idx} className="flex items-center gap-3 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+                                <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-500 shrink-0">
+                                    <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{f.name}</p>
+                                    <p className="text-xs text-gray-400">{(f.size / 1024 / 1024).toFixed(2)} MB</p>
+                                </div>
+                                <button
+                                    onClick={() => removeSlideFile(idx)}
+                                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors shrink-0"
+                                    aria-label="Remove"
+                                >
+                                    <X className="w-3.5 h-3.5 text-gray-400" />
+                                </button>
+                            </li>
+                        ))}
+                        {slideFiles.length < 5 && (
+                            <li>
+                                <label className="flex items-center gap-2 px-3 py-2 h-full min-h-[52px] rounded-lg border border-dashed border-gray-300 dark:border-gray-700 cursor-pointer hover:border-purple-400 hover:bg-purple-50/5 transition-colors text-sm text-gray-400">
+                                    <FileUp className="w-4 h-4 shrink-0" />
+                                    Add another PDF ({slideFiles.length}/5)
+                                    <input type="file" className="hidden" accept=".pdf,application/pdf" multiple onChange={handleSlideFileChange} />
+                                </label>
+                            </li>
+                        )}
+                    </ul>
+                )}
             </div>
 
             {/* Recent Quizzes List */}

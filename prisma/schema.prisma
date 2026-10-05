@@ -43,7 +43,7 @@ model UniCourse {
   userId      Int
   name        String
   code        String
-  color       String?
+  color       String?       // HEX or CSS color string
   term        String   @default("Autumn")
   year        Int      @default(2026)
   canvasId    String?
