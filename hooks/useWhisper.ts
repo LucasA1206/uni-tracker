@@ -66,18 +66,18 @@ export function useWhisper() {
         setAudioBlob(null);
     };
 
-    const startRecording = useCallback(async () => {
+    const startRecording = useCallback(async (): Promise<boolean> => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             initMediaRecorder(stream);
+            return true;
         } catch (err: any) {
             console.error("Error accessing microphone:", err);
             if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
                 alert(
                     "Microphone access was denied by your browser.\n\n" +
-                    "In Opera: go to Settings → Privacy & Security → Site Settings → Microphone, " +
-                    "allow this site, then refresh the page and try again.\n\n" +
-                    "If you already allowed it, try refreshing the page — some browsers require a reload for new permissions to take effect."
+                    "In Opera / Chrome: Click the icon to the left of the URL address bar, ensure Microphone is set to 'Allow', then refresh the page.\n\n" +
+                    "Also check Windows Settings → Privacy & Security → Microphone to make sure desktop apps can access your microphone."
                 );
             } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
                 alert("No microphone found. Please connect a microphone and try again.");
@@ -86,10 +86,11 @@ export function useWhisper() {
             } else {
                 alert(`Could not access microphone.\n\nError: ${err.name} — ${err.message}\n\nIf this persists, check that the page is running over HTTPS and that microphone permissions are allowed in your browser's site settings.`);
             }
+            return false;
         }
     }, []);
 
-    const startSystemRecording = useCallback(async () => {
+    const startSystemRecording = useCallback(async (): Promise<boolean> => {
         try {
             // Request system audio via screen sharing
             const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -101,28 +102,21 @@ export function useWhisper() {
             if (stream.getAudioTracks().length === 0) {
                 alert("No system audio detected. Please make sure to check 'Share System Audio' in the browser dialog.");
                 stream.getTracks().forEach(track => track.stop());
-                return;
+                return false;
             }
 
             // We only need the audio
             const audioStream = new MediaStream(stream.getAudioTracks());
             initMediaRecorder(audioStream);
 
-            // Stop the video track immediately as we don't need it, 
-            // but sometimes keeping it alive is needed for the share to persist? 
-            // Usually for "Share Tab" we need to keep the stream active. Used to be we could drop video.
-            // Let's keep the whole stream active in mediaRecorder but we are only recording what we pass?
-            // Actually mediaRecorder takes the stream passed. 
-            // If we constructed `audioStream` from `stream.getAudioTracks()`, the video track is not in it.
-            // But we should probably keep the original stream tracks alive until stop.
-
             // Listen for the user clicking "Stop Sharing" on the browser UI
             stream.getVideoTracks()[0].onended = () => {
                 stopRecording();
             };
-
+            return true;
         } catch (err) {
             console.error("Error accessing system audio:", err);
+            return false;
         }
     }, []);
 
