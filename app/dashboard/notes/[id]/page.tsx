@@ -162,7 +162,7 @@ export default function NoteDetailPage() {
         fetch("/api/uni/courses")
             .then(r => r.ok ? r.json() : null)
             .then(data => { if (data?.courses) setCourses(data.courses); })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     const coursesBySession = useMemo(() => {
@@ -291,7 +291,7 @@ export default function NoteDetailPage() {
                     The note you are looking for does not exist or has been deleted.
                 </p>
                 <Link
-                    href="/dashboard?tab=Notes"
+                    href="/dashboard?tab=Notes+and+Quizzes"
                     className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
                 >
                     Back to Dashboard
@@ -307,7 +307,7 @@ export default function NoteDetailPage() {
                 <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-4">
                         <Link
-                            href="/dashboard?tab=Notes"
+                            href="/dashboard?tab=Notes+and+Quizzes"
                             className="group flex items-center gap-2 rounded-full py-1 pr-3 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                         >
                             <div className="rounded-full p-1 transition-colors group-hover:bg-gray-100 dark:group-hover:bg-[#1F1F23]">
