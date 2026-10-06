@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video, X, FileUp } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video, X, FileUp, NotebookPen } from "lucide-react";
 import { useWhisper } from "@/hooks/useWhisper";
 import QuizModal from "@/components/quiz/QuizModal";
+import Notepad from "@/components/Notepad";
 
 interface Course {
     id: number;
@@ -223,6 +224,28 @@ interface NotesTabProps {
 }
 
 export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const subTabParam = searchParams.get("subtab");
+    const [subTab, setSubTab] = useState<"notes" | "notepad">(
+        subTabParam === "notepad" ? "notepad" : "notes"
+    );
+
+    const handleSubTabChange = (newSubTab: "notes" | "notepad") => {
+        setSubTab(newSubTab);
+        try {
+            const params = new URLSearchParams(searchParams.toString());
+            if (newSubTab === "notepad") {
+                params.set("subtab", "notepad");
+            } else {
+                params.delete("subtab");
+            }
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        } catch { }
+    };
+
     const [courses, setCourses] = useState<Course[]>([]);
     const [notes, setNotes] = useState<Note[]>([]);
     const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
@@ -240,23 +263,50 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const [slideFiles, setSlideFiles] = useState<File[]>([]);
     const [slideDragActive, setSlideDragActive] = useState(false);
 
-
-    const router = useRouter();
     const [quizConfig, setQuizConfig] = useState<{ courseId?: number, noteId?: number, title: string, existingQuiz?: any } | null>(null);
 
     // Recorder State
     const [recordingSource, setRecordingSource] = useState<'mic' | 'system'>('mic');
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
+    const recordingStartTimeRef = useRef<number | null>(null);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     const { startRecording, startSystemRecording, stopRecording, audioBlob, transcription, isTranscribing: isWhisperTranscribing } = useWhisper();
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (isRecording) {
-            interval = setInterval(() => setRecordingTime(t => t + 1), 1000);
+            recordingStartTimeRef.current = Date.now();
+            const updateTime = () => {
+                if (recordingStartTimeRef.current) {
+                    const elapsed = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+                    setRecordingTime(elapsed);
+                }
+            };
+            updateTime();
+            interval = setInterval(updateTime, 500);
+
+            // When switching back to the window or tab, immediately sync the timer to real elapsed time
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'visible') {
+                    updateTime();
+                }
+            };
+            const handleFocus = () => {
+                updateTime();
+            };
+
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('focus', handleFocus);
+
+            return () => {
+                clearInterval(interval);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+                window.removeEventListener('focus', handleFocus);
+            };
+        } else {
+            recordingStartTimeRef.current = null;
         }
-        return () => clearInterval(interval);
     }, [isRecording]);
 
     useEffect(() => {
@@ -658,8 +708,39 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         }));
     }, [courses]);
 
+
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">
+
+            {/* Sub-tab switcher */}
+            <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 dark:bg-[#1A1A1E] border border-gray-200/60 dark:border-zinc-800 rounded-2xl w-fit shadow-xs">
+                <button
+                    onClick={() => handleSubTabChange("notes")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${subTab === "notes"
+                        ? "bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                        : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                        }`}
+                >
+                    <BrainCircuit className="w-4 h-4" />
+                    Lecture Notes &amp; Quizzes
+                </button>
+                <button
+                    onClick={() => handleSubTabChange("notepad")}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${subTab === "notepad"
+                        ? "bg-white dark:bg-zinc-800 text-violet-600 dark:text-violet-400 shadow-sm"
+                        : "text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                        }`}
+                >
+                    <NotebookPen className="w-4 h-4" />
+                    Notepad
+                </button>
+            </div>
+
+            {/* Notepad sub-tab */}
+            {subTab === "notepad" && <Notepad />}
+
+            {/* Notes & Quizzes sub-tab content */}
+            {subTab === "notes" && <>
             <div className="flex flex-col gap-2">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent w-fit">
                     AI Lecture Notes
@@ -864,8 +945,8 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
 
                         <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#1A1A1A] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
                             {recordingSource === 'mic'
-                                ? "Records audio from your default microphone. Good for in-person lectures."
-                                : "Records audio from a specific tab or window. Select 'Share System Audio' in the browser popup."}
+                                ? "Records audio from your microphone. Stays active in the background when switching to other windows."
+                                : "Records system audio. Important: In the popup, choose 'Entire Screen' and check 'Share System Audio' to keep recording when switching windows."}
                         </div>
                     </div>
 
@@ -1253,6 +1334,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                 </div>,
                 document.body
             )}
+            </>}
         </div>
     );
 }
