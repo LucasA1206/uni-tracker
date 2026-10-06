@@ -14,6 +14,11 @@ export function useWhisper() {
     const audioChunks = useRef<Blob[]>([]);
     const transcriptionResolve = useRef<((text: string) => void) | null>(null);
 
+    // Keep-alive Web Audio refs to prevent Chromium/Opera background tab throttling
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const gainNodeRef = useRef<GainNode | null>(null);
+
     useEffect(() => {
         if (!worker.current) {
             worker.current = new Worker(new URL('../lib/workers/whisper.worker.ts', import.meta.url), {
@@ -46,7 +51,21 @@ export function useWhisper() {
             };
         }
 
-        return () => worker.current?.terminate();
+        return () => {
+            worker.current?.terminate();
+            if (audioSourceRef.current) {
+                try { audioSourceRef.current.disconnect(); } catch {}
+            }
+            if (gainNodeRef.current) {
+                try { gainNodeRef.current.disconnect(); } catch {}
+            }
+            if (audioContextRef.current) {
+                audioContextRef.current.close().catch(() => {});
+            }
+            if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+                try { navigator.mediaSession.playbackState = 'none'; } catch {}
+            }
+        };
     }, []);
 
     const initMediaRecorder = (stream: MediaStream) => {
@@ -60,7 +79,36 @@ export function useWhisper() {
             }
         };
 
-        mediaRecorder.current.start();
+        // Use 1000ms timeslice to force browser to commit audio chunks every second
+        // even when window or tab is unfocused or placed in the background
+        mediaRecorder.current.start(1000);
+
+        // Keep-alive: Route audio through a silent Web Audio GainNode connected to destination.
+        // In Chromium / Opera, an active AudioContext connected to destination informs the browser's
+        // process manager that the tab is actively consuming audio on the high-priority OS audio thread,
+        // preventing background throttling, track muting, or tab suspension when switching windows.
+        try {
+            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const source = ctx.createMediaStreamSource(stream);
+                const gain = ctx.createGain();
+                gain.gain.value = 0; // Silent, no echo or feedback
+                source.connect(gain);
+                gain.connect(ctx.destination);
+
+                audioContextRef.current = ctx;
+                audioSourceRef.current = source;
+                gainNodeRef.current = gain;
+            }
+        } catch (e) {
+            console.warn("Could not start audio keep-alive context:", e);
+        }
+
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+            try { navigator.mediaSession.playbackState = 'playing'; } catch {}
+        }
+
         setIsTranscribing(true);
         setTranscription('');
         setAudioBlob(null);
@@ -149,6 +197,23 @@ export function useWhisper() {
     const stopRecording = useCallback(async (): Promise<Blob | null> => {
         const recorder = mediaRecorder.current;
         if (!recorder) return null;
+
+        // Clean up audio keep-alive context and nodes
+        if (audioSourceRef.current) {
+            try { audioSourceRef.current.disconnect(); } catch {}
+            audioSourceRef.current = null;
+        }
+        if (gainNodeRef.current) {
+            try { gainNodeRef.current.disconnect(); } catch {}
+            gainNodeRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close().catch(() => {});
+            audioContextRef.current = null;
+        }
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+            try { navigator.mediaSession.playbackState = 'none'; } catch {}
+        }
 
         return new Promise<Blob | null>((resolve) => {
             recorder.onstop = async () => {
