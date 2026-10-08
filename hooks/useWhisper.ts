@@ -215,18 +215,29 @@ export function useWhisper() {
             try { navigator.mediaSession.playbackState = 'none'; } catch {}
         }
 
+        // Stop all tracks on the stream IMMEDIATELY to release the microphone
+        if (recorder.stream) {
+            recorder.stream.getTracks().forEach(track => {
+                try { track.stop(); } catch {}
+            });
+        }
+
         return new Promise<Blob | null>((resolve) => {
             recorder.onstop = async () => {
                 const mimeType = recorder.mimeType || 'audio/webm';
                 const audioBlob = new Blob(audioChunks.current, { type: mimeType });
                 setAudioBlob(audioBlob);
 
+                // Stop tracks again in case new ones were attached
+                if (recorder.stream) {
+                    recorder.stream.getTracks().forEach(track => {
+                        try { track.stop(); } catch {}
+                    });
+                }
+
                 try {
                     const audioData = await processAudio(audioBlob);
                     worker.current?.postMessage({ audio: audioData });
-
-                    // Stop all tracks
-                    recorder.stream.getTracks().forEach(track => track.stop());
                 } catch (err) {
                     console.error("Error processing recording:", err);
                 }
@@ -241,12 +252,18 @@ export function useWhisper() {
         });
     }, []);
 
+    const clearRecording = useCallback(() => {
+        setAudioBlob(null);
+        setTranscription('');
+    }, []);
+
     return {
         isTranscribing,
         transcription,
         startRecording,
         startSystemRecording,
         stopRecording,
+        clearRecording,
         transcribeFile,
         progress,
         audioBlob

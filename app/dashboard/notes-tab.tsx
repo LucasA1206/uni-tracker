@@ -271,7 +271,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const [recordingTime, setRecordingTime] = useState(0);
     const recordingStartTimeRef = useRef<number | null>(null);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-    const { startRecording, startSystemRecording, stopRecording, audioBlob, transcription, isTranscribing: isWhisperTranscribing } = useWhisper();
+    const { startRecording, startSystemRecording, stopRecording, clearRecording, audioBlob, transcription, isTranscribing: isWhisperTranscribing } = useWhisper();
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -346,10 +346,19 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         URL.revokeObjectURL(url);
     };
 
+    const handleDiscardRecording = () => {
+        clearRecording();
+        setRecordedBlob(null);
+        setRecordingTime(0);
+    };
+
     const handleGenerateFromRecording = () => {
         if (!recordedBlob) return;
         const file = new File([recordedBlob], `recording-${new Date().getTime()}.webm`, { type: recordedBlob.type });
         setUploadFile(file);
+        clearRecording();
+        setRecordedBlob(null);
+        setRecordingTime(0);
     };
 
     const handleSlideFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -741,599 +750,604 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
 
             {/* Notes & Quizzes sub-tab content */}
             {subTab === "notes" && <>
-            <div className="flex flex-col gap-2">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent w-fit">
-                    AI Lecture Notes
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Upload your lecture recordings (.mp3) and optionally your lecture slides (.pdf) — AI will use both to generate detailed, structured notes.
-                </p>
-            </div>
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent w-fit">
+                        Lecture Notes
+                    </h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Upload your lecture recordings (.mp3) and optionally your lecture slides (.pdf).
+                    </p>
+                </div>
 
-            {/* Split View: Upload & Recorder */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Split View: Upload & Recorder */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                {/* Left: Upload Section */}
-                <motion.div
-                    id="step-upload-zone"
-                    layout
-                    className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200 
+                    {/* Left: Upload Section */}
+                    <motion.div
+                        id="step-upload-zone"
+                        layout
+                        className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-colors duration-200 
             ${dragActive ? "border-indigo-500 bg-indigo-50/10" : "border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12]"}
             ${isProcessing ? "pointer-events-none opacity-80" : ""}
             `}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                >
-                    <div className="p-8 flex flex-col items-center justify-center gap-4 text-center min-h-[200px]">
-                        {isProcessing ? (
-                            <div className="flex flex-col items-center gap-4">
-                                <div className="relative">
-                                    <div className="absolute inset-0 rounded-full animate-ping bg-indigo-500/20"></div>
-                                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Processing your lecture</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">{processingStage}</p>
-                                </div>
-                            </div>
-                        ) : !uploadFile ? (
-                            <>
-                                <div className="p-4 rounded-full bg-indigo-50 dark:bg-indigo-500/10 mb-2">
-                                    <Upload className="w-8 h-8 text-indigo-500" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                        Drag & drop your recording here
-                                    </h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Supports MP3, WEBM & MP4 files (max 500MB)
-                                    </p>
-                                </div>
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <span className="w-full border-t border-gray-200 dark:border-gray-800" />
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                    >
+                        <div className="p-8 flex flex-col items-center justify-center gap-4 text-center min-h-[200px]">
+                            {isProcessing ? (
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 rounded-full animate-ping bg-indigo-500/20"></div>
+                                        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
                                     </div>
-                                    <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-gray-50 dark:bg-[#0F0F12] px-2 text-gray-500">Or</span>
+                                    <div className="space-y-1">
+                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Processing your lecture</h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">{processingStage}</p>
                                     </div>
                                 </div>
-                                <label className="cursor-pointer rounded-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                                    Browse Files
-                                    <input type="file" className="hidden" accept=".mp3,audio/mpeg,.webm,audio/webm,video/webm,.mp4,video/mp4" onChange={handleFileChange} />
-                                </label>
-                            </>
-                        ) : (
-                            <div className="w-full max-w-md bg-gray-50 dark:bg-[#1A1A1A] p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in zoom-in-95 duration-200">
-                                <div className="flex items-start justify-between gap-4 mb-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-500">
-                                            {uploadFile.name.toLowerCase().endsWith('.mp4') ? <Video className="w-6 h-6" /> : <FileAudio className="w-6 h-6" />}
+                            ) : !uploadFile ? (
+                                <>
+                                    <div className="p-4 rounded-full bg-indigo-50 dark:bg-indigo-500/10 mb-2">
+                                        <Upload className="w-8 h-8 text-indigo-500" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                            Drag & drop your recording here
+                                        </h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            Supports MP3, WEBM & MP4 files (max 500MB)
+                                        </p>
+                                    </div>
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <span className="w-full border-t border-gray-200 dark:border-gray-800" />
                                         </div>
-                                        <div className="text-left">
-                                            <p className="font-medium text-gray-900 dark:text-white line-clamp-1">{uploadFile.name}</p>
-                                            <p className="text-xs text-gray-500">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        <div className="relative flex justify-center text-xs uppercase">
+                                            <span className="bg-gray-50 dark:bg-[#0F0F12] px-2 text-gray-500">Or</span>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => setUploadFile(null)}
-                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                                    >
-                                        <span className="sr-only">Remove</span>
-                                        <Trash2 className="w-4 h-4 text-gray-400" />
-                                    </button>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="space-y-2 text-left">
-                                        <label className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Categorize by Course <span className="text-xs normal-case font-normal ml-1">(Optional)</span></label>
-                                        <select
-                                            value={selectedCourseId}
-                                            onChange={(e) => setSelectedCourseId(e.target.value)}
-                                            className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    <label className="cursor-pointer rounded-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-6 py-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                        Browse Files
+                                        <input type="file" className="hidden" accept=".mp3,audio/mpeg,.webm,audio/webm,video/webm,.mp4,video/mp4" onChange={handleFileChange} />
+                                    </label>
+                                </>
+                            ) : (
+                                <div className="w-full max-w-md bg-gray-50 dark:bg-[#1A1A1A] p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex items-start justify-between gap-4 mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-500">
+                                                {uploadFile.name.toLowerCase().endsWith('.mp4') ? <Video className="w-6 h-6" /> : <FileAudio className="w-6 h-6" />}
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="font-medium text-gray-900 dark:text-white line-clamp-1">{uploadFile.name}</p>
+                                                <p className="text-xs text-gray-500">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setUploadFile(null)}
+                                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
                                         >
-                                            <option value="">Select a course...</option>
-                                            {coursesBySession.map((group) => (
-                                                <optgroup key={group.session} label={group.session}>
-                                                    {group.courses.map((course) => (
-                                                        <option key={course.id} value={course.id}>
-                                                            {getCourseOptionLabel(course)}
-                                                        </option>
-                                                    ))}
-                                                </optgroup>
-                                            ))}
-                                        </select>
+                                            <span className="sr-only">Remove</span>
+                                            <Trash2 className="w-4 h-4 text-gray-400" />
+                                        </button>
                                     </div>
 
-                                    <div className="pt-2">
-                                        {!uploadFile.name.toLowerCase().endsWith(".mp4") ? (
-                                            <button
-                                                onClick={handleGenerate}
-                                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                    <div className="space-y-4">
+                                        <div className="space-y-2 text-left">
+                                            <label className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Categorize by Course <span className="text-xs normal-case font-normal ml-1">(Optional)</span></label>
+                                            <select
+                                                value={selectedCourseId}
+                                                onChange={(e) => setSelectedCourseId(e.target.value)}
+                                                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F0F12] px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
                                             >
-                                                <Mic className="w-4 h-4" />
-                                                Generate Detailed Notes
-                                            </button>
-                                        ) : !convertedMp3Blob ? (
-                                            <button
-                                                onClick={handleConvertMp4}
-                                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                            >
-                                                <Video className="w-4 h-4" />
-                                                Convert MP4 to MP3
-                                            </button>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                <div className="p-3 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl flex items-center gap-3">
-                                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                                    <div className="text-sm text-left">
-                                                        <p className="font-medium text-green-700 dark:text-green-400">Conversion Complete</p>
-                                                        <p className="text-green-600 dark:text-green-500/80">{(convertedMp3Blob.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                <option value="">Select a course...</option>
+                                                {coursesBySession.map((group) => (
+                                                    <optgroup key={group.session} label={group.session}>
+                                                        {group.courses.map((course) => (
+                                                            <option key={course.id} value={course.id}>
+                                                                {getCourseOptionLabel(course)}
+                                                            </option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="pt-2">
+                                            {!uploadFile.name.toLowerCase().endsWith(".mp4") ? (
+                                                <button
+                                                    onClick={handleGenerate}
+                                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                >
+                                                    <Mic className="w-4 h-4" />
+                                                    Generate Detailed Notes
+                                                </button>
+                                            ) : !convertedMp3Blob ? (
+                                                <button
+                                                    onClick={handleConvertMp4}
+                                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                                >
+                                                    <Video className="w-4 h-4" />
+                                                    Convert MP4 to MP3
+                                                </button>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    <div className="p-3 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl flex items-center gap-3">
+                                                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                                        <div className="text-sm text-left">
+                                                            <p className="font-medium text-green-700 dark:text-green-400">Conversion Complete</p>
+                                                            <p className="text-green-600 dark:text-green-500/80">{(convertedMp3Blob.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <button
+                                                            onClick={() => {
+                                                                const url = URL.createObjectURL(convertedMp3Blob);
+                                                                const a = document.createElement('a');
+                                                                a.href = url;
+                                                                a.download = `${uploadFile.name.replace(/\.[^/.]+$/, "")}.mp3`;
+                                                                document.body.appendChild(a);
+                                                                a.click();
+                                                                document.body.removeChild(a);
+                                                                URL.revokeObjectURL(url);
+                                                            }}
+                                                            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors bg-gray-50 dark:bg-[#0F0F12]"
+                                                        >
+                                                            <Download className="w-4 h-4" /> Save MP3
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                const file = new File([convertedMp3Blob], `${uploadFile.name.replace(/\.[^/.]+$/, "")}.mp3`, { type: convertedMp3Blob.type });
+                                                                setUploadFile(file);
+                                                                setConvertedMp3Blob(null);
+                                                            }}
+                                                            className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+                                                        >
+                                                            <Mic className="w-4 h-4" /> Use for AI Notes
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <button
-                                                        onClick={() => {
-                                                            const url = URL.createObjectURL(convertedMp3Blob);
-                                                            const a = document.createElement('a');
-                                                            a.href = url;
-                                                            a.download = `${uploadFile.name.replace(/\.[^/.]+$/, "")}.mp3`;
-                                                            document.body.appendChild(a);
-                                                            a.click();
-                                                            document.body.removeChild(a);
-                                                            URL.revokeObjectURL(url);
-                                                        }}
-                                                        className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors bg-gray-50 dark:bg-[#0F0F12]"
-                                                    >
-                                                        <Download className="w-4 h-4" /> Save MP3
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            const file = new File([convertedMp3Blob], `${uploadFile.name.replace(/\.[^/.]+$/, "")}.mp3`, { type: convertedMp3Blob.type });
-                                                            setUploadFile(file);
-                                                            setConvertedMp3Blob(null);
-                                                        }}
-                                                        className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-                                                    >
-                                                        <Mic className="w-4 h-4" /> Use for AI Notes
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
-
-                <div id="step-recorder-zone" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
-
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
-                                Audio Recorder
-                            </h3>
-                            {isRecording && <span className="text-sm font-mono text-red-500 font-medium">{formatTime(recordingTime)}</span>}
-                        </div>
-
-                        {/* Source Selection */}
-                        <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-[#1A1A1A] rounded-lg">
-                            <button
-                                onClick={() => setRecordingSource('mic')}
-                                disabled={isRecording}
-                                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${recordingSource === 'mic'
-                                    ? 'bg-white dark:bg-[#2A2A2A] text-indigo-500 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                    } disabled:opacity-50`}
-                            >
-                                <Mic className="w-4 h-4" /> Microphone
-                            </button>
-                            <button
-                                onClick={() => setRecordingSource('system')}
-                                disabled={isRecording}
-                                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${recordingSource === 'system'
-                                    ? 'bg-white dark:bg-[#2A2A2A] text-indigo-500 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                    } disabled:opacity-50`}
-                            >
-                                <Monitor className="w-4 h-4" /> System Audio
-                            </button>
-                        </div>
-
-                        <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#1A1A1A] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
-                            {recordingSource === 'mic'
-                                ? "Records audio from your microphone. Stays active in the background when switching to other windows."
-                                : "Records system audio. Important: In the popup, choose 'Entire Screen' and check 'Share System Audio' to keep recording when switching windows."}
-                        </div>
-                    </div>
-
-                    <div className="mt-8 space-y-4">
-                        {/* Recording Controls */}
-                        {!isRecording ? (
-                            !recordedBlob ? (
-                                <button
-                                    onClick={handleStartRecording}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 hover:shadow-indigo-500/40 transition-all"
-                                >
-                                    <div className="w-3 h-3 rounded-full bg-white"></div>
-                                    Start Recording
-                                </button>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div className="p-4 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl flex items-center gap-3">
-                                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                        <div className="text-sm">
-                                            <p className="font-medium text-green-700 dark:text-green-400">Recording Finished</p>
-                                            <p className="text-green-600 dark:text-green-500/80">{formatTime(recordingTime)} • {(recordedBlob.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            )}
                                         </div>
                                     </div>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
 
-                                    <div className="grid grid-cols-2 gap-3">
+                    <div id="step-recorder-zone" className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12] p-6 flex flex-col justify-between min-h-[300px]">
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
+                                    Audio Recorder
+                                </h3>
+                                {isRecording && <span className="text-sm font-mono text-red-500 font-medium">{formatTime(recordingTime)}</span>}
+                            </div>
+
+                            {/* Source Selection */}
+                            <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-[#1A1A1A] rounded-lg">
+                                <button
+                                    onClick={() => setRecordingSource('mic')}
+                                    disabled={isRecording}
+                                    className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${recordingSource === 'mic'
+                                        ? 'bg-white dark:bg-[#2A2A2A] text-indigo-500 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                        } disabled:opacity-50`}
+                                >
+                                    <Mic className="w-4 h-4" /> Microphone
+                                </button>
+                                <button
+                                    onClick={() => setRecordingSource('system')}
+                                    disabled={isRecording}
+                                    className={`flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-all ${recordingSource === 'system'
+                                        ? 'bg-white dark:bg-[#2A2A2A] text-indigo-500 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                        } disabled:opacity-50`}
+                                >
+                                    <Monitor className="w-4 h-4" /> System Audio
+                                </button>
+                            </div>
+
+                            <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#1A1A1A] p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                                {recordingSource === 'mic'
+                                    ? "Records audio from your microphone. Stays active in the background when switching to other windows."
+                                    : "Records system audio. Important: In the popup, choose 'Entire Screen' and check 'Share System Audio' to keep recording when switching windows."}
+                            </div>
+                        </div>
+
+                        <div className="mt-8 space-y-4">
+                            {/* Recording Controls */}
+                            {!isRecording ? (
+                                !recordedBlob ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleStartRecording}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 hover:shadow-indigo-500/40 transition-all"
+                                    >
+                                        <div className="w-3 h-3 rounded-full bg-white"></div>
+                                        Start Recording
+                                    </button>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="p-4 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl flex items-center gap-3">
+                                            <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                            <div className="text-sm">
+                                                <p className="font-medium text-green-700 dark:text-green-400">Recording Finished</p>
+                                                <p className="text-green-600 dark:text-green-500/80">{formatTime(recordingTime)} • {(recordedBlob.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={handleDownloadRecording}
+                                                className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                            >
+                                                <Download className="w-4 h-4" /> Save MP3
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleDiscardRecording}
+                                                className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-red-500 hover:text-red-600 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" /> Discard
+                                            </button>
+                                        </div>
+
                                         <button
-                                            onClick={handleDownloadRecording}
-                                            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                            type="button"
+                                            onClick={handleGenerateFromRecording}
+                                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
                                         >
-                                            <Download className="w-4 h-4" /> Save MP3
-                                        </button>
-                                        <button
-                                            onClick={handleStartRecording}
-                                            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-red-500 hover:text-red-600 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" /> Discard
+                                            <Mic className="w-4 h-4" />
+                                            Use for AI Notes
                                         </button>
                                     </div>
-
-                                    <button
-                                        onClick={handleGenerateFromRecording}
-                                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                                    >
-                                        <Mic className="w-4 h-4" />
-                                        Use for AI Notes
-                                    </button>
-                                </div>
-                            )
-                        ) : (
-                            <button
-                                onClick={handleStopRecording}
-                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/20 hover:bg-red-600 hover:shadow-red-500/40 transition-all animate-pulse"
-                            >
-                                <Square className="w-3 h-3 fill-current" />
-                                Stop Recording
-                            </button>
-                        )}
+                                )
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleStopRecording}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/20 hover:bg-red-600 hover:shadow-red-500/40 transition-all animate-pulse"
+                                >
+                                    <Square className="w-3 h-3 fill-current" />
+                                    Stop Recording
+                                </button>
+                            )}
+                        </div>
                     </div>
+
                 </div>
 
-            </div>
-
-            {/* Lecture Slides Upload — full-width below the two panels */}
-            <div
-                className={`rounded-2xl border-2 border-dashed transition-colors duration-200 p-5
+                {/* Lecture Slides Upload — full-width below the two panels */}
+                <div
+                    className={`rounded-2xl border-2 border-dashed transition-colors duration-200 p-5
                     ${slideDragActive ? 'border-purple-500 bg-purple-50/10' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F0F12]'}
                     ${isProcessing ? 'pointer-events-none opacity-60' : ''}`}
-                onDragEnter={handleSlideDrag}
-                onDragLeave={handleSlideDrag}
-                onDragOver={handleSlideDrag}
-                onDrop={handleSlideDrop}
-            >
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <FileUp className="w-4 h-4 text-purple-500" />
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                            Lecture Slides
-                        </h3>
-                        <span className="text-xs text-gray-400">(Optional · PDF · max 5)</span>
+                    onDragEnter={handleSlideDrag}
+                    onDragLeave={handleSlideDrag}
+                    onDragOver={handleSlideDrag}
+                    onDrop={handleSlideDrop}
+                >
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <FileUp className="w-4 h-4 text-purple-500" />
+                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                Lecture Slides
+                            </h3>
+                            <span className="text-xs text-gray-400">(Optional · PDF · max 5)</span>
+                        </div>
+                        {slideFiles.length < 5 && (
+                            <label className="cursor-pointer text-xs font-medium text-purple-500 hover:text-purple-400 transition-colors">
+                                + Add PDF
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,application/pdf"
+                                    multiple
+                                    onChange={handleSlideFileChange}
+                                />
+                            </label>
+                        )}
                     </div>
-                    {slideFiles.length < 5 && (
-                        <label className="cursor-pointer text-xs font-medium text-purple-500 hover:text-purple-400 transition-colors">
-                            + Add PDF
-                            <input
-                                type="file"
-                                className="hidden"
-                                accept=".pdf,application/pdf"
-                                multiple
-                                onChange={handleSlideFileChange}
-                            />
-                        </label>
+
+                    {slideFiles.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Drag &amp; drop your PDF slide decks here, or click{' '}
+                                <span className="text-purple-500 font-medium">+ Add PDF</span> above
+                            </p>
+                            <p className="text-xs text-gray-400">AI will cross-reference slides with your audio recording for richer notes</p>
+                        </div>
+                    ) : (
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {slideFiles.map((f, idx) => (
+                                <li key={idx} className="flex items-center gap-3 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+                                    <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-500 shrink-0">
+                                        <FileText className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{f.name}</p>
+                                        <p className="text-xs text-gray-400">{(f.size / 1024 / 1024).toFixed(2)} MB</p>
+                                    </div>
+                                    <button
+                                        onClick={() => removeSlideFile(idx)}
+                                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors shrink-0"
+                                        aria-label="Remove"
+                                    >
+                                        <X className="w-3.5 h-3.5 text-gray-400" />
+                                    </button>
+                                </li>
+                            ))}
+                            {slideFiles.length < 5 && (
+                                <li>
+                                    <label className="flex items-center gap-2 px-3 py-2 h-full min-h-[52px] rounded-lg border border-dashed border-gray-300 dark:border-gray-700 cursor-pointer hover:border-purple-400 hover:bg-purple-50/5 transition-colors text-sm text-gray-400">
+                                        <FileUp className="w-4 h-4 shrink-0" />
+                                        Add another PDF ({slideFiles.length}/5)
+                                        <input type="file" className="hidden" accept=".pdf,application/pdf" multiple onChange={handleSlideFileChange} />
+                                    </label>
+                                </li>
+                            )}
+                        </ul>
                     )}
                 </div>
 
-                {slideFiles.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-6 text-center gap-2">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Drag &amp; drop your PDF slide decks here, or click{' '}
-                            <span className="text-purple-500 font-medium">+ Add PDF</span> above
-                        </p>
-                        <p className="text-xs text-gray-400">AI will cross-reference slides with your audio recording for richer notes</p>
-                    </div>
-                ) : (
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {slideFiles.map((f, idx) => (
-                            <li key={idx} className="flex items-center gap-3 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
-                                <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-500 shrink-0">
-                                    <FileText className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{f.name}</p>
-                                    <p className="text-xs text-gray-400">{(f.size / 1024 / 1024).toFixed(2)} MB</p>
-                                </div>
-                                <button
-                                    onClick={() => removeSlideFile(idx)}
-                                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors shrink-0"
-                                    aria-label="Remove"
-                                >
-                                    <X className="w-3.5 h-3.5 text-gray-400" />
-                                </button>
-                            </li>
-                        ))}
-                        {slideFiles.length < 5 && (
-                            <li>
-                                <label className="flex items-center gap-2 px-3 py-2 h-full min-h-[52px] rounded-lg border border-dashed border-gray-300 dark:border-gray-700 cursor-pointer hover:border-purple-400 hover:bg-purple-50/5 transition-colors text-sm text-gray-400">
-                                    <FileUp className="w-4 h-4 shrink-0" />
-                                    Add another PDF ({slideFiles.length}/5)
-                                    <input type="file" className="hidden" accept=".pdf,application/pdf" multiple onChange={handleSlideFileChange} />
-                                </label>
-                            </li>
-                        )}
-                    </ul>
-                )}
-            </div>
+                {/* Recent Quizzes List */}
+                {recentQuizzes.length > 0 && (
+                    <div className="space-y-6">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <BrainCircuit className="w-5 h-5 text-indigo-500" />
+                            Recent Quizzes
+                        </h2>
 
-            {/* Recent Quizzes List */}
-            {recentQuizzes.length > 0 && (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {recentQuizzes.map((quiz) => (
+                                <motion.div
+                                    key={quiz.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    onClick={() => setQuizConfig({
+                                        courseId: quiz.courseId || undefined,
+                                        noteId: quiz.noteId || undefined,
+                                        title: quiz.title,
+                                        existingQuiz: quiz
+                                    })}
+                                    className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                                >
+                                    <div className="space-y-2 pointer-events-none">
+                                        <div className="flex items-start justify-between">
+                                            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={quiz.title}>
+                                                {quiz.title}
+                                            </h3>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className={`px-2 py-1 rounded-md font-medium ${quiz.isCompleted ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                                                {quiz.isCompleted ? `Score: ${quiz.score}/${quiz.totalQuestions}` : `In Progress: ${quiz.currentIndex}/${quiz.totalQuestions}`}
+                                            </span>
+                                            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                                                {new Date(quiz.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between pointer-events-none">
+                                        <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 pointer-events-auto" onClick={(e) => {
+                                            e.stopPropagation();
+                                            setQuizConfig({
+                                                courseId: quiz.courseId || undefined,
+                                                noteId: quiz.noteId || undefined,
+                                                title: quiz.title,
+                                                existingQuiz: quiz
+                                            });
+                                        }}>
+                                            {quiz.isCompleted ? "View Results" : "Continue Quiz"}
+                                        </button>
+                                        <button
+                                            onClick={(e) => deleteQuiz(e, quiz.id)}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors pointer-events-auto"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Notes List */}
                 <div className="space-y-6">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <BrainCircuit className="w-5 h-5 text-indigo-500" />
-                        Recent Quizzes
+                        <FileText className="w-5 h-5 text-indigo-500" />
+                        Your Notes
                     </h2>
 
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {recentQuizzes.map((quiz) => (
-                            <motion.div
-                                key={quiz.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                onClick={() => setQuizConfig({
-                                    courseId: quiz.courseId || undefined,
-                                    noteId: quiz.noteId || undefined,
-                                    title: quiz.title,
-                                    existingQuiz: quiz
-                                })}
-                                className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                            >
-                                <div className="space-y-2 pointer-events-none">
-                                    <div className="flex items-start justify-between">
-                                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1" title={quiz.title}>
-                                            {quiz.title}
-                                        </h3>
-                                    </div>
-                                    <div className="flex justify-between items-center text-xs">
-                                        <span className={`px-2 py-1 rounded-md font-medium ${quiz.isCompleted ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
-                                            {quiz.isCompleted ? `Score: ${quiz.score}/${quiz.totalQuestions}` : `In Progress: ${quiz.currentIndex}/${quiz.totalQuestions}`}
-                                        </span>
-                                        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
-                                            {new Date(quiz.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </p>
-                                    </div>
+                    <div id="step-notes-list" className="space-y-6">
+                        {Object.entries(notesByCourse).length === 0 ? (
+                            <div className="text-center py-12 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
+                                    <FileText className="w-6 h-6 text-gray-400" />
                                 </div>
-                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between pointer-events-none">
-                                    <button className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 pointer-events-auto" onClick={(e) => {
-                                        e.stopPropagation();
-                                        setQuizConfig({
-                                            courseId: quiz.courseId || undefined,
-                                            noteId: quiz.noteId || undefined,
-                                            title: quiz.title,
-                                            existingQuiz: quiz
-                                        });
-                                    }}>
-                                        {quiz.isCompleted ? "View Results" : "Continue Quiz"}
-                                    </button>
-                                    <button
-                                        onClick={(e) => deleteQuiz(e, quiz.id)}
-                                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors pointer-events-auto"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Notes List */}
-            <div className="space-y-6">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-indigo-500" />
-                    Your Notes
-                </h2>
-
-                <div id="step-notes-list" className="space-y-6">
-                {Object.entries(notesByCourse).length === 0 ? (
-                    <div className="text-center py-12 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
-                            <FileText className="w-6 h-6 text-gray-400" />
-                        </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">No notes generated yet.</p>
-                    </div>
-                ) : (
-                    Object.entries(notesByCourse).map(([courseName, courseNotes]) => (
-                        <div key={courseName} className="space-y-3">
-                            <div className="flex items-center gap-2 justify-between">
-                                <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                                        {courseName}
-                                    </span>
-                                    <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800 min-w-[20px]"></span>
-                                </div>
-                                <button
-                                    onClick={() => setQuizConfig({
-                                        courseId: courseNotes[0]?.courseId || 0,
-                                        title: courseName
-                                    })}
-                                    className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-                                >
-                                    <BrainCircuit className="w-3.5 h-3.5" />
-                                    Quiz Me!
-                                </button>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">No notes generated yet.</p>
                             </div>
-
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {courseNotes.map((note) => (
-                                    <motion.div
-                                        key={note.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        onClick={() => router.push(`/dashboard/notes/${note.id}`)}
-                                        className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow h-64 overflow-hidden cursor-pointer"
-                                    >
-                                        <div className="space-y-2 pointer-events-none">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 flex-1" title={note.title}>
-                                                    {note.title}
-                                                </h3>
-                                            </div>
-                                            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
-                                                {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                            </p>
-                                            <div className="prose prose-xs dark:prose-invert line-clamp-4 text-xs text-gray-600 dark:text-gray-300">
-                                                <ReactMarkdown>{note.content}</ReactMarkdown>
-                                            </div>
+                        ) : (
+                            Object.entries(notesByCourse).map(([courseName, courseNotes]) => (
+                                <div key={courseName} className="space-y-3">
+                                    <div className="flex items-center gap-2 justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                                                {courseName}
+                                            </span>
+                                            <span className="h-px flex-1 bg-gray-200 dark:bg-gray-800 min-w-[20px]"></span>
                                         </div>
+                                        <button
+                                            onClick={() => setQuizConfig({
+                                                courseId: courseNotes[0]?.courseId || 0,
+                                                title: courseName
+                                            })}
+                                            className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                        >
+                                            <BrainCircuit className="w-3.5 h-3.5" />
+                                            Quiz Me!
+                                        </button>
+                                    </div>
 
-                                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                                            <button
-                                                className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400"
-                                                onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/notes/${note.id}`); }}
+                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                        {courseNotes.map((note) => (
+                                            <motion.div
+                                                key={note.id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                onClick={() => router.push(`/dashboard/notes/${note.id}`)}
+                                                className="group relative flex flex-col justify-between rounded-xl border border-gray-200 dark:border-[#1F1F23] bg-gray-50 dark:bg-[#0F0F12] p-5 shadow-sm hover:shadow-md transition-shadow h-64 overflow-hidden cursor-pointer"
                                             >
-                                                View Full Note
-                                            </button>
-                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                                {/* Change Course button */}
-                                                <div className="relative">
+                                                <div className="space-y-2 pointer-events-none">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1 flex-1" title={note.title}>
+                                                            {note.title}
+                                                        </h3>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">
+                                                        {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </p>
+                                                    <div className="prose prose-xs dark:prose-invert line-clamp-4 text-xs text-gray-600 dark:text-gray-300">
+                                                        <ReactMarkdown>{note.content}</ReactMarkdown>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
                                                     <button
-                                                        title="Move to another course"
-                                                        className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide"
-                                                        onClick={(e) => { e.stopPropagation(); setReassignNotePopup(prev => prev === note.id ? null : note.id); }}
+                                                        className="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                                        onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/notes/${note.id}`); }}
                                                     >
-                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                                                        Move
+                                                        View Full Note
                                                     </button>
-                                                    {reassignNotePopup === note.id && (
-                                                        <div
-                                                            className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-30 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-60"
-                                                            onClick={e => e.stopPropagation()}
-                                                        >
-                                                            <div className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-zinc-800 shrink-0">Move to course</div>
-                                                            <div className="overflow-y-auto flex-1">
-                                                                <button
-                                                                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-gray-400 italic"
-                                                                    onClick={() => void updateNoteCourse(note.id, null)}
+                                                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                        {/* Change Course button */}
+                                                        <div className="relative">
+                                                            <button
+                                                                title="Move to another course"
+                                                                className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide"
+                                                                onClick={(e) => { e.stopPropagation(); setReassignNotePopup(prev => prev === note.id ? null : note.id); }}
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                                Move
+                                                            </button>
+                                                            {reassignNotePopup === note.id && (
+                                                                <div
+                                                                    className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-30 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-60"
+                                                                    onClick={e => e.stopPropagation()}
                                                                 >
-                                                                    No Course
-                                                                </button>
-                                                                {coursesBySession.map(({ session, courses: sessionCourses }) => (
-                                                                    <div key={session}>
-                                                                        <div className="px-3 py-1 text-[9px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800">{session}</div>
-                                                                        {sessionCourses.map(c => (
-                                                                            <button
-                                                                                key={c.id}
-                                                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ${note.courseId === c.id ? 'text-indigo-500 font-semibold' : 'text-gray-700 dark:text-gray-300'}`}
-                                                                                onClick={() => void updateNoteCourse(note.id, c.id)}
-                                                                            >
-                                                                                {getCourseOptionLabel(c)}
-                                                                            </button>
+                                                                    <div className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-zinc-800 shrink-0">Move to course</div>
+                                                                    <div className="overflow-y-auto flex-1">
+                                                                        <button
+                                                                            className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-gray-400 italic"
+                                                                            onClick={() => void updateNoteCourse(note.id, null)}
+                                                                        >
+                                                                            No Course
+                                                                        </button>
+                                                                        {coursesBySession.map(({ session, courses: sessionCourses }) => (
+                                                                            <div key={session}>
+                                                                                <div className="px-3 py-1 text-[9px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800">{session}</div>
+                                                                                {sessionCourses.map(c => (
+                                                                                    <button
+                                                                                        key={c.id}
+                                                                                        className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ${note.courseId === c.id ? 'text-indigo-500 font-semibold' : 'text-gray-700 dark:text-gray-300'}`}
+                                                                                        onClick={() => void updateNoteCourse(note.id, c.id)}
+                                                                                    >
+                                                                                        {getCourseOptionLabel(c)}
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
                                                                         ))}
                                                                     </div>
-                                                                ))}
-                                                            </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
+                                                        <button
+                                                            onClick={(e) => deleteNote(e, note.id)}
+                                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <button
-                                                    onClick={(e) => deleteNote(e, note.id)}
-                                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
+                                            </motion.div>
 
-                                ))}
-                            </div>
-                        </div>
-                    ))
-                )}
-                </div>
-            </div>
-
-            {/* Quiz Modal */}
-            <QuizModal
-                isOpen={!!quizConfig}
-                onClose={() => { setQuizConfig(null); refresh(); }}
-                courseId={quizConfig?.courseId}
-                noteId={quizConfig?.noteId}
-                title={quizConfig?.title || ""}
-                existingQuiz={quizConfig?.existingQuiz}
-            />
-
-            {/* Note Preview Modal for Walkthrough */}
-            {selectedNote && typeof document !== "undefined" && createPortal(
-                <div 
-                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-                    onClick={() => {
-                        setSelectedNote(null);
-                        onDemoClosed?.();
-                    }}
-                >
-                    <motion.div 
-                        id="step-note-modal"
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="w-full max-w-2xl max-h-[80vh] bg-gray-50 dark:bg-[#0F0F12] rounded-3xl border border-gray-200 dark:border-[#1F1F23] shadow-2xl flex flex-col overflow-hidden"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20">
-                                    <FileText className="w-5 h-5 text-indigo-500" />
+                                        ))}
+                                    </div>
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1">
-                                    {selectedNote.title}
-                                </h3>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Quiz Modal */}
+                <QuizModal
+                    isOpen={!!quizConfig}
+                    onClose={() => { setQuizConfig(null); refresh(); }}
+                    courseId={quizConfig?.courseId}
+                    noteId={quizConfig?.noteId}
+                    title={quizConfig?.title || ""}
+                    existingQuiz={quizConfig?.existingQuiz}
+                />
+
+                {/* Note Preview Modal for Walkthrough */}
+                {selectedNote && typeof document !== "undefined" && createPortal(
+                    <div
+                        className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                        onClick={() => {
+                            setSelectedNote(null);
+                            onDemoClosed?.();
+                        }}
+                    >
+                        <motion.div
+                            id="step-note-modal"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            className="w-full max-w-2xl max-h-[80vh] bg-gray-50 dark:bg-[#0F0F12] rounded-3xl border border-gray-200 dark:border-[#1F1F23] shadow-2xl flex flex-col overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20">
+                                        <FileText className="w-5 h-5 text-indigo-500" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1">
+                                        {selectedNote.title}
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setSelectedNote(null);
+                                        onDemoClosed?.();
+                                    }}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-gray-400" />
+                                </button>
                             </div>
-                            <button 
-                                onClick={() => {
-                                    setSelectedNote(null);
-                                    onDemoClosed?.();
-                                }}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5 text-gray-400" />
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 prose prose-xs dark:prose-invert">
-                            <ReactMarkdown>{selectedNote.content}</ReactMarkdown>
-                        </div>
-                        <div className="p-4 bg-gray-50 dark:bg-[#1A1A1E] border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                                Sample AI Note
-                            </span>
-                            <button 
-                                onClick={() => router.push(`/dashboard/notes/${selectedNote.id}`)}
-                                className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
-                            >
-                                Open Editor
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>,
-                document.body
-            )}
+                            <div className="flex-1 overflow-y-auto p-6 prose prose-xs dark:prose-invert">
+                                <ReactMarkdown>{selectedNote.content}</ReactMarkdown>
+                            </div>
+                            <div className="p-4 bg-gray-50 dark:bg-[#1A1A1E] border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                                <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                                    Sample AI Note
+                                </span>
+                                <button
+                                    onClick={() => router.push(`/dashboard/notes/${selectedNote.id}`)}
+                                    className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold hover:bg-indigo-600 shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+                                >
+                                    Open Editor
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>,
+                    document.body
+                )}
             </>}
         </div>
     );
