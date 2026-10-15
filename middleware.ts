@@ -19,8 +19,8 @@ const PUBLIC_PATHS = [
 const SECURITY_HEADERS: Record<string, string> = {
   // Prevent MIME-type sniffing
   "X-Content-Type-Options": "nosniff",
-  // Block the page from being embedded in iframes
-  "X-Frame-Options": "DENY",
+  // Allow same-origin iframes (e.g. for PDF preview viewer) while blocking third-party embedding
+  "X-Frame-Options": "SAMEORIGIN",
   // Only send origin on same-origin requests
   "Referrer-Policy": "strict-origin-when-cross-origin",
   // Force HTTPS for 1 year (production only — no-op on HTTP)
@@ -39,7 +39,8 @@ const SECURITY_HEADERS: Record<string, string> = {
     "media-src 'self' blob:",
     "connect-src 'self' https:",
     "worker-src 'self' blob:",
-    "frame-ancestors 'none'",
+    "frame-src 'self' blob: data:",
+    "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",
   ].join("; "),
