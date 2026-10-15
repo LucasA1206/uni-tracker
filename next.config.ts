@@ -22,8 +22,8 @@ const nextConfig: NextConfig = {
           // Prevent MIME-type sniffing
           { key: "X-Content-Type-Options", value: "nosniff" },
 
-          // Block page from being embedded in iframes
-          { key: "X-Frame-Options", value: "DENY" },
+          // Allow same-origin iframes (e.g. for PDF preview viewer) while blocking third-party embedding
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
 
           // Only send origin on same-origin requests
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -57,7 +57,8 @@ const nextConfig: NextConfig = {
               "media-src 'self' blob:",
               "connect-src 'self' https:",
               "worker-src 'self' blob:",
-              "frame-ancestors 'none'",
+              "frame-src 'self' blob: data:",
+              "frame-ancestors 'self'",
               "base-uri 'self'",
               "form-action 'self'",
             ].join("; "),
