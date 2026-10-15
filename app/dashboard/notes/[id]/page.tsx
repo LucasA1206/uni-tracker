@@ -224,23 +224,27 @@ export default function NoteDetailPage() {
         if (!e.target.files || e.target.files.length === 0 || !note) return;
 
         setIsUploading(true);
-        const file = e.target.files[0];
-        const formData = new FormData();
-        formData.append("file", file);
+        const files = Array.from(e.target.files);
 
         try {
-            const res = await fetch(`/api/uni/notes/${note.id}/attachments`, {
-                method: "POST",
-                body: formData,
-            });
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append("file", file);
 
-            if (!res.ok) throw new Error("Upload failed");
+                const res = await fetch(`/api/uni/notes/${note.id}/attachments`, {
+                    method: "POST",
+                    body: formData,
+                });
 
-            const newAttachment = await res.json();
-            setAttachments([...attachments, newAttachment.attachment]);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    console.error("Failed to upload:", file.name, err);
+                }
+            }
+            await fetchAttachments();
         } catch (error) {
-            console.error("Error uploading file:", error);
-            alert("Failed to upload file");
+            console.error("Error uploading file(s):", error);
+            alert("Failed to upload file(s)");
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -267,9 +271,11 @@ export default function NoteDetailPage() {
 
     // Prepare docs for viewer
     const docsForViewer = attachments.map(att => ({
+        id: att.id,
         uri: att.url, // This should be a public URL
         fileName: att.name,
         fileType: att.type,
+        size: att.size,
     }));
 
     if (loading) {
@@ -401,6 +407,7 @@ export default function NoteDetailPage() {
                                 ref={fileInputRef}
                                 className="hidden"
                                 accept=".pdf,.doc,.docx,.ppt,.pptx"
+                                multiple
                                 onChange={handleFileUpload}
                             />
                             <button
@@ -409,7 +416,7 @@ export default function NoteDetailPage() {
                                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1F1F23] transition-colors"
                             >
                                 {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                                Upload Document
+                                Upload Document(s)
                             </button>
                         </div>
                     </div>
@@ -417,7 +424,10 @@ export default function NoteDetailPage() {
                     {attachments.length > 0 && (
                         <div className="space-y-4">
                             {/* Document Viewer */}
-                            <CustomDocViewer docs={docsForViewer} />
+                            <CustomDocViewer 
+                                docs={docsForViewer} 
+                                onDelete={(doc) => doc.id && handleDeleteAttachment(Number(doc.id))}
+                            />
 
                             {/* File List */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

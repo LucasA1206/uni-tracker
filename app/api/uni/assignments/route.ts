@@ -11,7 +11,13 @@ export async function GET() {
 
   const assignments = await prisma.assignment.findMany({
     where: { course: { userId: user.userId } },
-    include: { course: { select: { id: true, code: true, name: true, canvasId: true } } },
+    include: {
+      course: { select: { id: true, code: true, name: true, canvasId: true } },
+      attachments: {
+        select: { id: true, assignmentId: true, name: true, url: true, type: true, size: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
     orderBy: { dueDate: "asc" },
   });
 
@@ -124,6 +130,13 @@ export async function PATCH(req: NextRequest) {
   const assignment = await prisma.assignment.update({
     where: { id: assignmentId },
     data,
+    include: {
+      course: { select: { id: true, code: true, name: true, canvasId: true } },
+      attachments: {
+        select: { id: true, assignmentId: true, name: true, url: true, type: true, size: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
 
   return NextResponse.json({ assignment });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { RefreshCw } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { RefreshCw, Upload, FileText, Loader2 } from "lucide-react";
 import GradeCharts, { AssignmentForCharts, CourseGradeOverride } from "@/components/GradeCharts";
 import MarkdownEditor from "@/components/MarkdownEditor";
 import AssignmentsCardOverview from "@/components/AssignmentsCardOverview";
@@ -10,6 +10,8 @@ import { createPortal } from "react-dom";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { cn } from "@/lib/utils";
+import PDFViewer from "@/components/PDFViewer";
+import { format } from "date-fns";
 
 const COURSE_COLORS = [
   "bg-red-500",
@@ -48,6 +50,16 @@ interface Course {
   color?: string | null;
 }
 
+interface AssignmentAttachment {
+  id: number;
+  assignmentId?: number;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  createdAt?: string;
+}
+
 interface Assignment {
   id: number;
   title: string;
@@ -59,6 +71,7 @@ interface Assignment {
   status: string;
   canvasUrl?: string | null;
   description?: string | null;
+  attachments?: AssignmentAttachment[];
 }
 
 function getSessionFromCourse(course: Course): string {
@@ -133,6 +146,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     courseId: "",
     title: "",
     dueDate: "",
+    dueTime: "23:59",
     maxGrade: "",
     grade: "",
     status: "pending",
@@ -145,13 +159,37 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const [hiddenSemesters, setHiddenSemesters] = useState<string[]>([]);
   const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-  const [editingAssignment, setEditingAssignment] = useState<{ title: string; dueDate: string; weight: string; grade: string; maxGrade: string; status: string; courseId: string; description: string } | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<{ title: string; dueDate: string; dueTime: string; weight: string; grade: string; maxGrade: string; status: string; courseId: string; description: string } | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [hiddenForCharts, setHiddenForCharts] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
   const [savingAssignment, setSavingAssignment] = useState(false);
   const [courseGradeOverrides, setCourseGradeOverrides] = useState<CourseGradeOverride[]>([]);
+  const [modalAttachments, setModalAttachments] = useState<AssignmentAttachment[]>([]);
+  const [isUploadingModalPdf, setIsUploadingModalPdf] = useState(false);
+  const modalPdfInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!selectedAssignment) {
+      setModalAttachments([]);
+      return;
+    }
+    fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.attachments) {
+          setModalAttachments(data.attachments);
+        } else if (selectedAssignment.attachments) {
+          setModalAttachments(selectedAssignment.attachments);
+        }
+      })
+      .catch(() => {
+        if (selectedAssignment.attachments) {
+          setModalAttachments(selectedAssignment.attachments);
+        }
+      });
+  }, [selectedAssignment?.id]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -372,8 +410,16 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     e.preventDefault();
     if (!newAssignment.courseId || !newAssignment.title) return;
 
+    let dueDateIso = "";
+    if (newAssignment.dueDate) {
+      const timePart = newAssignment.dueTime || "23:59";
+      const combined = new Date(`${newAssignment.dueDate}T${timePart}:00`);
+      dueDateIso = !isNaN(combined.getTime()) ? combined.toISOString() : new Date(newAssignment.dueDate).toISOString();
+    }
+
     const assignmentData = {
       ...newAssignment,
+      dueDate: dueDateIso,
       courseId: parseInt(newAssignment.courseId, 10).toString(),
       maxGrade: parseFloat(newAssignment.maxGrade) || 100,
       grade: newAssignment.grade ? parseFloat(newAssignment.grade) : null,
@@ -395,7 +441,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       followupPeople: assignmentData.followupPeople,
     };
     setAssignments(prev => [...prev, optimisticAssignment]);
-    setNewAssignment({ courseId: "", title: "", dueDate: "", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [], description: "" });
+    setNewAssignment({ courseId: "", title: "", dueDate: "", dueTime: "23:59", maxGrade: "", grade: "", status: "pending", weightPercent: "", followupPeople: [], description: "" });
 
     try {
       const res = await fetch("/api/uni/assignments", {
@@ -470,7 +516,8 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     const isValidDate = !isNaN(d.getTime()) && d.getFullYear() > 1970;
     setEditingAssignment({
       title: a.title,
-      dueDate: isValidDate ? d.toISOString().split('T')[0] : '',
+      dueDate: isValidDate ? format(d, 'yyyy-MM-dd') : '',
+      dueTime: isValidDate ? format(d, 'HH:mm') : '23:59',
       weight: String(Math.round(a.weight * 100)),
       grade: a.grade != null ? String(a.grade) : '',
       maxGrade: String(a.maxGrade),
@@ -492,7 +539,13 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         status: editingAssignment.status,
         description: editingAssignment.description || '',
       };
-      if (editingAssignment.dueDate) body.dueDate = new Date(editingAssignment.dueDate).toISOString();
+      let dueDateIso = '';
+      if (editingAssignment.dueDate) {
+        const timePart = editingAssignment.dueTime || '23:59';
+        const combined = new Date(`${editingAssignment.dueDate}T${timePart}:00`);
+        dueDateIso = !isNaN(combined.getTime()) ? combined.toISOString() : new Date(editingAssignment.dueDate).toISOString();
+        body.dueDate = dueDateIso;
+      }
       if (editingAssignment.grade !== '') body.grade = Number(editingAssignment.grade);
       else body.grade = null;
       if (editingAssignment.courseId) body.courseId = Number(editingAssignment.courseId);
@@ -507,7 +560,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         setAssignments(prev => prev.map(a => a.id === selectedAssignment.id ? {
           ...a,
           title: editingAssignment.title,
-          dueDate: editingAssignment.dueDate ? new Date(editingAssignment.dueDate).toISOString() : a.dueDate,
+          dueDate: dueDateIso || a.dueDate,
           weight: Number(editingAssignment.weight) / 100,
           maxGrade: Number(editingAssignment.maxGrade),
           grade: editingAssignment.grade !== '' ? Number(editingAssignment.grade) : null,
@@ -518,7 +571,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
         setSelectedAssignment(prev => prev ? {
           ...prev,
           title: editingAssignment.title,
-          dueDate: editingAssignment.dueDate ? new Date(editingAssignment.dueDate).toISOString() : prev.dueDate,
+          dueDate: dueDateIso || prev.dueDate,
           weight: Number(editingAssignment.weight) / 100,
           maxGrade: Number(editingAssignment.maxGrade),
           grade: editingAssignment.grade !== '' ? Number(editingAssignment.grade) : null,
@@ -530,6 +583,62 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       }
     } catch (err) { console.error('Save assignment failed', err); }
     finally { setSavingAssignment(false); }
+  };
+
+  const handleModalPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !selectedAssignment) return;
+    setIsUploadingModalPdf(true);
+    const files = Array.from(e.target.files);
+
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Upload failed for ${file.name}`);
+        }
+      }
+      
+      const res = await fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments`);
+      if (res.ok) {
+        const data = await res.json();
+        const updatedAttachments = data.attachments || [];
+        setModalAttachments(updatedAttachments);
+        setAssignments(prev => prev.map(a => a.id === selectedAssignment.id ? { ...a, attachments: updatedAttachments } : a));
+      }
+    } catch (err: any) {
+      console.error("Failed to upload assignment PDF", err);
+      alert(err.message || "Failed to upload PDF");
+    } finally {
+      setIsUploadingModalPdf(false);
+      if (modalPdfInputRef.current) modalPdfInputRef.current.value = "";
+    }
+  };
+
+  const handleModalDeletePdf = async (attachmentId: number) => {
+    if (!selectedAssignment) return;
+    if (!confirm("Are you sure you want to remove this PDF?")) return;
+
+    try {
+      const res = await fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments/${attachmentId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Delete failed");
+      const updatedAttachments = modalAttachments.filter(a => a.id !== attachmentId);
+      setModalAttachments(updatedAttachments);
+      setAssignments(prev => prev.map(a => a.id === selectedAssignment.id ? { ...a, attachments: updatedAttachments } : a));
+    } catch (err) {
+      console.error("Failed to delete PDF attachment", err);
+      alert("Failed to delete PDF attachment");
+    }
   };
 
   const toggleSemesterHidden = (session: string) => {
@@ -819,6 +928,9 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   courses={displayCourses} 
                   activeTabOverride={assignmentsTabOverride}
                   onUpdateStatus={updateAssignmentStatus}
+                  onUpdateAssignment={(updated) => {
+                    setAssignments(prev => prev.map(a => a.id === updated.id ? updated : a));
+                  }}
                   courseGradeOverrides={courseGradeOverrides}
                   onOverridesChange={(newOverrides) => {
                     setCourseGradeOverrides(newOverrides);
@@ -854,9 +966,17 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 />
                 <input
                   type="date"
-                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 md:col-span-2 outline-hidden"
+                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 outline-hidden text-gray-900 dark:text-white"
                   value={newAssignment.dueDate}
                   onChange={(e) => setNewAssignment((a) => ({ ...a, dueDate: e.target.value }))}
+                  title="Due Date"
+                />
+                <input
+                  type="time"
+                  className="rounded-md bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23] px-2 py-1 outline-hidden text-gray-900 dark:text-white"
+                  value={newAssignment.dueTime}
+                  onChange={(e) => setNewAssignment((a) => ({ ...a, dueTime: e.target.value }))}
+                  title="Due Time (default 23:59 for All Day)"
                 />
                 <input
                   type="number"
@@ -968,8 +1088,12 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                             <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                                               {(() => {
                                                 const d = new Date(a.dueDate);
-                                                const isOld = d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
-                                                return isOld ? "No due date" : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                                                const isOld = isNaN(d.getTime()) || d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
+                                                if (isOld) return "No due date";
+                                                if (d.getHours() === 23 && d.getMinutes() === 59) {
+                                                  return `${format(d, "MMM d, yyyy")} (All Day)`;
+                                                }
+                                                return format(d, "MMM d, yyyy 'at' h:mm a");
                                               })()} · {(a.weight * 100).toFixed(0)}% weight
                                             </div>
                                           </div>
@@ -1058,10 +1182,23 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
               </div>
 
               {editingAssignment ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Date</label>
                     <input type="date" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editingAssignment.dueDate} onChange={e => setEditingAssignment({ ...editingAssignment, dueDate: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Time</label>
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssignment({ ...editingAssignment, dueTime: "23:59" })}
+                        className="text-[9px] text-indigo-500 hover:text-indigo-600 font-semibold uppercase tracking-wider"
+                      >
+                        All Day
+                      </button>
+                    </div>
+                    <input type="time" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editingAssignment.dueTime} onChange={e => setEditingAssignment({ ...editingAssignment, dueTime: e.target.value })} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Weight %</label>
@@ -1075,13 +1212,13 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                       <input type="number" min="1" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editingAssignment.maxGrade} onChange={e => setEditingAssignment({ ...editingAssignment, maxGrade: e.target.value })} />
                     </div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 sm:col-span-2">
                     <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Status</label>
                     <select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editingAssignment.status} onChange={e => setEditingAssignment({ ...editingAssignment, status: e.target.value })}>
                       {ASSIGNMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-1 col-span-2 sm:col-span-2">
+                  <div className="space-y-1 sm:col-span-2">
                     <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Course</label>
                     <select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editingAssignment.courseId} onChange={e => setEditingAssignment({ ...editingAssignment, courseId: e.target.value })}>
                       {displayCourses.map(c => <option key={c.id} value={c.id}>{getCourseOptionLabel(c)}</option>)}
@@ -1095,8 +1232,12 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                       label: 'DUE DATE', 
                       value: (() => {
                         const d = new Date(selectedAssignment.dueDate);
-                        const isOld = d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
-                        return isOld ? "No due date" : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                        const isOld = isNaN(d.getTime()) || d.getFullYear() < (new Date().getFullYear() - 5) || d.getFullYear() === 1970;
+                        if (isOld) return "No due date";
+                        if (d.getHours() === 23 && d.getMinutes() === 59) {
+                          return `${format(d, "MMM d, yyyy")} (All Day)`;
+                        }
+                        return format(d, "MMM d, yyyy 'at' h:mm a");
                       })(),
                       color: 'text-indigo-500' 
                     },
@@ -1123,6 +1264,64 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 scrollbar-hide">
+              {/* PDF Document Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                    Assignment Document {modalAttachments.length > 0 && `(${modalAttachments.length})`}
+                  </h4>
+                  <div>
+                    <input
+                      type="file"
+                      ref={modalPdfInputRef}
+                      className="hidden"
+                      accept=".pdf"
+                      multiple
+                      onChange={handleModalPdfUpload}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => modalPdfInputRef.current?.click()}
+                      disabled={isUploadingModalPdf}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 transition-colors"
+                    >
+                      {isUploadingModalPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      Upload PDF
+                    </button>
+                  </div>
+                </div>
+
+                {modalAttachments.length > 0 ? (
+                  <PDFViewer
+                    docs={modalAttachments.map(a => ({
+                      id: a.id,
+                      uri: a.url,
+                      fileName: a.name,
+                      size: a.size,
+                      fileType: a.type
+                    }))}
+                    onDelete={(doc) => doc.id && handleModalDeletePdf(Number(doc.id))}
+                    height={460}
+                  />
+                ) : (
+                  <div
+                    onClick={() => modalPdfInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-200 dark:border-zinc-800 hover:border-indigo-400 dark:hover:border-indigo-600 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors bg-gray-50/50 dark:bg-zinc-900/20 group"
+                  >
+                    <div className="p-3 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 group-hover:scale-105 transition-transform">
+                      {isUploadingModalPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                    </div>
+                    <div className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
+                      Upload assignment PDF (rubric, specification, task brief)
+                    </div>
+                    <div className="text-[10px] text-gray-400 dark:text-zinc-500">
+                      Displays formatted directly in the pop-up with zoom in/out controls
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Description</h4>
                 {editingAssignment ? (

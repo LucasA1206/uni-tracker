@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { writeFile, appendFile, unlink } from "fs/promises";
+import { writeFile, appendFile, unlink, readFile } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
 
                 // 2. Assemble and Upload Slide PDFs (if provided)
                 const slideContentParts: Array<{ fileData: { fileUri: string; mimeType: string } }> = [];
+                const assembledSlides: Array<{ name: string; path: string }> = [];
                 const slideList = Array.isArray(slides) ? slides : [];
 
                 for (let i = 0; i < Math.min(slideList.length, 5); i++) {
@@ -261,6 +262,8 @@ export async function POST(req: NextRequest) {
                         await prisma.fileChunk.deleteMany({
                             where: { fileId: safeSlideId }
                         });
+
+                        assembledSlides.push({ name: safeSlideName, path: tempSlidePath });
 
                         console.log(`Uploading slide ${i + 1} (${safeSlideName}) to Google AI File API...`);
                         const slideUploadResult = await fileManager.uploadFile(tempSlidePath, {
@@ -331,6 +334,30 @@ export async function POST(req: NextRequest) {
                         courseId: courseId ? parseInt(courseId) : undefined,
                     },
                 });
+
+                // Attach slide PDFs to the note so they appear at the top of the full note
+                for (const slide of assembledSlides) {
+                    try {
+                        const fileContent = await readFile(slide.path);
+                        const attachment = await prisma.noteAttachment.create({
+                            data: {
+                                noteId: newNote.id,
+                                name: slide.name,
+                                type: "application/pdf",
+                                size: fileContent.length,
+                                content: fileContent,
+                                url: "",
+                            },
+                        });
+                        await prisma.noteAttachment.update({
+                            where: { id: attachment.id },
+                            data: { url: `/api/attachments/${attachment.id}` },
+                        });
+                        console.log(`Saved slide attachment ${slide.name} (ID: ${attachment.id}) to note ${newNote.id}`);
+                    } catch (attErr) {
+                        console.warn(`Failed to save slide attachment ${slide.name} to note:`, attErr);
+                    }
+                }
 
                 return NextResponse.json({ note: newNote }, { status: 201 });
 

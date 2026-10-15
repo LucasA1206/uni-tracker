@@ -110,7 +110,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
   const [openEvent, setOpenEvent] = React.useState<ApiEvent | null>(null)
   const [openDay, setOpenDay] = React.useState<{ dateStr: string; dayEvents: ApiEvent[] } | null>(null)
   const [deleting, setDeleting] = React.useState(false)
-  const [editForm, setEditForm] = React.useState<{ title: string; dueDate: string; weight: string; grade: string; maxGrade: string; status: string; courseId: string; description: string } | null>(null)
+  const [editForm, setEditForm] = React.useState<{ title: string; dueDate: string; dueTime: string; weight: string; grade: string; maxGrade: string; status: string; courseId: string; description: string } | null>(null)
   const [savingEdit, setSavingEdit] = React.useState(false)
 
   const startEditEvent = (ev: ApiEvent) => {
@@ -119,6 +119,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
     setEditForm({
       title: ev.title,
       dueDate: valid ? format(d, 'yyyy-MM-dd') : '',
+      dueTime: valid ? format(d, 'HH:mm') : '23:59',
       weight: ev.meta?.weight != null ? String(Math.round(ev.meta.weight * 100)) : '',
       grade: ev.meta?.grade != null ? String(ev.meta.grade) : '',
       maxGrade: ev.meta?.maxGrade != null ? String(ev.meta.maxGrade) : '',
@@ -140,7 +141,11 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
         status: editForm.status,
         description: editForm.description || '',
       };
-      if (editForm.dueDate) body.dueDate = new Date(editForm.dueDate).toISOString();
+      if (editForm.dueDate) {
+        const timePart = editForm.dueTime || '23:59';
+        const combined = new Date(`${editForm.dueDate}T${timePart}:00`);
+        body.dueDate = !isNaN(combined.getTime()) ? combined.toISOString() : new Date(editForm.dueDate).toISOString();
+      }
       if (editForm.grade !== '') body.grade = Number(editForm.grade); else body.grade = null;
       if (editForm.courseId) body.courseId = Number(editForm.courseId);
       const res = await fetch('/api/uni/assignments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -224,55 +229,52 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
 
   // Map our API events into FullCalendar events
   const fcEvents = React.useMemo(() => {
-    const list: any[] = [];
-    const byDay: Record<string, ApiEvent[]> = {};
-    for (const e of events) {
-      if (!e.start) continue;
-      const day = getLocalDayKey(e.start)
-      if (!byDay[day]) byDay[day] = [];
-      byDay[day].push(e);
-    }
+    return events
+      .filter(e => Boolean(e.start))
+      .map(e => {
+        const d = new Date(e.start)
+        const isAssignment = e.type === "assignment"
+        const isValidDate = !isNaN(d.getTime())
+        const isDue1159 = isAssignment && isValidDate && d.getHours() === 23 && d.getMinutes() === 59
+        const isAllDay = isDue1159
 
-    for (const [day, dayEvents] of Object.entries(byDay)) {
-      const assignments = dayEvents.filter(e => e.type === "assignment").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-      const notes = dayEvents.filter(e => e.type === "note").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-      const others = dayEvents.filter(e => e.type !== "note" && e.type !== "assignment").sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+        const dayKey = getLocalDayKey(e.start)
+        let start: string
+        let end: string | undefined
 
-      const firstVisible = assignments[0] ?? notes[0] ?? others[0]
-      if (!firstVisible) continue
+        if (isAllDay) {
+          start = dayKey
+          end = undefined
+        } else {
+          start = e.start
+          if (e.end && e.end !== e.start) {
+            end = e.end
+          } else if (isValidDate) {
+            // Default 30 min duration for timed events without an end interval
+            end = new Date(d.getTime() + 30 * 60 * 1000).toISOString()
+          }
+        }
 
-      list.push({
-        id: firstVisible.id,
-        title: firstVisible.title,
-        start: day,
-        allDay: true,
-        extendedProps: {
-          ...firstVisible.meta,
-          type: firstVisible.type,
-          sortKey: 0,
-          originalStart: firstVisible.start,
-          originalEnd: firstVisible.end,
+        return {
+          id: e.id,
+          title: e.title,
+          start,
+          end,
+          allDay: isAllDay,
+          extendedProps: {
+            ...e.meta,
+            type: e.type,
+            isAllDayAssignment: isDue1159,
+            originalStart: e.start,
+            originalEnd: e.end,
+          }
         }
       })
-
-      const remainingCount = dayEvents.length - 1
-
-      if (remainingCount > 0) {
-        list.push({
-          id: `summary-${day}`,
-          title: `+ ${remainingCount} more`,
-          start: day,
-          allDay: true,
-          extendedProps: { type: "summary", isSummary: true, dayKey: day, sortKey: 1 }
-        })
-      }
-    }
-    return list;
-  }, [events, getLocalDayKey]);
+  }, [events, getLocalDayKey])
 
   const renderEventContent = (eventInfo: any) => {
     const { event } = eventInfo;
-    const { type, courseId, weight, maxGrade, grade, isSummary, originalStart, originalEnd, courseColor } = event.extendedProps;
+    const { type, courseId, weight, maxGrade, grade, isSummary, originalStart, originalEnd, courseColor, isAllDayAssignment } = event.extendedProps;
 
     if (isSummary) {
       return (
@@ -288,11 +290,11 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
 
     const colorClassRaw = courseColor ? "" : (courseId != null ? COURSE_COLORS[courseId % COURSE_COLORS.length] : "bg-gray-400");
     const noteSolidClass = courseColor ? "text-white shadow-sm border-transparent" : `${colorClassRaw} text-white shadow-sm border-transparent`;
-    const displayStart = originalStart ? new Date(originalStart) : event.start
-    const displayEnd = originalEnd ? new Date(originalEnd) : event.end
-    const hasDisplayStart = displayStart && !isNaN(displayStart.getTime())
-    const hasDisplayEnd = displayEnd && !isNaN(displayEnd.getTime())
-    const showTimeRange = hasDisplayStart && hasDisplayEnd && displayStart.getTime() !== displayEnd.getTime()
+    const displayStart = originalStart ? new Date(originalStart) : event.start;
+    const displayEnd = originalEnd ? new Date(originalEnd) : event.end;
+    const hasDisplayStart = displayStart && !isNaN(new Date(displayStart).getTime());
+    const hasDisplayEnd = displayEnd && !isNaN(new Date(displayEnd).getTime());
+    const showTimeRange = hasDisplayStart && hasDisplayEnd && new Date(displayStart).getTime() !== new Date(displayEnd).getTime();
 
     return (
       <div 
@@ -313,10 +315,16 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
             <span className="truncate">{event.title}</span>
           </div>
 
-          <p className={cn("leading-none mt-1.5 text-[10px]", isNote ? "text-white/80" : "text-gray-500 dark:text-gray-400")}>
-            {hasDisplayStart && format(displayStart, "h:mm a")}
-            {showTimeRange && ` - ${format(displayEnd, "h:mm a")}`}
-          </p>
+          {isAllDayAssignment || event.allDay ? (
+            <p className={cn("leading-none mt-1 text-[10px] font-semibold", isNote ? "text-white/80" : "text-blue-600 dark:text-blue-400")}>
+              All Day
+            </p>
+          ) : (
+            <p className={cn("leading-none mt-1 text-[10px]", isNote ? "text-white/80" : "text-gray-500 dark:text-gray-400")}>
+              {hasDisplayStart && (isAssignment ? `Due ${format(new Date(displayStart), "h:mm a")}` : format(new Date(displayStart), "h:mm a"))}
+              {showTimeRange && !isAssignment && ` - ${format(new Date(displayEnd), "h:mm a")}`}
+            </p>
+          )}
 
           {isAssignment && weight != null && maxGrade != null && (
             <p className="text-[10px] text-gray-600 dark:text-gray-300 mt-1 font-medium bg-gray-100 dark:bg-gray-800/50 inline-block px-1 rounded">
@@ -451,7 +459,13 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
         eventClick={handleEventClick}
         dateClick={handleDateClick}
         height="100%"
-        dayMaxEvents={false}
+        dayMaxEvents={3}
+        moreLinkClick={(info) => {
+          const dateStr = getLocalDayKey(info.date.toISOString())
+          const dayEvents = getEventsForDay(dateStr)
+          setOpenDay({ dateStr, dayEvents })
+          return "none"
+        }}
         eventOrder="sortKey,start,title"
         eventOrderStrict={true}
         eventTimeFormat={{
@@ -515,7 +529,13 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                           <span className={cn("font-semibold", isNote ? "text-white" : "text-gray-900 dark:text-white")}>{ev.title}</span>
                         </div>
                         <div className={cn("mt-1", isNote ? "text-white/70" : "text-gray-500 dark:text-gray-400")}>
-                          {format(new Date(ev.start), "h:mm a")}
+                          {(() => {
+                            const d = new Date(ev.start);
+                            if (ev.type === "assignment" && !isNaN(d.getTime()) && d.getHours() === 23 && d.getMinutes() === 59) {
+                              return "All Day (11:59 PM)";
+                            }
+                            return format(d, "h:mm a");
+                          })()}
                           {ev.meta?.courseName && <span className={cn("ml-2", isNote ? "text-white/50" : "text-gray-400 dark:text-gray-500")}>· {ev.meta.courseName}</span>}
                         </div>
                       </div>
@@ -578,18 +598,71 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
               </div>
 
               {editForm ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Date</label><input type="date" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.dueDate} onChange={e => setEditForm({ ...editForm, dueDate: e.target.value })} /></div>
-                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Weight %</label><input type="number" min="0" max="100" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.weight} onChange={e => setEditForm({ ...editForm, weight: e.target.value })} /></div>
-                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Grade</label><div className="flex items-center gap-1"><input type="number" min="0" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" placeholder="--" value={editForm.grade} onChange={e => setEditForm({ ...editForm, grade: e.target.value })} /><span className="text-gray-400 text-sm">/</span><input type="number" min="1" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.maxGrade} onChange={e => setEditForm({ ...editForm, maxGrade: e.target.value })} /></div></div>
-                  <div className="space-y-1"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Status</label><select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}><option value="pending">To-Do</option><option value="in_progress">In Progress</option><option value="completed">Completed</option></select></div>
-                  <div className="space-y-1 col-span-2 sm:col-span-2"><label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Course</label><select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.courseId} onChange={e => setEditForm({ ...editForm, courseId: e.target.value })}>{courses.map((c: any) => <option key={c.id} value={c.id}>{getCourseOptionLabel(c)}</option>)}</select></div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Date</label>
+                    <input type="date" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.dueDate} onChange={e => setEditForm({ ...editForm, dueDate: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Time</label>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, dueTime: "23:59" })}
+                        className="text-[9px] text-indigo-500 hover:text-indigo-600 font-semibold uppercase tracking-wider"
+                      >
+                        All Day
+                      </button>
+                    </div>
+                    <input type="time" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.dueTime} onChange={e => setEditForm({ ...editForm, dueTime: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Weight %</label>
+                    <input type="number" min="0" max="100" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.weight} onChange={e => setEditForm({ ...editForm, weight: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Grade</label>
+                    <div className="flex items-center gap-1">
+                      <input type="number" min="0" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" placeholder="--" value={editForm.grade} onChange={e => setEditForm({ ...editForm, grade: e.target.value })} />
+                      <span className="text-gray-400 text-sm">/</span>
+                      <input type="number" min="1" className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.maxGrade} onChange={e => setEditForm({ ...editForm, maxGrade: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Status</label>
+                    <select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
+                      <option value="pending">To-Do</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Course</label>
+                    <select className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white" value={editForm.courseId} onChange={e => setEditForm({ ...editForm, courseId: e.target.value })}>
+                      {courses.map((c: any) => <option key={c.id} value={c.id}>{getCourseOptionLabel(c)}</option>)}
+                    </select>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">{openEvent.type === 'note' ? 'Date Created' : (openEvent.type === 'assignment' ? 'Due' : 'Due / Start')}</div>
-                    <div className="text-[11px] font-bold mt-1 uppercase text-indigo-500">{(() => { const d = new Date(openEvent.start); const isOld = isNaN(d.getTime()) || (d.getFullYear() < (new Date().getFullYear() - 5) && d.getFullYear() !== 1970); return isOld ? "No due date" : format(d, "MMM d, yyyy"); })()}</div>
+                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">
+                      {openEvent.type === 'note' ? 'Date Created' : (openEvent.type === 'assignment' ? 'Due' : 'Due / Start')}
+                    </div>
+                    <div className="text-[11px] font-bold mt-1 uppercase text-indigo-500">
+                      {(() => {
+                        const d = new Date(openEvent.start);
+                        const isOld = isNaN(d.getTime()) || (d.getFullYear() < (new Date().getFullYear() - 5) && d.getFullYear() !== 1970);
+                        if (isOld) return "No due date";
+                        if (openEvent.type === "assignment") {
+                          if (d.getHours() === 23 && d.getMinutes() === 59) {
+                            return `${format(d, "MMM d, yyyy")} (All Day)`;
+                          }
+                          return format(d, "MMM d, yyyy 'at' h:mm a");
+                        }
+                        return format(d, "MMM d, yyyy 'at' h:mm a");
+                      })()}
+                    </div>
                   </div>
                   {openEvent.meta?.weight != null && (<div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center"><div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Weight</div><div className="text-[11px] font-bold mt-1 uppercase text-purple-500">{Math.round((openEvent.meta.weight || 0) * 100)}%</div></div>)}
                   {openEvent.meta?.status && (<div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center"><div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">Status</div><div className="text-[11px] font-bold mt-1 uppercase text-blue-500">{openEvent.meta.status.replace('_', ' ')}</div></div>)}
