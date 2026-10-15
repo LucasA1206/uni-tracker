@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
     ZoomIn, 
     ZoomOut, 
@@ -10,7 +10,8 @@ import {
     Trash2, 
     FileText,
     Maximize2,
-    Minimize2
+    Minimize2,
+    GripHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,70 @@ export default function PDFViewer({
     const [currentIndex, setCurrentIndex] = useState(activeDocIndex);
     const [zoom, setZoom] = useState(100);
     const [isFullscreen, setIsFullscreen] = useState(false);
+
+    // Dynamic height resize state
+    const parsedDefaultHeight = typeof height === "number" ? height : parseInt(String(height), 10) || 540;
+    const [viewerHeight, setViewerHeight] = useState<number>(parsedDefaultHeight);
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartYRef = useRef(0);
+    const dragStartHeightRef = useRef(parsedDefaultHeight);
+
+    // Update if parent height changes
+    useEffect(() => {
+        setViewerHeight(parsedDefaultHeight);
+    }, [parsedDefaultHeight]);
+
+    // Drag resize handlers
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+        dragStartYRef.current = e.clientY;
+        dragStartHeightRef.current = viewerHeight;
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (e.touches.length === 1) {
+            setIsDragging(true);
+            dragStartYRef.current = e.touches[0].clientY;
+            dragStartHeightRef.current = viewerHeight;
+        }
+    };
+
+    useEffect(() => {
+        if (!isDragging) return;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const deltaY = e.clientY - dragStartYRef.current;
+            const newHeight = Math.max(260, Math.min(1300, dragStartHeightRef.current + deltaY));
+            setViewerHeight(newHeight);
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (e.touches.length === 1) {
+                const deltaY = e.touches[0].clientY - dragStartYRef.current;
+                const newHeight = Math.max(260, Math.min(1300, dragStartHeightRef.current + deltaY));
+                setViewerHeight(newHeight);
+            }
+        };
+
+        const handleDragEnd = () => {
+            setIsDragging(false);
+        };
+
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleDragEnd);
+        window.addEventListener("touchmove", handleTouchMove, { passive: true });
+        window.addEventListener("touchend", handleDragEnd);
+        window.addEventListener("touchcancel", handleDragEnd);
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleDragEnd);
+            window.removeEventListener("touchmove", handleTouchMove);
+            window.removeEventListener("touchend", handleDragEnd);
+            window.removeEventListener("touchcancel", handleDragEnd);
+        };
+    }, [isDragging]);
 
     // Sync with parent controlled index if provided
     const activeIndex = onActiveDocChange !== undefined ? activeDocIndex : currentIndex;
@@ -89,6 +154,11 @@ export default function PDFViewer({
                 className
             )}
         >
+            {/* Full-screen invisible barrier while dragging to prevent iframe from trapping mouse events */}
+            {isDragging && (
+                <div className="fixed inset-0 z-[9999] cursor-ns-resize select-none pointer-events-auto bg-transparent" />
+            )}
+
             {/* Document Tabs if more than 1 PDF */}
             {docs.length > 1 && (
                 <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100/90 dark:bg-zinc-900/90 border-b border-gray-200 dark:border-zinc-800 overflow-x-auto scrollbar-thin">
@@ -215,7 +285,7 @@ export default function PDFViewer({
             {/* Document Render Area */}
             <div 
                 className="relative flex-1 bg-gray-100 dark:bg-[#121216] overflow-auto scrollbar-theme flex items-center justify-center p-2"
-                style={{ height: isFullscreen ? "calc(100vh - 120px)" : (typeof height === "number" ? `${height}px` : height) }}
+                style={{ height: isFullscreen ? "calc(100vh - 120px)" : `${viewerHeight}px` }}
             >
                 <div 
                     className="w-full h-full transition-transform duration-200 ease-out origin-top flex items-center justify-center"
@@ -233,6 +303,27 @@ export default function PDFViewer({
                     />
                 </div>
             </div>
+
+            {/* Height Resize Handle (visible when not fullscreen) */}
+            {!isFullscreen && (
+                <div
+                    onMouseDown={handleMouseDown}
+                    onTouchStart={handleTouchStart}
+                    onDoubleClick={() => setViewerHeight(parsedDefaultHeight)}
+                    className={cn(
+                        "group relative w-full h-5 bg-gray-50/90 dark:bg-zinc-900/90 border-t border-gray-200/80 dark:border-zinc-800 flex items-center justify-center cursor-ns-resize select-none hover:bg-indigo-50/50 dark:hover:bg-zinc-800/80 transition-colors shrink-0",
+                        isDragging ? "bg-indigo-100/70 dark:bg-indigo-950/60" : ""
+                    )}
+                    title="Drag to resize height • Double-click to reset"
+                >
+                    <div className="flex items-center gap-1.5 text-gray-400 dark:text-zinc-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        <GripHorizontal className="w-4 h-4" />
+                        <span className="text-[10px] font-semibold tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity">
+                            Drag to resize ({Math.round(viewerHeight)}px)
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

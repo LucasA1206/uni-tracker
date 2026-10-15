@@ -38,6 +38,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   headers.set("Content-Disposition", `inline; filename="${safeFilename}"`);
   headers.set("Content-Length", attachment.size.toString());
   headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "SAMEORIGIN");
+  headers.set("Content-Security-Policy", "frame-ancestors 'self'");
+  headers.set("Cross-Origin-Resource-Policy", "same-origin");
 
   return new NextResponse(attachment.content, {
     status: 200,
