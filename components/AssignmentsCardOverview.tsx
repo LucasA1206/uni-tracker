@@ -875,7 +875,7 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
       {selectedAssignment && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSelectedAssignment(null)}>
           <div 
-            className="relative w-full max-w-[772px] max-h-[90vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
+            className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl border border-white/20 dark:border-zinc-800 bg-gray-50 dark:bg-[#0A0A0C] shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" 
             onClick={e => e.stopPropagation()}
           >
             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
