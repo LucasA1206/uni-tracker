@@ -16,7 +16,13 @@ export async function GET(req: NextRequest) {
             }),
             prisma.assignment.findMany({
                 where: { course: { userId: auth.userId } },
-                include: { course: true },
+                include: {
+                    course: true,
+                    attachments: {
+                        select: { id: true, assignmentId: true, name: true, url: true, type: true, size: true, createdAt: true },
+                        orderBy: { createdAt: "desc" },
+                    },
+                },
                 orderBy: { dueDate: "asc" },
             }),
             prisma.note.findMany({

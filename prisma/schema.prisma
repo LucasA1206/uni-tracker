@@ -67,11 +67,26 @@ model Assignment {
   status         String     @default("pending")
   followupPeople String?    // JSON-encoded array of people names
   canvasId       String?
+  attachments    AssignmentAttachment[]
 
   @@unique([courseId, canvasId])
   @@index([courseId])
   @@index([dueDate])
   @@index([status])
+}
+
+model AssignmentAttachment {
+  id           Int        @id @default(autoincrement())
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignmentId Int
+  name         String
+  url          String
+  type         String     // "pdf", "docx", etc.
+  size         Int
+  content      Bytes?     // Store file content directly
+  createdAt    DateTime   @default(now())
+
+  @@index([assignmentId])
 }
 
 model Note {

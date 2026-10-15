@@ -1,13 +1,14 @@
 "use client";
-
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { MenuBar } from "@/components/ui/glow-menu";
 import AnimatedDropdown from "@/components/ui/animated-dropdown";
-import { History, CalendarClock, LineChart, Settings, X, ExternalLink } from "lucide-react";
+import { History, CalendarClock, LineChart, Settings, X, ExternalLink, Edit2, Save, Upload, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line } from "react-chartjs-2";
 import type { CourseGradeOverride } from "@/components/GradeCharts";
+import PDFViewer from "@/components/PDFViewer";
+import { format } from "date-fns";
 
 import {
   Chart as ChartJS,
@@ -39,6 +40,16 @@ interface Course {
   color?: string | null;
 }
 
+interface AssignmentAttachment {
+  id: number;
+  assignmentId?: number;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  createdAt?: string;
+}
+
 interface Assignment {
   id: number;
   title: string;
@@ -50,6 +61,7 @@ interface Assignment {
   status: string;
   canvasUrl?: string | null;
   description?: string | null;
+  attachments?: AssignmentAttachment[];
 }
 
 interface Props {
@@ -57,6 +69,7 @@ interface Props {
   courses: Course[];
   activeTabOverride?: string;
   onUpdateStatus?: (id: number, status: string) => Promise<void> | void;
+  onUpdateAssignment?: (updatedAssignment: Assignment) => Promise<void> | void;
   courseGradeOverrides?: CourseGradeOverride[];
   onOverridesChange?: (overrides: CourseGradeOverride[]) => void;
 }
@@ -102,6 +115,13 @@ function getCourseDisplayName(course: Course): string {
   return clean || getCourseCode(course);
 }
 
+function getCourseOptionLabel(course: Course): string {
+  const displayName = getCourseDisplayName(course).trim();
+  const code = getCourseCode(course);
+  if (!displayName || displayName.toLowerCase() === code.toLowerCase()) return code;
+  return `${displayName} (${code})`;
+}
+
 const COURSE_COLORS = [
   "bg-red-500",
   "bg-blue-500",
@@ -129,7 +149,7 @@ function getGrade7FromPercentage(pct: number | null): number | null {
 }
 
 
-export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride, onUpdateStatus, courseGradeOverrides = [], onOverridesChange }: Props) {
+export default function AssignmentsCardOverview({ assignments, courses, activeTabOverride, onUpdateStatus, onUpdateAssignment, courseGradeOverrides = [], onOverridesChange }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Upcoming Assignments");
 
   useEffect(() => {
@@ -139,6 +159,48 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
   }, [activeTabOverride]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+
+  // Edit Assignment State
+  const [editingAssignment, setEditingAssignment] = useState<{
+    title: string;
+    dueDate: string;
+    dueTime: string;
+    weight: string;
+    grade: string;
+    maxGrade: string;
+    status: string;
+    courseId: string;
+    description: string;
+  } | null>(null);
+  const [savingAssignment, setSavingAssignment] = useState(false);
+
+  // Attachment State
+  const [assignmentAttachments, setAssignmentAttachments] = useState<AssignmentAttachment[]>([]);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!selectedAssignment) {
+      setAssignmentAttachments([]);
+      setEditingAssignment(null);
+      return;
+    }
+    // Fetch latest attachments for this assignment
+    fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.attachments) {
+          setAssignmentAttachments(data.attachments);
+        } else if (selectedAssignment.attachments) {
+          setAssignmentAttachments(selectedAssignment.attachments);
+        }
+      })
+      .catch(() => {
+        if (selectedAssignment.attachments) {
+          setAssignmentAttachments(selectedAssignment.attachments);
+        }
+      });
+  }, [selectedAssignment?.id]);
 
   useEffect(() => {
     if (!selectedAssignment) return;
@@ -177,6 +239,9 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
 
     const assignmentId = selectedAssignment.id;
     setSelectedAssignment((prev) => (prev ? { ...prev, status } : prev));
+    if (editingAssignment) {
+      setEditingAssignment(prev => prev ? { ...prev, status } : prev);
+    }
 
     try {
       if (onUpdateStatus) {
@@ -190,6 +255,133 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
       });
     } catch (err) {
       console.error("Update status failed", err);
+    }
+  };
+
+  const startEditingAssignment = (a: Assignment) => {
+    const d = new Date(a.dueDate);
+    const isValidDate = !isNaN(d.getTime()) && d.getFullYear() > 1970;
+    setEditingAssignment({
+      title: a.title,
+      dueDate: isValidDate ? format(d, "yyyy-MM-dd") : "",
+      dueTime: isValidDate ? format(d, "HH:mm") : "23:59",
+      weight: String(Math.round(a.weight * 100)),
+      grade: a.grade != null ? String(a.grade) : "",
+      maxGrade: String(a.maxGrade),
+      status: a.status,
+      courseId: String(a.course.id),
+      description: a.description || "",
+    });
+  };
+
+  const saveEditingAssignment = async () => {
+    if (!selectedAssignment || !editingAssignment) return;
+    setSavingAssignment(true);
+    try {
+      const body: Record<string, unknown> = {
+        id: selectedAssignment.id,
+        title: editingAssignment.title,
+        weight: Number(editingAssignment.weight) / 100,
+        maxGrade: Number(editingAssignment.maxGrade),
+        status: editingAssignment.status,
+        description: editingAssignment.description,
+      };
+      if (editingAssignment.dueDate) {
+        const timePart = editingAssignment.dueTime || "23:59";
+        const combined = new Date(`${editingAssignment.dueDate}T${timePart}:00`);
+        body.dueDate = !isNaN(combined.getTime()) ? combined.toISOString() : new Date(editingAssignment.dueDate).toISOString();
+      }
+      if (editingAssignment.grade !== "") body.grade = Number(editingAssignment.grade);
+      else body.grade = null;
+      if (editingAssignment.courseId) body.courseId = Number(editingAssignment.courseId);
+
+      const res = await fetch("/api/uni/assignments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const updatedCourse = courses.find(c => c.id === Number(editingAssignment.courseId)) || selectedAssignment.course;
+        const updatedAssignment: Assignment = {
+          ...selectedAssignment,
+          ...data.assignment,
+          course: { id: updatedCourse.id, code: updatedCourse.code },
+          attachments: assignmentAttachments,
+        };
+        setSelectedAssignment(updatedAssignment);
+        onUpdateAssignment?.(updatedAssignment);
+        setEditingAssignment(null);
+      } else {
+        alert("Failed to save changes to assignment");
+      }
+    } catch (err) {
+      console.error("Save assignment failed", err);
+      alert("Error saving assignment");
+    } finally {
+      setSavingAssignment(false);
+    }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !selectedAssignment) return;
+    setIsUploadingPdf(true);
+    const files = Array.from(e.target.files);
+
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Upload failed for ${file.name}`);
+        }
+      }
+      
+      const res = await fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments`);
+      if (res.ok) {
+        const data = await res.json();
+        const updatedAttachments = data.attachments || [];
+        setAssignmentAttachments(updatedAttachments);
+        const updated = { ...selectedAssignment, attachments: updatedAttachments };
+        setSelectedAssignment(updated);
+        onUpdateAssignment?.(updated);
+      }
+    } catch (err: any) {
+      console.error("Failed to upload assignment PDF", err);
+      alert(err.message || "Failed to upload PDF");
+    } finally {
+      setIsUploadingPdf(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
+    }
+  };
+
+  const handleDeletePdf = async (attachmentId: number) => {
+    if (!selectedAssignment) return;
+    if (!confirm("Are you sure you want to remove this PDF?")) return;
+
+    try {
+      const res = await fetch(`/api/uni/assignments/${selectedAssignment.id}/attachments/${attachmentId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Delete failed");
+      const updatedAttachments = assignmentAttachments.filter(a => a.id !== attachmentId);
+      setAssignmentAttachments(updatedAttachments);
+
+      const updated = { ...selectedAssignment, attachments: updatedAttachments };
+      setSelectedAssignment(updated);
+      onUpdateAssignment?.(updated);
+    } catch (err) {
+      console.error("Failed to delete PDF attachment", err);
+      alert("Failed to delete PDF attachment");
     }
   };
 
@@ -374,8 +566,12 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
           <div className="mt-3 flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
             <span>Due: {(() => {
               const d = new Date(a.dueDate);
-              const hasDue = !isNaN(d.getTime()) && d.getFullYear() !== 1970;
-              return hasDue ? d.toLocaleDateString() : "No due date";
+              const hasDue = !isNaN(d.getTime()) && d.getFullYear() > 1970;
+              if (!hasDue) return "No due date";
+              if (d.getHours() === 23 && d.getMinutes() === 59) {
+                return `${format(d, "MMM d, yyyy")} (All Day)`;
+              }
+              return format(d, "MMM d, yyyy 'at' h:mm a");
             })()}</span>
             <span>Weight: {(a.weight * 100).toFixed(0)}% • Out of {a.maxGrade}</span>
           </div>
@@ -689,61 +885,246 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
             {/* Header */}
             <div className="p-8 pb-4 relative z-10">
               <div className="flex items-center justify-between mb-6">
-                <div className="space-y-1">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{(() => { const c = courses.find(c => c.id === selectedAssignment.course.id); return c ? getCourseDisplayName(c) : getCourseCode(selectedAssignment.course); })()}</div>
-                  <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedAssignment.title}</h3>
+                <div className="space-y-1 flex-1 min-w-0 pr-4">
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">
+                    {(() => {
+                      const c = courses.find(c => c.id === (editingAssignment ? Number(editingAssignment.courseId) : selectedAssignment.course.id));
+                      return c ? getCourseDisplayName(c) : getCourseCode(selectedAssignment.course);
+                    })()}
+                  </div>
+                  {editingAssignment ? (
+                    <input
+                      className="text-2xl font-black text-gray-900 dark:text-white leading-tight bg-transparent border-b-2 border-indigo-500 outline-none w-full pb-1"
+                      value={editingAssignment.title}
+                      onChange={e => setEditingAssignment({ ...editingAssignment, title: e.target.value })}
+                      placeholder="Assignment title"
+                    />
+                  ) : (
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{selectedAssignment.title}</h3>
+                  )}
                 </div>
-                <button onClick={() => setSelectedAssignment(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0">
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {!editingAssignment && (
+                    <button
+                      onClick={() => startEditingAssignment(selectedAssignment)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors shadow-xs"
+                      title="Edit Assignment"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      Edit
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => { setSelectedAssignment(null); setEditingAssignment(null); }} 
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors shrink-0"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { 
-                    label: 'DUE DATE', 
-                    value: (() => {
-                      const d = new Date(selectedAssignment.dueDate);
-                      const isOld = isNaN(d.getTime()) || d.getFullYear() < (new Date().getFullYear() - 5);
-                      return isOld ? "No due date" : d.toLocaleDateString();
-                    })(),
-                    color: 'text-indigo-500' 
-                  },
-                  { label: 'WEIGHT', value: `${(selectedAssignment.weight * 100).toFixed(0)}%`, color: 'text-purple-500' },
-                  { label: 'GRADE', value: selectedAssignment.grade != null ? `${selectedAssignment.grade}/${selectedAssignment.maxGrade}` : 'PENDING', color: 'text-pink-500' },
-                ].map(stat => (
-                  <div key={stat.label} className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">{stat.label}</div>
-                    <div className={cn("text-[11px] font-bold mt-1 uppercase", stat.color)}>{stat.value}</div>
+              {editingAssignment ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Date</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white"
+                      value={editingAssignment.dueDate}
+                      onChange={e => setEditingAssignment({ ...editingAssignment, dueDate: e.target.value })}
+                    />
                   </div>
-                ))}
-                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                  <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
-                  <AnimatedDropdown
-                    items={ASSIGNMENT_STATUSES}
-                    value={selectedAssignment.status}
-                    onChange={(newStatus) => void handleModalStatusChange(newStatus)}
-                    className="mt-1 w-full"
-                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Due Time</label>
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssignment({ ...editingAssignment, dueTime: "23:59" })}
+                        className="text-[9px] text-indigo-500 hover:text-indigo-600 font-semibold uppercase tracking-wider"
+                      >
+                        All Day
+                      </button>
+                    </div>
+                    <input
+                      type="time"
+                      className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white"
+                      value={editingAssignment.dueTime}
+                      onChange={e => setEditingAssignment({ ...editingAssignment, dueTime: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Weight %</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white"
+                      value={editingAssignment.weight}
+                      onChange={e => setEditingAssignment({ ...editingAssignment, weight: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Grade</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="--"
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white"
+                        value={editingAssignment.grade}
+                        onChange={e => setEditingAssignment({ ...editingAssignment, grade: e.target.value })}
+                      />
+                      <span className="text-gray-400 dark:text-zinc-500 text-sm">/</span>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white"
+                        value={editingAssignment.maxGrade}
+                        onChange={e => setEditingAssignment({ ...editingAssignment, maxGrade: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Status</label>
+                    <select
+                      className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white"
+                      value={editingAssignment.status}
+                      onChange={e => setEditingAssignment({ ...editingAssignment, status: e.target.value })}
+                    >
+                      {ASSIGNMENT_STATUSES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider uppercase">Course</label>
+                    <select
+                      className="w-full rounded-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-white"
+                      value={editingAssignment.courseId}
+                      onChange={e => setEditingAssignment({ ...editingAssignment, courseId: e.target.value })}
+                    >
+                      {courses.map(c => <option key={c.id} value={c.id}>{getCourseOptionLabel(c)}</option>)}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { 
+                      label: 'DUE DATE', 
+                      value: (() => {
+                        const d = new Date(selectedAssignment.dueDate);
+                        const isOld = isNaN(d.getTime()) || d.getFullYear() < (new Date().getFullYear() - 5);
+                        if (isOld) return "No due date";
+                        if (d.getHours() === 23 && d.getMinutes() === 59) {
+                          return `${format(d, "MMM d, yyyy")} (All Day)`;
+                        }
+                        return format(d, "MMM d, yyyy 'at' h:mm a");
+                      })(),
+                      color: 'text-indigo-500' 
+                    },
+                    { label: 'WEIGHT', value: `${(selectedAssignment.weight * 100).toFixed(0)}%`, color: 'text-purple-500' },
+                    { label: 'GRADE', value: selectedAssignment.grade != null ? `${selectedAssignment.grade}/${selectedAssignment.maxGrade}` : 'PENDING', color: 'text-pink-500' },
+                  ].map(stat => (
+                    <div key={stat.label} className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                      <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">{stat.label}</div>
+                      <div className={cn("text-[11px] font-bold mt-1 uppercase", stat.color)}>{stat.value}</div>
+                    </div>
+                  ))}
+                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
+                    <div className="text-[9px] font-black text-gray-400 dark:text-zinc-500 tracking-wider transition-colors uppercase">STATUS</div>
+                    <AnimatedDropdown
+                      items={ASSIGNMENT_STATUSES}
+                      value={selectedAssignment.status}
+                      onChange={(newStatus) => void handleModalStatusChange(newStatus)}
+                      className="mt-1 w-full"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-8 pt-0 space-y-6 relative z-10 scrollbar-theme">
+              {/* PDF Document Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                    Assignment Document {assignmentAttachments.length > 0 && `(${assignmentAttachments.length})`}
+                  </h4>
+                  <div>
+                    <input
+                      type="file"
+                      ref={pdfInputRef}
+                      className="hidden"
+                      accept=".pdf"
+                      multiple
+                      onChange={handlePdfUpload}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => pdfInputRef.current?.click()}
+                      disabled={isUploadingPdf}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 transition-colors"
+                    >
+                      {isUploadingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      Upload PDF
+                    </button>
+                  </div>
+                </div>
+
+                {assignmentAttachments.length > 0 ? (
+                  <PDFViewer
+                    docs={assignmentAttachments.map(a => ({
+                      id: a.id,
+                      uri: a.url,
+                      fileName: a.name,
+                      size: a.size,
+                      fileType: a.type
+                    }))}
+                    onDelete={(doc) => doc.id && handleDeletePdf(Number(doc.id))}
+                    height={460}
+                  />
+                ) : (
+                  <div
+                    onClick={() => pdfInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-200 dark:border-zinc-800 hover:border-indigo-400 dark:hover:border-indigo-600 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors bg-gray-50/50 dark:bg-zinc-900/20 group"
+                  >
+                    <div className="p-3 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 group-hover:scale-105 transition-transform">
+                      {isUploadingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                    </div>
+                    <div className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
+                      Upload assignment PDF (rubric, specification, task brief)
+                    </div>
+                    <div className="text-[10px] text-gray-400 dark:text-zinc-500">
+                      Displays formatted directly in the pop-up with zoom in/out controls
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Description Section */}
               <div className="space-y-2">
                 <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Description</h4>
-                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
-                  {selectedAssignment.description ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: selectedAssignment.description }} />
-                  ) : (
-                    'No description provided.'
-                  )}
-                </div>
+                {editingAssignment ? (
+                  <textarea
+                    className="w-full p-4 rounded-2xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[120px] outline-none focus:ring-1 focus:ring-indigo-500 resize-y"
+                    value={editingAssignment.description}
+                    onChange={e => setEditingAssignment({ ...editingAssignment, description: e.target.value })}
+                    placeholder="Add assignment description or details..."
+                  />
+                ) : (
+                  <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[80px]">
+                    {selectedAssignment.description ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: selectedAssignment.description }} />
+                    ) : (
+                      'No description provided.'
+                    )}
+                  </div>
+                )}
               </div>
 
               {selectedAssignment.canvasUrl && (
-                <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                <div className="pt-2 border-t border-gray-100 dark:border-zinc-800">
                   <a
                     href={selectedAssignment.canvasUrl}
                     target="_blank"
@@ -759,12 +1140,32 @@ export default function AssignmentsCardOverview({ assignments, courses, activeTa
 
             {/* Footer Actions */}
             <div className="p-6 pt-4 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/20 flex justify-end gap-3 relative z-10">
-              <button 
-                onClick={() => setSelectedAssignment(null)}
-                className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                Close
-              </button>
+              {editingAssignment ? (
+                <>
+                  <button
+                    onClick={() => setEditingAssignment(null)}
+                    disabled={savingAssignment}
+                    className="px-5 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveEditingAssignment}
+                    disabled={savingAssignment}
+                    className="flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50"
+                  >
+                    {savingAssignment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    Save Changes
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setSelectedAssignment(null)}
+                  className="px-6 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>,
