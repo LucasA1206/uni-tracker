@@ -11,7 +11,8 @@ import {
     FileText,
     Maximize2,
     Minimize2,
-    GripHorizontal
+    GripHorizontal,
+    ChevronsUpDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,63 +49,93 @@ export default function PDFViewer({
     const parsedDefaultHeight = typeof height === "number" ? height : parseInt(String(height), 10) || 540;
     const [viewerHeight, setViewerHeight] = useState<number>(parsedDefaultHeight);
     const [isDragging, setIsDragging] = useState(false);
+
     const dragStartYRef = useRef(0);
     const dragStartHeightRef = useRef(parsedDefaultHeight);
+    const viewerHeightRef = useRef(parsedDefaultHeight);
 
-    // Update if parent height changes
+    // Sync ref when viewerHeight changes
+    useEffect(() => {
+        viewerHeightRef.current = viewerHeight;
+    }, [viewerHeight]);
+
+    // Update if parent height prop changes
     useEffect(() => {
         setViewerHeight(parsedDefaultHeight);
+        viewerHeightRef.current = parsedDefaultHeight;
     }, [parsedDefaultHeight]);
 
-    // Drag resize handlers
-    const handleMouseDown = (e: React.MouseEvent) => {
+    // Pointer events for drag resizing
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        // Only accept primary button (left mouse) or touch
+        if (e.button !== 0 && e.pointerType === "mouse") return;
+        
         e.preventDefault();
+        e.stopPropagation();
+
+        try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+            // ignore if not supported
+        }
+
         setIsDragging(true);
         dragStartYRef.current = e.clientY;
-        dragStartHeightRef.current = viewerHeight;
+        dragStartHeightRef.current = viewerHeightRef.current;
     };
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (e.touches.length === 1) {
-            setIsDragging(true);
-            dragStartYRef.current = e.touches[0].clientY;
-            dragStartHeightRef.current = viewerHeight;
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const deltaY = e.clientY - dragStartYRef.current;
+        const newHeight = Math.max(260, Math.min(1400, Math.round(dragStartHeightRef.current + deltaY)));
+        setViewerHeight(newHeight);
+        viewerHeightRef.current = newHeight;
+    };
+
+    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (isDragging) {
+            setIsDragging(false);
+            try {
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                }
+            } catch {
+                // ignore
+            }
         }
     };
 
+    // Global window listeners as guarantee if cursor leaves handle during fast dragging
     useEffect(() => {
         if (!isDragging) return;
 
-        const handleMouseMove = (e: MouseEvent) => {
+        const prevUserSelect = document.body.style.userSelect;
+        const prevCursor = document.body.style.cursor;
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "ns-resize";
+
+        const onWindowPointerMove = (e: PointerEvent) => {
             const deltaY = e.clientY - dragStartYRef.current;
-            const newHeight = Math.max(260, Math.min(1300, dragStartHeightRef.current + deltaY));
+            const newHeight = Math.max(260, Math.min(1400, Math.round(dragStartHeightRef.current + deltaY)));
             setViewerHeight(newHeight);
+            viewerHeightRef.current = newHeight;
         };
 
-        const handleTouchMove = (e: TouchEvent) => {
-            if (e.touches.length === 1) {
-                const deltaY = e.touches[0].clientY - dragStartYRef.current;
-                const newHeight = Math.max(260, Math.min(1300, dragStartHeightRef.current + deltaY));
-                setViewerHeight(newHeight);
-            }
-        };
-
-        const handleDragEnd = () => {
+        const onWindowPointerUp = () => {
             setIsDragging(false);
         };
 
-        window.addEventListener("mousemove", handleMouseMove);
-        window.addEventListener("mouseup", handleDragEnd);
-        window.addEventListener("touchmove", handleTouchMove, { passive: true });
-        window.addEventListener("touchend", handleDragEnd);
-        window.addEventListener("touchcancel", handleDragEnd);
+        window.addEventListener("pointermove", onWindowPointerMove);
+        window.addEventListener("pointerup", onWindowPointerUp);
+        window.addEventListener("pointercancel", onWindowPointerUp);
 
         return () => {
-            window.removeEventListener("mousemove", handleMouseMove);
-            window.removeEventListener("mouseup", handleDragEnd);
-            window.removeEventListener("touchmove", handleTouchMove);
-            window.removeEventListener("touchend", handleDragEnd);
-            window.removeEventListener("touchcancel", handleDragEnd);
+            document.body.style.userSelect = prevUserSelect;
+            document.body.style.cursor = prevCursor;
+            window.removeEventListener("pointermove", onWindowPointerMove);
+            window.removeEventListener("pointerup", onWindowPointerUp);
+            window.removeEventListener("pointercancel", onWindowPointerUp);
         };
     }, [isDragging]);
 
@@ -149,16 +180,11 @@ export default function PDFViewer({
     return (
         <div
             className={cn(
-                "rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0D] shadow-sm overflow-hidden flex flex-col transition-all",
-                isFullscreen ? "fixed inset-4 z-50 shadow-2xl" : "",
+                "rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#0A0A0D] shadow-sm overflow-hidden flex flex-col",
+                isFullscreen ? "fixed inset-4 z-50 shadow-2xl" : "w-full",
                 className
             )}
         >
-            {/* Full-screen invisible barrier while dragging to prevent iframe from trapping mouse events */}
-            {isDragging && (
-                <div className="fixed inset-0 z-[9999] cursor-ns-resize select-none pointer-events-auto bg-transparent" />
-            )}
-
             {/* Document Tabs if more than 1 PDF */}
             {docs.length > 1 && (
                 <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100/90 dark:bg-zinc-900/90 border-b border-gray-200 dark:border-zinc-800 overflow-x-auto scrollbar-thin">
@@ -282,10 +308,16 @@ export default function PDFViewer({
                 </div>
             </div>
 
-            {/* Document Render Area */}
+            {/* Document Render Area with strict height constraint (no flex-1 fighting it) */}
             <div 
-                className="relative flex-1 bg-gray-100 dark:bg-[#121216] overflow-auto scrollbar-theme flex items-center justify-center p-2"
-                style={{ height: isFullscreen ? "calc(100vh - 120px)" : `${viewerHeight}px` }}
+                className={cn(
+                    "relative w-full bg-gray-100 dark:bg-[#121216] overflow-hidden flex items-center justify-center p-2",
+                    isFullscreen ? "flex-1" : ""
+                )}
+                style={{ 
+                    height: isFullscreen ? "calc(100vh - 120px)" : `${viewerHeight}px`,
+                    minHeight: isFullscreen ? "calc(100vh - 120px)" : `${viewerHeight}px`,
+                }}
             >
                 <div 
                     className="w-full h-full transition-transform duration-200 ease-out origin-top flex items-center justify-center"
@@ -298,29 +330,88 @@ export default function PDFViewer({
                     <iframe
                         key={`${currentDoc.uri}-${zoom}`}
                         src={pdfUrlWithParams}
-                        className="w-full h-full border-0 rounded-xl bg-white shadow-inner"
+                        className={cn(
+                            "w-full h-full border-0 rounded-xl bg-white shadow-inner",
+                            isDragging ? "pointer-events-none select-none" : ""
+                        )}
                         title={currentDoc.fileName || "PDF Viewer"}
                     />
                 </div>
             </div>
 
-            {/* Height Resize Handle (visible when not fullscreen) */}
+            {/* Height Resize Handle Bar */}
             {!isFullscreen && (
                 <div
-                    onMouseDown={handleMouseDown}
-                    onTouchStart={handleTouchStart}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
                     onDoubleClick={() => setViewerHeight(parsedDefaultHeight)}
                     className={cn(
-                        "group relative w-full h-5 bg-gray-50/90 dark:bg-zinc-900/90 border-t border-gray-200/80 dark:border-zinc-800 flex items-center justify-center cursor-ns-resize select-none hover:bg-indigo-50/50 dark:hover:bg-zinc-800/80 transition-colors shrink-0",
-                        isDragging ? "bg-indigo-100/70 dark:bg-indigo-950/60" : ""
+                        "group relative w-full h-7 bg-gray-100/90 dark:bg-zinc-900/90 border-t border-gray-200 dark:border-zinc-800 flex items-center justify-between px-3 cursor-ns-resize select-none hover:bg-indigo-50/70 dark:hover:bg-zinc-800 transition-colors shrink-0 touch-none",
+                        isDragging ? "bg-indigo-100/90 dark:bg-indigo-950/80 ring-1 ring-indigo-500/40" : ""
                     )}
-                    title="Drag to resize height • Double-click to reset"
+                    title="Drag up/down to resize height • Double-click to reset"
                 >
-                    <div className="flex items-center gap-1.5 text-gray-400 dark:text-zinc-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        <GripHorizontal className="w-4 h-4" />
-                        <span className="text-[10px] font-semibold tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity">
-                            Drag to resize ({Math.round(viewerHeight)}px)
-                        </span>
+                    {/* Left: Quick Height Preset Buttons */}
+                    <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setViewerHeight(380); }}
+                            className={cn(
+                                "text-[10px] font-semibold px-1.5 py-0.5 rounded transition-colors",
+                                viewerHeight === 380 
+                                    ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 font-bold" 
+                                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
+                            )}
+                        >
+                            Compact
+                        </button>
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setViewerHeight(parsedDefaultHeight); }}
+                            className={cn(
+                                "text-[10px] font-semibold px-1.5 py-0.5 rounded transition-colors",
+                                viewerHeight === parsedDefaultHeight 
+                                    ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 font-bold" 
+                                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
+                            )}
+                        >
+                            Default
+                        </button>
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setViewerHeight(780); }}
+                            className={cn(
+                                "text-[10px] font-semibold px-1.5 py-0.5 rounded transition-colors",
+                                viewerHeight === 780 
+                                    ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 font-bold" 
+                                    : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
+                            )}
+                        >
+                            Tall
+                        </button>
+                    </div>
+
+                    {/* Center: Drag Pill Handle */}
+                    <div className="flex items-center gap-1.5 text-gray-400 dark:text-zinc-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors pointer-events-none">
+                        <ChevronsUpDown className="w-3.5 h-3.5" />
+                        <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 group-hover:bg-indigo-400 transition-colors" />
+                    </div>
+
+                    {/* Right: Height Readout & Reset Tooltip */}
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-zinc-400 font-mono">
+                        <span className="font-semibold">{Math.round(viewerHeight)}px</span>
+                        {viewerHeight !== parsedDefaultHeight && (
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setViewerHeight(parsedDefaultHeight); }}
+                                className="text-[10px] text-indigo-500 hover:underline font-sans cursor-pointer"
+                                title="Reset to default height"
+                            >
+                                (reset)
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
