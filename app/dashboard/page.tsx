@@ -243,14 +243,14 @@ function DashboardContent() {
         />
       )}
       <Shell tab={tab} onTabChange={setTab} onOpenAccount={() => setAccountOpen(true)} isNative={isNative}>
-        {tab === "Notes and Quizzes" && (
+        <div className={tab === "Notes and Quizzes" ? "contents" : "hidden"}>
           <Card className="p-4">
             <NotesTab 
               showDemo={walkthroughShowNoteDemo}
               onDemoClosed={() => setWalkthroughShowNoteDemo(false)}
             />
           </Card>
-        )}
+        </div>
         {tab === "Uni" && (
           <Card className="p-4">
             <UniTab 

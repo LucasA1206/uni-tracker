@@ -6,7 +6,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video, X, FileUp, NotebookPen } from "lucide-react";
-import { useWhisper } from "@/hooks/useWhisper";
+import { useAudioRecording } from "@/contexts/AudioRecordingContext";
 import QuizModal from "@/components/quiz/QuizModal";
 import Notepad from "@/components/Notepad";
 
@@ -265,100 +265,41 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
 
     const [quizConfig, setQuizConfig] = useState<{ courseId?: number, noteId?: number, title: string, existingQuiz?: any } | null>(null);
 
-    // Recorder State
-    const [recordingSource, setRecordingSource] = useState<'mic' | 'system'>('mic');
-    const [isRecording, setIsRecording] = useState(false);
-    const [recordingTime, setRecordingTime] = useState(0);
-    const recordingStartTimeRef = useRef<number | null>(null);
-    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-    const { startRecording, startSystemRecording, stopRecording, clearRecording, audioBlob, transcription, isTranscribing: isWhisperTranscribing } = useWhisper();
-
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isRecording) {
-            recordingStartTimeRef.current = Date.now();
-            const updateTime = () => {
-                if (recordingStartTimeRef.current) {
-                    const elapsed = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-                    setRecordingTime(elapsed);
-                }
-            };
-            updateTime();
-            interval = setInterval(updateTime, 500);
-
-            // When switching back to the window or tab, immediately sync the timer to real elapsed time
-            const handleVisibilityChange = () => {
-                if (document.visibilityState === 'visible') {
-                    updateTime();
-                }
-            };
-            const handleFocus = () => {
-                updateTime();
-            };
-
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-            window.addEventListener('focus', handleFocus);
-
-            return () => {
-                clearInterval(interval);
-                document.removeEventListener('visibilitychange', handleVisibilityChange);
-                window.removeEventListener('focus', handleFocus);
-            };
-        } else {
-            recordingStartTimeRef.current = null;
-        }
-    }, [isRecording]);
-
-    useEffect(() => {
-        if (audioBlob) setRecordedBlob(audioBlob);
-    }, [audioBlob]);
-
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
+    // Audio / Lecture Recording (shared & persisted across navigation via AudioRecordingContext)
+    const {
+        isRecording,
+        recordingSource,
+        setRecordingSource,
+        recordingTime,
+        recordedBlob,
+        startRecording,
+        stopRecording,
+        clearRecording,
+        downloadRecording,
+        formatTime,
+    } = useAudioRecording();
 
     const handleStartRecording = async () => {
-        setRecordedBlob(null);
-        setRecordingTime(0);
-        const started = recordingSource === 'mic' ? await startRecording() : await startSystemRecording();
-        if (started) {
-            setIsRecording(true);
-        }
+        await startRecording(recordingSource);
     };
 
     const handleStopRecording = async () => {
-        setIsRecording(false);
-        const blob = await stopRecording();
-        if (blob) setRecordedBlob(blob);
+        await stopRecording();
     };
 
     const handleDownloadRecording = () => {
-        if (!recordedBlob) return;
-        const url = URL.createObjectURL(recordedBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recording-${new Date().toISOString().slice(0, 10)}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        downloadRecording();
     };
 
     const handleDiscardRecording = () => {
         clearRecording();
-        setRecordedBlob(null);
-        setRecordingTime(0);
     };
 
     const handleGenerateFromRecording = () => {
         if (!recordedBlob) return;
-        const file = new File([recordedBlob], `recording-${new Date().getTime()}.webm`, { type: recordedBlob.type });
+        const file = new File([recordedBlob], `recording-${Date.now()}.webm`, { type: recordedBlob.type });
         setUploadFile(file);
         clearRecording();
-        setRecordedBlob(null);
-        setRecordingTime(0);
     };
 
     const handleSlideFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -746,10 +687,12 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
             </div>
 
             {/* Notepad sub-tab */}
-            {subTab === "notepad" && <Notepad />}
+            <div className={subTab === "notepad" ? "block" : "hidden"}>
+                <Notepad />
+            </div>
 
             {/* Notes & Quizzes sub-tab content */}
-            {subTab === "notes" && <>
+            <div className={subTab === "notes" ? "space-y-6" : "hidden"}>
                 <div className="flex flex-col gap-2">
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent w-fit">
                         Lecture Notes
@@ -1348,7 +1291,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                     </div>,
                     document.body
                 )}
-            </>}
+            </div>
         </div>
     );
 }
