@@ -673,32 +673,64 @@ const DEFAULT_BLOCKS: RowBlock[] = [
 // ─────────────────────────────────────────────
 
 export default function Notepad() {
-    const [blocks, setBlocks] = useState<RowBlock[]>(DEFAULT_BLOCKS);
-    const [pattern, setPattern] = useState<PaperPattern>("lined");
-    const [copied, setCopied] = useState(false);
-
-    // Load persisted state
-    useEffect(() => {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    setBlocks(parsed);
+    const [blocks, setBlocks] = useState<RowBlock[]>(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved !== null) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        return parsed;
+                    }
                 }
+            } catch (e) {
+                console.error("Failed to load notepad from localStorage:", e);
             }
-            const savedPattern = localStorage.getItem(PATTERN_KEY) as PaperPattern | null;
-            if (savedPattern) {
-                setPattern(savedPattern);
-            }
-        } catch { }
+        }
+        return DEFAULT_BLOCKS;
+    });
+
+    const [pattern, setPattern] = useState<PaperPattern>(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const savedPattern = localStorage.getItem(PATTERN_KEY) as PaperPattern | null;
+                if (savedPattern) return savedPattern;
+            } catch {}
+        }
+        return "lined";
+    });
+
+    const [copied, setCopied] = useState(false);
+    const isInitializedRef = useRef(false);
+
+    // Initial load sync after mount (handles SSR rehydration)
+    useEffect(() => {
+        if (!isInitializedRef.current) {
+            isInitializedRef.current = true;
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved !== null) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        setBlocks(parsed);
+                    }
+                }
+                const savedPattern = localStorage.getItem(PATTERN_KEY) as PaperPattern | null;
+                if (savedPattern) {
+                    setPattern(savedPattern);
+                }
+            } catch {}
+        }
     }, []);
 
-    // Save persisted state
+    // Save persisted state whenever blocks change AFTER initialization
     useEffect(() => {
+        if (!isInitializedRef.current) return;
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks));
-        } catch { }
+        } catch (e) {
+            console.error("Failed to save notepad data to localStorage:", e);
+        }
     }, [blocks]);
 
     const changePattern = (newPattern: PaperPattern) => {
@@ -709,33 +741,50 @@ export default function Notepad() {
     };
 
     const updateText = useCallback((id: string, text: string) => {
-        setBlocks((prev) =>
-            prev.map((b) => (b.id === id ? { ...b, text } : b))
-        );
+        setBlocks((prev) => {
+            const next = prev.map((b) => (b.id === id ? { ...b, text } : b));
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            } catch {}
+            return next;
+        });
     }, []);
 
     const updateEquations = useCallback((id: string, equations: string[]) => {
-        setBlocks((prev) =>
-            prev.map((b) => (b.id === id ? { ...b, equations } : b))
-        );
+        setBlocks((prev) => {
+            const next = prev.map((b) => (b.id === id ? { ...b, equations } : b));
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            } catch {}
+            return next;
+        });
     }, []);
 
     const deleteBlock = useCallback((id: string) => {
         setBlocks((prev) => {
             const next = prev.filter((b) => b.id !== id);
-            return next.length === 0
-                ? [{ id: genId(), type: "text", text: "" }]
-                : next;
+            const resolved = next.length === 0 ? [{ id: genId(), type: "text" as const, text: "" }] : next;
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(resolved));
+            } catch {}
+            return resolved;
         });
     }, []);
 
     const addTextBlock = useCallback((afterId?: string) => {
         const newBlock: RowBlock = { id: genId(), type: "text", text: "" };
         setBlocks((prev) => {
-            if (!afterId) return [...prev, newBlock];
-            const idx = prev.findIndex((b) => b.id === afterId);
-            const next = [...prev];
-            next.splice(idx + 1, 0, newBlock);
+            let next: RowBlock[];
+            if (!afterId) {
+                next = [...prev, newBlock];
+            } else {
+                const idx = prev.findIndex((b) => b.id === afterId);
+                next = [...prev];
+                next.splice(idx + 1, 0, newBlock);
+            }
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            } catch {}
             return next;
         });
     }, []);
@@ -748,17 +797,28 @@ export default function Notepad() {
             equations: initialEqs,
         };
         setBlocks((prev) => {
-            if (!afterId) return [...prev, newBlock];
-            const idx = prev.findIndex((b) => b.id === afterId);
-            const next = [...prev];
-            next.splice(idx + 1, 0, newBlock);
+            let next: RowBlock[];
+            if (!afterId) {
+                next = [...prev, newBlock];
+            } else {
+                const idx = prev.findIndex((b) => b.id === afterId);
+                next = [...prev];
+                next.splice(idx + 1, 0, newBlock);
+            }
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            } catch {}
             return next;
         });
     }, []);
 
     const clearAll = useCallback(() => {
         if (confirm("Clear the entire notepad? This will reset all text and equations.")) {
-            setBlocks([{ id: genId(), type: "text", text: "" }]);
+            const cleared: RowBlock[] = [{ id: genId(), type: "text", text: "" }];
+            setBlocks(cleared);
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(cleared));
+            } catch {}
         }
     }, []);
 
