@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -106,41 +105,33 @@ export default function AnimatedDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  const menu = (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          role="listbox"
-          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          style={menuStyle}
+  const menu = isOpen ? (
+    <div
+      role="listbox"
+      style={{ ...menuStyle, animation: 'dropdownIn 0.15s ease-out forwards' }}
+      className={cn(
+        'overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-[#111111]',
+      )}
+    >
+      {mergedItems.map((item) => (
+        <button
+          key={item.value}
+          type="button"
+          role="option"
+          onClick={() => handleSelect(item)}
           className={cn(
-            'overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-[#111111]',
+            'w-full text-left px-3 py-2 text-sm transition-colors',
+            selectedValue === item.value
+              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+              : 'hover:bg-gray-100 dark:hover:bg-zinc-800',
+            'border-b border-gray-200 last:border-b-0 dark:border-zinc-700',
           )}
         >
-          {mergedItems.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              role="option"
-              onClick={() => handleSelect(item)}
-              className={cn(
-                'w-full text-left px-3 py-2 text-sm transition-colors',
-                selectedValue === item.value
-                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                  : 'hover:bg-gray-100 dark:hover:bg-zinc-800',
-                'border-b border-gray-200 last:border-b-0 dark:border-zinc-700',
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
+          {item.label}
+        </button>
+      ))}
+    </div>
+  ) : null
 
   return (
     <div ref={containerRef} className={cn('relative inline-block text-left', className)}>
@@ -158,12 +149,11 @@ export default function AnimatedDropdown({
         )}
       >
         <span>{selected?.label || placeholder}</span>
-        <motion.span
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
+        <span
+          style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease-in-out', display: 'inline-flex' }}
         >
           <ChevronDown className="h-4 w-4" />
-        </motion.span>
+        </span>
       </button>
 
       {isMounted ? createPortal(menu, document.body) : null}

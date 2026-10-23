@@ -231,6 +231,13 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
     return courses;
   }, [courses, openAssignmentDemo]);
 
+  // Pre-computed course lookup map for O(1) access instead of O(n) find() in render
+  const courseMap = useMemo(() => {
+    const map: Record<number, Course> = {};
+    displayCourses.forEach(c => { map[c.id] = c; });
+    return map;
+  }, [displayCourses]);
+
   // Initialize selected semesters to current semester on first load
   useEffect(() => {
     if (displayCourses.length > 0 && selectedSemesters.length === 0) {
@@ -490,17 +497,25 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   };
 
   const updateAssignmentStatus = async (id: number, status: string) => {
+    // Optimistic update immediately
+    setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
     try {
       const res = await fetch(`/api/uni/assignments`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status })
       });
-      if (res.ok) {
-        setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-        // Removed refresh() call for instant updates
+      if (!res.ok) {
+        // Revert on failure - refetch to restore correct state
+        const dataRes = await fetch("/api/uni/dashboard");
+        if (dataRes.ok) {
+          const data = await dataRes.json();
+          setAssignments(data.assignments || []);
+        }
       }
-    } catch (err) { console.error("Update status failed", err); }
+    } catch (err) {
+      console.error("Update status failed", err);
+    }
   };
 
   const handleSelectedAssignmentStatusChange = async (status: string) => {
@@ -743,6 +758,28 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
       courses: grouped[session].sort((a, b) => a.code.localeCompare(b.code)),
     }));
   }, [displayCourses]);
+
+  const groupedAssignmentsByStatus = useMemo(() => {
+    const statusOrder: Record<string, number> = { in_progress: 0, pending: 1, completed: 2 };
+    const grouped: Record<string, Record<number, Assignment[]>> = {};
+
+    filteredAssignmentsBySelectedSemesters.forEach((a) => {
+      const status = a.status;
+      if (!grouped[status]) grouped[status] = {};
+      if (!grouped[status][a.course.id]) grouped[status][a.course.id] = [];
+      grouped[status][a.course.id].push(a);
+    });
+
+    // Sort assignments by due date within each course
+    Object.values(grouped).forEach(statusGroup => {
+      Object.values(statusGroup).forEach(courseAssignments => {
+        courseAssignments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      });
+    });
+
+    return Object.entries(grouped)
+      .sort(([statusA], [statusB]) => ((statusOrder[statusA] as number) ?? 3) - ((statusOrder[statusB] as number) ?? 3));
+  }, [filteredAssignmentsBySelectedSemesters]);
 
   return (
     <div className="space-y-6">
@@ -1030,32 +1067,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                   <p className="text-xs text-gray-500 dark:text-gray-400">No assignments yet. Import from Canvas or add manually.</p>
                 )}
                 
-                {(() => {
-                  // Group by status first, then by course, sorted by due date
-                  const statusOrder: Record<string, number> = { in_progress: 0, pending: 1, completed: 2 };
-                  const statusLabels: Record<string, string> = { pending: "To-Do", in_progress: "In Progress", completed: "Completed" };
-                  
-                  // Create a map of status -> course -> assignments
-                  const grouped: Record<string, Record<number, Assignment[]>> = {};
-                  
-                  filteredAssignmentsBySelectedSemesters.forEach((a) => {
-                    const status = a.status;
-                    if (!grouped[status]) grouped[status] = {};
-                    if (!grouped[status][a.course.id]) grouped[status][a.course.id] = [];
-                    grouped[status][a.course.id].push(a);
-                  });
-                  
-                  // Sort assignments by due date within each course
-                  Object.values(grouped).forEach(statusGroup => {
-                    Object.values(statusGroup).forEach(courseAssignments => {
-                      courseAssignments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-                    });
-                  });
-                  
-                  // Render in status order
-                  return Object.entries(grouped)
-                    .sort(([statusA], [statusB]) => ((statusOrder[statusA] as number) ?? 3) - ((statusOrder[statusB] as number) ?? 3))
-                    .map(([status, courseGroups]) => {
+                {(() => { const statusLabels: Record<string, string> = { pending: "To-Do", in_progress: "In Progress", completed: "Completed" }; return groupedAssignmentsByStatus.map(([status, courseGroups]) => {
                       const statusKey = `status-${status}`;
                       const isHidden = hiddenSemesters.includes(statusKey);
                       return (
@@ -1070,8 +1082,8 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                             <div className="grid gap-3">
                               {Object.entries(courseGroups)
                                 .sort(([courseIdA], [courseIdB]) => {
-                                  const courseA = displayCourses.find(c => c.id === parseInt(courseIdA));
-                                  const courseB = displayCourses.find(c => c.id === parseInt(courseIdB));
+                                  const courseA = courseMap[parseInt(courseIdA)];
+                                  const courseB = courseMap[parseInt(courseIdB)];
                                   return (courseA?.name || "").localeCompare(courseB?.name || "");
                                 })
                                 .map(([courseId, assignments]) =>
@@ -1082,7 +1094,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                                           <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${a.status === 'completed' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : a.status === 'in_progress' ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]'}`} />
                                           <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 mb-0.5">
-                                              <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{(() => { const c = displayCourses.find(c => c.id === a.course.id); return c ? getCourseDisplayName(c) : getCourseCode(a.course); })()}</div>
+                                              <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{(() => { const c = courseMap[a.course.id]; return c ? getCourseDisplayName(c) : getCourseCode(a.course); })()}</div>
                                             </div>
                                             <div className="font-bold text-gray-900 dark:text-zinc-100 text-sm truncate group-hover:text-indigo-500 transition-colors">{a.title}</div>
                                             <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
@@ -1115,8 +1127,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                           )}
                         </div>
                       );
-                    });
-                })()}
+                    }); })()}
               </div>
             </div>
           </BlurFade>
@@ -1157,7 +1168,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
             <div className="p-8 pb-4">
               <div className="flex items-center justify-between mb-6">
                 <div className="space-y-1 flex-1 min-w-0">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{(() => { const c = displayCourses.find(c => c.id === selectedAssignment.course.id); return c ? getCourseDisplayName(c) : getCourseCode(selectedAssignment.course); })()}</div>
+                  <div className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">{(() => { const c = courseMap[selectedAssignment.course.id]; return c ? getCourseDisplayName(c) : getCourseCode(selectedAssignment.course); })()}</div>
                   {editingAssignment ? (
                     <input
                       className="text-2xl font-black text-gray-900 dark:text-white leading-tight bg-transparent border-b-2 border-indigo-500 outline-none w-full"

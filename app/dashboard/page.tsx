@@ -251,7 +251,7 @@ function DashboardContent() {
             />
           </Card>
         </div>
-        {tab === "Uni" && (
+        <div className={tab === "Uni" ? "contents" : "hidden"}>
           <Card className="p-4">
             <UniTab 
               openAssignmentDemo={walkthroughOpenAssignment}
@@ -259,19 +259,21 @@ function DashboardContent() {
               assignmentsTabOverride={walkthroughAssignmentsTab}
             />
           </Card>
-        )}
-        {tab === "Calendar" && (
+        </div>
+        <div className={tab === "Calendar" ? "contents" : "hidden"}>
           <Card className="min-h-[800px] p-6">
             <CalendarTab 
               showMock={showGuide} 
               autoOpenEventId={walkthroughCalendarEventId}
             />
           </Card>
-        )}
-        {tab === "Finance" && (
-          <Card className="p-4">
-            <FinanceTab />
-          </Card>
+        </div>
+        {!isNative && (
+          <div className={tab === "Finance" ? "contents" : "hidden"}>
+            <Card className="p-4">
+              <FinanceTab />
+            </Card>
+          </div>
         )}
 
         {accountOpen && typeof document !== "undefined" && createPortal(
