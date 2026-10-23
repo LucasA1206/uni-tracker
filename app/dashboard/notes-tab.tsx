@@ -598,8 +598,14 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const deleteNote = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
         if (!confirm("Are you sure you want to delete this note?")) return;
-        await fetch(`/api/uni/notes?id=${id}`, { method: "DELETE" });
-        void refresh();
+        // Optimistic update
+        setNotes(prev => prev.filter(n => n.id !== id));
+        try {
+            await fetch(`/api/uni/notes?id=${id}`, { method: "DELETE" });
+        } catch (err) {
+            // Revert on error
+            void refresh();
+        }
     };
 
     const updateNoteCourse = async (noteId: number, courseId: number | null) => {
@@ -611,7 +617,13 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
             });
             if (res.ok) {
                 setReassignNotePopup(null);
-                void refresh(); // full refresh to update grouping
+                // Update course in local state instead of full refresh
+                const course = courses.find(c => c.id === courseId) ?? null;
+                setNotes(prev => prev.map(n => n.id === noteId ? {
+                    ...n,
+                    courseId,
+                    course: course ? { code: course.code, name: course.name } : null
+                } : n));
             }
         } catch (err) {
             console.error("Failed to update note course", err);
@@ -621,8 +633,14 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     const deleteQuiz = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
         if (!confirm("Are you sure you want to delete this quiz record?")) return;
-        await fetch(`/api/quiz/${id}`, { method: "DELETE" });
-        void refresh();
+        // Optimistic update
+        setRecentQuizzes(prev => prev.filter((q: any) => q.id !== id));
+        try {
+            await fetch(`/api/quiz/${id}`, { method: "DELETE" });
+        } catch (err) {
+            // Revert on error
+            void refresh();
+        }
     };
 
     // Group notes by course — keyed by label so the section header already has the display text

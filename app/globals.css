@@ -154,6 +154,11 @@
   }
 }
 
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* Fix for unreadable highlighted text in dark mode descriptions */
 .dark .prose :where(mark),
 .dark .prose :where(mark) *,
