@@ -499,6 +499,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
   const updateAssignmentStatus = async (id: number, status: string) => {
     // Optimistic update immediately
     setAssignments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+    setSelectedAssignment(prev => prev && prev.id === id ? { ...prev, status } : prev);
     try {
       const res = await fetch(`/api/uni/assignments`, {
         method: "PATCH",
