@@ -56,6 +56,7 @@ export default function AnimatedDropdown({
   const [isMounted, setIsMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
 
   useEffect(() => {
@@ -95,11 +96,14 @@ export default function AnimatedDropdown({
   useEffect(() => {
     if (!isOpen) return
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
       if (
-        buttonRef.current && !buttonRef.current.contains(event.target as Node)
+        buttonRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
       ) {
-        setIsOpen(false)
+        return
       }
+      setIsOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -107,6 +111,7 @@ export default function AnimatedDropdown({
 
   const menu = isOpen ? (
     <div
+      ref={menuRef}
       role="listbox"
       style={{ ...menuStyle, animation: 'dropdownIn 0.15s ease-out forwards' }}
       className={cn(
@@ -118,7 +123,14 @@ export default function AnimatedDropdown({
           key={item.value}
           type="button"
           role="option"
-          onClick={() => handleSelect(item)}
+          onMouseDown={(e) => {
+            // Prevent outside mousedown handler from closing menu before click registers
+            e.stopPropagation()
+          }}
+          onClick={(e) => {
+            e.stopPropagation()
+            handleSelect(item)
+          }}
           className={cn(
             'w-full text-left px-3 py-2 text-sm transition-colors',
             selectedValue === item.value
