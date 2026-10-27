@@ -186,6 +186,7 @@ export async function POST(req: NextRequest) {
                         console.log(`Transcoding audio ${safeAudioName} to MP3 for Google AI File API...`);
                         await new Promise<void>((resolve, reject) => {
                             ffmpeg(tempAudioPath)
+                                .inputOptions(["-err_detect", "ignore_err"])
                                 .toFormat("mp3")
                                 .audioBitrate(128)
                                 .on("end", () => {
