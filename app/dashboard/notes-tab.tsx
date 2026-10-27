@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Video, X, FileUp, NotebookPen } from "lucide-react";
+import { Loader2, Upload, FileAudio, CheckCircle2, FileText, Trash2, Mic, BrainCircuit, Monitor, Download, Square, Play, Pause, Video, X, FileUp, NotebookPen } from "lucide-react";
 import { useAudioRecording } from "@/contexts/AudioRecordingContext";
 import QuizModal from "@/components/quiz/QuizModal";
 import Notepad from "@/components/Notepad";
@@ -268,11 +268,14 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
     // Audio / Lecture Recording (shared & persisted across navigation via AudioRecordingContext)
     const {
         isRecording,
+        isPaused,
         recordingSource,
         setRecordingSource,
         recordingTime,
         recordedBlob,
         startRecording,
+        pauseRecording,
+        resumeRecording,
         stopRecording,
         clearRecording,
         downloadRecording,
@@ -299,7 +302,7 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         if (!recordedBlob) return;
         const file = new File([recordedBlob], `recording-${Date.now()}.webm`, { type: recordedBlob.type });
         setUploadFile(file);
-        clearRecording();
+        // Retain recordedBlob in context & IndexedDB until note generation succeeds
     };
 
     const handleSlideFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -482,6 +485,10 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
         fileId: string,
         onProgress: (percent: number) => void
     ) => {
+        if (!file || file.size === 0) {
+            throw new Error("The audio recording is empty (0 bytes). Please re-record or verify the audio file.");
+        }
+
         const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks to stay safely under Vercel payload limits
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
@@ -493,22 +500,43 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
             const end = Math.min(start + CHUNK_SIZE, file.size);
             const chunk = file.slice(start, end);
 
-            const formData = new FormData();
-            formData.append("file", chunk);
-            formData.append("chunkIndex", chunkIndex.toString());
-            formData.append("totalChunks", totalChunks.toString());
-            formData.append("fileId", fileId);
-            formData.append("originalName", file.name);
+            let success = false;
+            let lastError: any = null;
 
-            const res = await fetch("/api/ai/generate-notes", {
-                method: "POST",
-                credentials: "include",
-                body: formData,
-            });
+            // Retry up to 3 times with exponential backoff (handles Wi-Fi reconnecting after laptop lid opened)
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const formData = new FormData();
+                    formData.append("file", chunk);
+                    formData.append("chunkIndex", chunkIndex.toString());
+                    formData.append("totalChunks", totalChunks.toString());
+                    formData.append("fileId", fileId);
+                    formData.append("originalName", file.name);
 
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.error || `Upload failed at chunk ${chunkIndex + 1} of ${file.name}`);
+                    const res = await fetch("/api/ai/generate-notes", {
+                        method: "POST",
+                        credentials: "include",
+                        body: formData,
+                    });
+
+                    if (!res.ok) {
+                        const errorData = await res.json().catch(() => ({}));
+                        throw new Error(errorData.error || `Upload failed at chunk ${chunkIndex + 1} of ${file.name}`);
+                    }
+
+                    success = true;
+                    break;
+                } catch (err: any) {
+                    lastError = err;
+                    if (attempt < 3) {
+                        // Wait before retrying (1.5s, 3s)
+                        await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+                    }
+                }
+            }
+
+            if (!success) {
+                throw lastError || new Error(`Upload failed at chunk ${chunkIndex + 1} of ${file.name}`);
             }
         }
         onProgress(100);
@@ -575,6 +603,8 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
 
             const data = await res.json();
             setProcessingStage("Finalizing notes...");
+
+            clearRecording(); // Successfully generated notes: clean up recording from memory and IndexedDB
 
             if (data.note?.id) {
                 router.push(`/dashboard/notes/${data.note.id}`);
@@ -883,10 +913,14 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
+                                    <div className={`w-2 h-2 rounded-full ${isRecording ? (isPaused ? 'bg-amber-500' : 'bg-red-500 animate-pulse') : 'bg-gray-300 dark:bg-gray-700'}`}></div>
                                     Audio Recorder
                                 </h3>
-                                {isRecording && <span className="text-sm font-mono text-red-500 font-medium">{formatTime(recordingTime)}</span>}
+                                {isRecording && (
+                                    <span className={`text-sm font-mono font-medium ${isPaused ? 'text-amber-500' : 'text-red-500'}`}>
+                                        {formatTime(recordingTime)} {isPaused && "(Paused)"}
+                                    </span>
+                                )}
                             </div>
 
                             {/* Source Selection */}
@@ -970,14 +1004,35 @@ export default function NotesTab({ showDemo, onDemoClosed }: NotesTabProps) {
                                     </div>
                                 )
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleStopRecording}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/20 hover:bg-red-600 hover:shadow-red-500/40 transition-all animate-pulse"
-                                >
-                                    <Square className="w-3 h-3 fill-current" />
-                                    Stop Recording
-                                </button>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {isPaused ? (
+                                        <button
+                                            type="button"
+                                            onClick={resumeRecording}
+                                            className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition-all"
+                                        >
+                                            <Play className="w-4 h-4 fill-current" />
+                                            Resume
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={pauseRecording}
+                                            className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all"
+                                        >
+                                            <Pause className="w-4 h-4 fill-current" />
+                                            Pause
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleStopRecording}
+                                        className="flex items-center justify-center gap-2 rounded-xl bg-red-500 hover:bg-red-600 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-red-500/20 transition-all"
+                                    >
+                                        <Square className="w-3 h-3 fill-current" />
+                                        Stop Recording
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>

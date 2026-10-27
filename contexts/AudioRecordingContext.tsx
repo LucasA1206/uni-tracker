@@ -1,14 +1,18 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import { saveStoredRecording, getStoredRecording, deleteStoredRecording } from "@/lib/recording-storage";
 
 export interface AudioRecordingContextType {
     isRecording: boolean;
+    isPaused: boolean;
     recordingSource: 'mic' | 'system';
     setRecordingSource: (source: 'mic' | 'system') => void;
     recordingTime: number;
     recordedBlob: Blob | null;
     startRecording: (source?: 'mic' | 'system') => Promise<boolean>;
+    pauseRecording: () => void;
+    resumeRecording: () => void;
     stopRecording: () => Promise<Blob | null>;
     clearRecording: () => void;
     downloadRecording: () => void;
@@ -29,18 +33,38 @@ export function useAudioRecording() {
 export function AudioRecordingProvider({ children }: { children: React.ReactNode }) {
     const [recordingSource, setRecordingSource] = useState<'mic' | 'system'>('mic');
     const [isRecording, setIsRecording] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     const recordingStartTimeRef = useRef<number | null>(null);
+    const pausedTimeAccumulatorRef = useRef<number>(0);
     const streamRef = useRef<MediaStream | null>(null);
 
     // Keep-alive Web Audio refs to prevent Chromium/Opera background tab throttling
     const audioContextRef = useRef<AudioContext | null>(null);
     const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const gainNodeRef = useRef<GainNode | null>(null);
+
+    // Restore any existing finished recording from IndexedDB on page mount / wake up
+    useEffect(() => {
+        let isMounted = true;
+        getStoredRecording().then((stored) => {
+            if (isMounted && stored && stored.blob && stored.blob.size > 0) {
+                setRecordedBlob(stored.blob);
+                setRecordingTime(stored.duration || 0);
+                if (stored.source) setRecordingSource(stored.source);
+            }
+        }).catch((err) => {
+            console.warn("Could not retrieve stored recording from IndexedDB:", err);
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // Format seconds to mm:ss
     const formatTime = useCallback((seconds: number) => {
@@ -49,15 +73,21 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }, []);
 
+    // Helper to calculate exact elapsed seconds considering active time and paused periods
+    const getElapsedSeconds = useCallback(() => {
+        let elapsedMs = pausedTimeAccumulatorRef.current;
+        if (recordingStartTimeRef.current !== null) {
+            elapsedMs += Date.now() - recordingStartTimeRef.current;
+        }
+        return Math.floor(elapsedMs / 1000);
+    }, []);
+
     // Timer management with background tab sync
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (isRecording) {
+        if (isRecording && !isPaused) {
             const updateTime = () => {
-                if (recordingStartTimeRef.current) {
-                    const elapsed = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-                    setRecordingTime(elapsed);
-                }
+                setRecordingTime(getElapsedSeconds());
             };
             updateTime();
             interval = setInterval(updateTime, 500);
@@ -80,7 +110,7 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
                 window.removeEventListener('focus', handleFocus);
             };
         }
-    }, [isRecording]);
+    }, [isRecording, isPaused, getElapsedSeconds]);
 
     // Clean up keep-alive audio context and media stream tracks
     const cleanupAudioNodes = useCallback(() => {
@@ -110,17 +140,23 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
     const initMediaRecorder = useCallback((stream: MediaStream) => {
         streamRef.current = stream;
         audioChunksRef.current = [];
-        const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+        pausedTimeAccumulatorRef.current = 0;
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+            ? "audio/webm;codecs=opus"
+            : MediaRecorder.isTypeSupported("audio/webm")
+            ? "audio/webm"
+            : "audio/mp4";
+
         const recorder = new MediaRecorder(stream, { mimeType });
         mediaRecorderRef.current = recorder;
 
         recorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
+            if (event.data && event.data.size > 0) {
                 audioChunksRef.current.push(event.data);
             }
         };
 
-        // Emit chunks every second to prevent memory leaks and keep background data streaming
+        // Emit chunks every second to keep stream active and minimize memory loss
         recorder.start(1000);
 
         // Keep-alive: Route through silent GainNode
@@ -149,6 +185,7 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
         recordingStartTimeRef.current = Date.now();
         setRecordingTime(0);
         setIsRecording(true);
+        setIsPaused(false);
         setRecordedBlob(null);
     }, []);
 
@@ -200,17 +237,76 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
         }
     }, [recordingSource, initMediaRecorder]);
 
+    const pauseRecording = useCallback(() => {
+        const recorder = mediaRecorderRef.current;
+        if (recorder && recorder.state === 'recording') {
+            try {
+                recorder.pause();
+            } catch (e) {
+                console.warn("Could not pause media recorder:", e);
+            }
+            if (recordingStartTimeRef.current !== null) {
+                pausedTimeAccumulatorRef.current += Date.now() - recordingStartTimeRef.current;
+                recordingStartTimeRef.current = null;
+            }
+            setIsPaused(true);
+            setRecordingTime(Math.floor(pausedTimeAccumulatorRef.current / 1000));
+            if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+                try { navigator.mediaSession.playbackState = 'paused'; } catch {}
+            }
+        }
+    }, []);
+
+    const resumeRecording = useCallback(() => {
+        const recorder = mediaRecorderRef.current;
+        if (recorder && recorder.state === 'paused') {
+            try {
+                recorder.resume();
+            } catch (e) {
+                console.warn("Could not resume media recorder:", e);
+            }
+            recordingStartTimeRef.current = Date.now();
+            setIsPaused(false);
+            if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+                try { navigator.mediaSession.playbackState = 'playing'; } catch {}
+            }
+        }
+    }, []);
+
     const stopRecording = useCallback(async (): Promise<Blob | null> => {
         const recorder = mediaRecorderRef.current;
         if (!recorder) return null;
 
         return new Promise<Blob | null>((resolve) => {
-            recorder.onstop = () => {
+            recorder.onstop = async () => {
                 const mimeType = recorder.mimeType || 'audio/webm';
                 const blob = new Blob(audioChunksRef.current, { type: mimeType });
+
+                let finalDuration = Math.floor(pausedTimeAccumulatorRef.current / 1000);
+                if (recordingStartTimeRef.current !== null) {
+                    finalDuration += Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+                }
+                finalDuration = Math.max(1, finalDuration);
+
                 setRecordedBlob(blob);
+                setRecordingTime(finalDuration);
                 setIsRecording(false);
+                setIsPaused(false);
                 cleanupAudioNodes();
+
+                // Persist to IndexedDB so it safely survives laptop sleep, lid closing, and page reloads
+                try {
+                    await saveStoredRecording({
+                        blob,
+                        duration: finalDuration,
+                        source: recordingSource,
+                        timestamp: Date.now(),
+                        mimeType,
+                    });
+                } catch (e) {
+                    console.warn("Failed to persist recording to IndexedDB:", e);
+                }
+
                 resolve(blob);
             };
 
@@ -218,17 +314,22 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
                 recorder.stop();
             } else {
                 setIsRecording(false);
+                setIsPaused(false);
                 cleanupAudioNodes();
                 resolve(null);
             }
         });
-    }, [cleanupAudioNodes]);
+    }, [cleanupAudioNodes, recordingSource]);
 
     const clearRecording = useCallback(() => {
         setRecordedBlob(null);
         setRecordingTime(0);
         audioChunksRef.current = [];
+        pausedTimeAccumulatorRef.current = 0;
+        recordingStartTimeRef.current = null;
+        setIsPaused(false);
         cleanupAudioNodes();
+        deleteStoredRecording().catch(() => {});
     }, [cleanupAudioNodes]);
 
     const downloadRecording = useCallback(() => {
@@ -247,11 +348,14 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
         <AudioRecordingContext.Provider
             value={{
                 isRecording,
+                isPaused,
                 recordingSource,
                 setRecordingSource,
                 recordingTime,
                 recordedBlob,
                 startRecording,
+                pauseRecording,
+                resumeRecording,
                 stopRecording,
                 clearRecording,
                 downloadRecording,
@@ -265,14 +369,37 @@ export function AudioRecordingProvider({ children }: { children: React.ReactNode
             {isRecording && (
                 <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-gray-900/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-red-500/40 text-white shadow-2xl shadow-red-950/30 animate-in slide-in-from-bottom-5 duration-300">
                     <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)]" />
+                        {!isPaused && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        )}
+                        <span className={`relative inline-flex rounded-full h-3 w-3 ${isPaused ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,1)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)]'}`} />
                     </span>
-                    <span className="text-xs font-semibold text-gray-200">Recording Lecture</span>
-                    <span className="font-mono text-sm font-bold text-red-400 min-w-[44px]">
+                    <span className="text-xs font-semibold text-gray-200">
+                        {isPaused ? "Lecture Paused" : "Recording Lecture"}
+                    </span>
+                    <span className={`font-mono text-sm font-bold min-w-[44px] ${isPaused ? 'text-amber-400' : 'text-red-400'}`}>
                         {formatTime(recordingTime)}
                     </span>
                     <div className="h-4 w-px bg-white/20" />
+                    {isPaused ? (
+                        <button
+                            type="button"
+                            onClick={resumeRecording}
+                            className="px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                            title="Resume recording"
+                        >
+                            Resume
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={pauseRecording}
+                            className="px-3 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                            title="Pause recording"
+                        >
+                            Pause
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => stopRecording()}
