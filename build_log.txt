@@ -1,0 +1,290 @@
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ Invalid next.config.ts options detected: 
+ ⚠     Unrecognized key(s) in object: 'serverComponentsExternalPackages' at "experimental"
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+ ⚠ `experimental.serverComponentsExternalPackages` has been moved to `serverExternalPackages`. Please update your next.config.ts file accordingly.
+   ▲ Next.js 16.0.7 (Turbopack)
+   - Environments: .env
+   - Experiments (use with caution):
+     · serverActions
+     ? serverComponentsExternalPackages (invalid experimental key)
+
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+> Build error occurred
+Error: Turbopack build failed with 8 errors:
+./components/ui/fullscreen-calendar.tsx:9:1
+Module not found: Can't resolve '@fullcalendar/daygrid'
+[0m [90m  7 |[39m
+ [90m  8 |[39m [36mimport[39m [33mFullCalendar[39m [36mfrom[39m [32m"@fullcalendar/react"[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m
+ [90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m
+ [90m 12 |[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/ui/fullscreen-calendar.tsx:9:1
+Module not found: Can't resolve '@fullcalendar/daygrid'
+[0m [90m  7 |[39m [36mimport[39m { [33mCheckSquare[39m[33m,[39m [33mFileText[39m[33m,[39m [33mCalendar[39m [36mas[39m [33mCalendarIcon[39m[33m,[39m [33mBriefcase[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m
+ [90m  8 |[39m [36mimport[39m [33mFullCalendar[39m [36mfrom[39m [32m"@fullcalendar/react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/ui/fullscreen-calendar.tsx:11:1
+Module not found: Can't resolve '@fullcalendar/interaction'
+[0m [90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m
+ [90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m
+[31m[1m>[22m[39m[90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 12 |[39m
+ [90m 13 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m
+ [90m 14 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"@/components/ui/button"[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/ui/fullscreen-calendar.tsx:11:1
+Module not found: Can't resolve '@fullcalendar/interaction'
+[0m [90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m[33m;[39m
+ [90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 12 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 13 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"@/components/ui/button"[39m[33m;[39m
+ [90m 14 |[39m [36mimport[39m { [33mSeparator[39m } [36mfrom[39m [32m"@/components/ui/separator"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/ui/fullscreen-calendar.tsx:8:1
+Module not found: Can't resolve '@fullcalendar/react'
+[0m [90m  6 |[39m [36mimport[39m { [33mCheckSquare[39m[33m,[39m [33mFileText[39m[33m,[39m [33mCalendar[39m [36mas[39m [33mCalendarIcon[39m[33m,[39m [33mBriefcase[39m } [36mfrom[39m [32m"lucide-react"[39m
+ [90m  7 |[39m
+[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m [33mFullCalendar[39m [36mfrom[39m [32m"@fullcalendar/react"[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m
+ [90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m
+ [90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/ui/fullscreen-calendar.tsx:8:1
+Module not found: Can't resolve '@fullcalendar/react'
+[0m [90m  6 |[39m [36mimport[39m { format } [36mfrom[39m [32m"date-fns"[39m[33m;[39m
+ [90m  7 |[39m [36mimport[39m { [33mCheckSquare[39m[33m,[39m [33mFileText[39m[33m,[39m [33mCalendar[39m [36mas[39m [33mCalendarIcon[39m[33m,[39m [33mBriefcase[39m } [36mfrom[39m [32m"lucide-react"[39m[33m;[39m
+[31m[1m>[22m[39m[90m  8 |[39m [36mimport[39m [33mFullCalendar[39m [36mfrom[39m [32m"@fullcalendar/react"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m[33m;[39m
+ [90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m[33m;[39m
+ [90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/ui/fullscreen-calendar.tsx:10:1
+Module not found: Can't resolve '@fullcalendar/timegrid'
+[0m [90m  8 |[39m [36mimport[39m [33mFullCalendar[39m [36mfrom[39m [32m"@fullcalendar/react"[39m
+ [90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m
+[31m[1m>[22m[39m[90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m
+ [90m 12 |[39m
+ [90m 13 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./components/ui/fullscreen-calendar.tsx:10:1
+Module not found: Can't resolve '@fullcalendar/timegrid'
+[0m [90m  8 |[39m [36mimport[39m [33mFullCalendar[39m [36mfrom[39m [32m"@fullcalendar/react"[39m[33m;[39m
+ [90m  9 |[39m [36mimport[39m dayGridPlugin [36mfrom[39m [32m"@fullcalendar/daygrid"[39m[33m;[39m
+[31m[1m>[22m[39m[90m 10 |[39m [36mimport[39m timeGridPlugin [36mfrom[39m [32m"@fullcalendar/timegrid"[39m[33m;[39m
+ [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 11 |[39m [36mimport[39m interactionPlugin [36mfrom[39m [32m"@fullcalendar/interaction"[39m[33m;[39m
+ [90m 12 |[39m [36mimport[39m { cn } [36mfrom[39m [32m"@/lib/utils"[39m[33m;[39m
+ [90m 13 |[39m [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m"@/components/ui/button"[39m[33m;[39m[0m
+
+
+
+Import traces:
+  App Route:
+    ./components/ui/fullscreen-calendar.tsx
+    ./app/api/ai/generate-notes/route.ts
+
+  Client Component Browser:
+    ./components/ui/fullscreen-calendar.tsx [Client Component Browser]
+    ./app/dashboard/calendar-tab.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Client Component Browser]
+    ./app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ui/fullscreen-calendar.tsx [Client Component SSR]
+    ./app/dashboard/calendar-tab.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Client Component SSR]
+    ./app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:9:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:9:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:11:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:11:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:8:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:8:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./components/ui/fullscreen-calendar.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
