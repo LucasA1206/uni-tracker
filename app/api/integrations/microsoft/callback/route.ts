@@ -15,6 +15,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing code" }, { status: 400 });
   }
 
+  const state = url.searchParams.get("state");
+  const storedState = req.cookies.get("oauth_state_ms")?.value;
+  if (!state || !storedState || state !== storedState) {
+    return NextResponse.json({ error: "Invalid or expired OAuth state parameter" }, { status: 403 });
+  }
+
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.redirect(new URL("/login", req.url));
@@ -66,5 +72,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.redirect(new URL("/dashboard?connected=outlook", req.url));
+  const response = NextResponse.redirect(new URL("/dashboard?connected=outlook", req.url));
+  response.cookies.delete("oauth_state_ms");
+  return response;
 }

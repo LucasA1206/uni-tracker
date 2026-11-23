@@ -18,6 +18,16 @@ function getBearerToken(authHeader: string | null): string | null {
   return token;
 }
 
+export function getAuthCookieOptions(maxAge: number = 7 * 24 * 60 * 60) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    maxAge,
+    path: "/",
+  };
+}
+
 export async function getAuthUser(req?: NextRequest): Promise<AuthUser | null> {
   try {
     const cookieToken = req
@@ -32,4 +42,16 @@ export async function getAuthUser(req?: NextRequest): Promise<AuthUser | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Enforces role-based authorization on the server.
+ * Returns the authenticated user if they have the required role, null otherwise.
+ */
+export async function requireRole(role: string, req?: NextRequest): Promise<AuthUser | null> {
+  const user = await getAuthUser(req);
+  if (!user || user.role !== role) {
+    return null;
+  }
+  return user;
 }

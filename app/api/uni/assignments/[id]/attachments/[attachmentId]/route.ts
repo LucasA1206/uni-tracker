@@ -40,11 +40,10 @@ export async function DELETE(
         });
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
+    } catch (error) {
         console.error("[API] Error in DELETE assignment attachment:", error);
         return NextResponse.json({
-            error: "Internal Server Error",
-            details: error.message
+            error: "Internal Server Error"
         }, { status: 500 });
     }
 }

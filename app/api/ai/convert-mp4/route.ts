@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegStatic from "ffmpeg-static";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/auth";
 
 // Configure ffmpeg to use the static binary
 if (ffmpegStatic) {
@@ -14,6 +15,11 @@ if (ffmpegStatic) {
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     let tempMp4Path = "";
     let tempMp3Path = "";
 

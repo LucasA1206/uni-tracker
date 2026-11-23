@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { sanitizeString, rejectOversizedBody } from "@/lib/sanitize";
+import { logSecurityEvent } from "@/lib/securityLog";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -53,8 +54,19 @@ export async function POST(req: NextRequest) {
     : await bcrypt.compare(password, dummyHash).then(() => false);
 
   if (!user || !ok) {
+    logSecurityEvent({
+      event: "AUTH_LOGIN_FAILED",
+      path: "/api/auth/login",
+      details: { identifier: username.slice(0, 3) + "***" },
+    });
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
+
+  logSecurityEvent({
+    event: "AUTH_LOGIN_SUCCESS",
+    userId: user.id,
+    path: "/api/auth/login",
+  });
 
   const token = jwt.sign(
     { userId: user.id, username: user.username, role: user.role },

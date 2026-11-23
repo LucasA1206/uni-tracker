@@ -12,6 +12,7 @@ import { BlurFade } from "@/components/magicui/blur-fade";
 import { cn } from "@/lib/utils";
 import PDFViewer from "@/components/PDFViewer";
 import { format } from "date-fns";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 const COURSE_COLORS = [
   "bg-red-500",
@@ -1346,7 +1347,7 @@ export default function UniTab({ openAssignmentDemo, onDemoClosed, assignmentsTa
                 ) : (
                   <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px] whitespace-pre-wrap">
                     {selectedAssignment.description ? (
-                      <div dangerouslySetInnerHTML={{ __html: selectedAssignment.description }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedAssignment.description) }} />
                     ) : (
                       'No description provided.'
                     )}

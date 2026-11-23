@@ -11,8 +11,8 @@ export async function DELETE(
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { id, attachmentId } = await params;
-        const noteId = parseInt(id);
-        const attId = parseInt(attachmentId);
+        const noteId = parseInt(id, 10);
+        const attId = parseInt(attachmentId, 10);
 
         if (isNaN(noteId) || isNaN(attId)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -22,9 +22,7 @@ export async function DELETE(
         const note = await prisma.note.findFirst({
             where: {
                 id: noteId,
-                course: {
-                    userId: user.userId
-                }
+                userId: user.userId
             }
         });
 

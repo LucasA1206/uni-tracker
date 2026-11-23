@@ -11,6 +11,7 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import timeGridPlugin from "@fullcalendar/timegrid"
 import interactionPlugin from "@fullcalendar/interaction"
 
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -681,7 +682,7 @@ export function FullScreenCalendar({ events, onRefresh, autoOpenEventId }: FullS
                   <div className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800 text-sm text-gray-700 dark:text-zinc-300 leading-relaxed min-h-[100px]">
                     {openEvent.meta?.description ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none text-left">
-                        {openEvent.type === 'note' ? (<ReactMarkdown>{openEvent.meta.description}</ReactMarkdown>) : (<div dangerouslySetInnerHTML={{ __html: openEvent.meta.description }} />)}
+                        {openEvent.type === 'note' ? (<ReactMarkdown>{openEvent.meta.description}</ReactMarkdown>) : (<div dangerouslySetInnerHTML={{ __html: sanitizeHtml(openEvent.meta.description) }} />)}
                       </div>
                     ) : (<span className="text-left block italic">No description provided.</span>)}
                   </div>
